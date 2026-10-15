@@ -27,7 +27,8 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
-      - run: npm test
+      - name: Test with coverage (≥ 90% lines, 80% branches, 85% functions)
+        run: npm run coverage
 
   docker:
     name: docker build + smoke test

@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { describe, it } from "node:test";
 import { solidPng, useTempDataDir } from "./helpers.js";
 
-useTempDataDir();
+const dataDir = useTempDataDir();
 process.env.AGENT_MODE = "demo";
 const store = await import("../src/store/index.js");
 const { newRunUsage } = await import("../src/usage/index.js");
-const { recoverInterruptedRuns, stopAllJobs } = await import("../src/lifecycle.js");
+const { cleanOrphanFiles, recoverInterruptedRuns, stopAllJobs } = await import("../src/lifecycle.js");
 const { startJob } = await import("../src/agent/index.js");
 
 describe("recoverInterruptedRuns", () => {
@@ -43,5 +46,41 @@ describe("stopAllJobs", () => {
     assert.ok(Date.now() - started < 2500, "did not wait for the slow generation");
     const run = (await store.loadUsage(p.id)).find((r) => r.jobId === job.id)!;
     assert.equal(run.status, "stopped");
+  });
+});
+
+describe("cleanOrphanFiles", () => {
+  it("sweeps every project and totals the result", async () => {
+    const a = await store.createProject("o1");
+    const b = await store.createProject("o2");
+    fs.writeFileSync(path.join(dataDir, "projects", a.id, "assets", "stray.png"), Buffer.alloc(100));
+    fs.writeFileSync(path.join(dataDir, "projects", b.id, "refs", "stray.png"), Buffer.alloc(50));
+    const r = await cleanOrphanFiles();
+    assert.ok(r.removed >= 2 && r.bytes >= 150, JSON.stringify(r));
+  });
+});
+
+describe("server process", () => {
+  it("starts, reports leftovers, and exits cleanly on SIGTERM", async () => {
+    // A leftover "running" run from a previous process, to be marked on startup.
+    const p = await store.createProject("proc");
+    await store.saveRunUsage(p.id, newRunUsage("job_left", "", "agent"));
+    const port = 5600 + Math.floor(Math.random() * 300);
+    const child = spawn(process.execPath, ["--import", "tsx", "src/server.ts"], {
+      cwd: path.join(import.meta.dirname, ".."),
+      env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, AGENT_MODE: "demo" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let log = "";
+    child.stdout.on("data", (d) => (log += d));
+    child.stderr.on("data", (d) => (log += d));
+    const exited = new Promise<number | null>((r) => child.on("exit", (code) => r(code)));
+    for (let i = 0; i < 100 && !log.includes("http://localhost"); i++) await new Promise((r) => setTimeout(r, 100));
+    assert.match(log, /已标记为「已中断」/);
+    assert.equal((await fetch(`http://127.0.0.1:${port}/healthz`)).status, 200);
+    child.kill("SIGTERM");
+    assert.equal(await exited, 0, log);
+    assert.match(log, /SIGTERM 收到/);
+    assert.equal((await store.loadUsage(p.id))[0].status, "interrupted");
   });
 });

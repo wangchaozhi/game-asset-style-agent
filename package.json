@@ -10,7 +10,8 @@
     "typecheck": "tsc",
     "test": "node --import tsx --test --test-reporter=spec \"test/**/*.test.ts\"",
     "lint": "eslint .",
-    "check": "npm run typecheck && npm run lint && npm test"
+    "check": "npm run typecheck && npm run lint && npm test",
+    "coverage": "node --import tsx --enable-source-maps --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-exclude='src/**/types.ts' --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=85 \"test/**/*.test.ts\""
   },
   "keywords": [],
   "author": "",

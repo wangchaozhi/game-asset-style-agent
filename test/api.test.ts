@@ -315,6 +315,49 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/assets/ast_nope/regenerate`, { method: "POST", body: { prompt: "long enough prompt here" } })).status, 404);
   });
 
+  it("re-slices sprite sheets and renders tiled previews", async () => {
+    const run = await json(`/api/projects/${id}/run`, { method: "POST", body: { assetTypes: ["sprite_sheet", "tile"], provider: "mock" } });
+    await events(run.body.jobId);
+    const assets = (await json(`/api/projects/${id}`)).body.assets;
+    const sheet = assets.findLast((a: { assetType: string }) => a.assetType === "sprite_sheet");
+    const sliced = await json(`/api/projects/${id}/assets/${sheet.id}/slice`, { method: "POST", body: { frames: 6, fps: 12 } });
+    assert.deepEqual([sliced.body.frames.length, sliced.body.fps], [6, 12]);
+    assert.equal((await json(`/api/projects/${id}/assets/${sheet.id}/slice`, { method: "POST", body: { frames: 40 } })).status, 400);
+    const tile = assets.findLast((a: { assetType: string }) => a.assetType === "tile");
+    const tiled = await fetch(`${base}/api/projects/${id}/assets/${tile.id}/tiled.png?n=2`);
+    const { default: sharp } = await import("sharp");
+    const meta = await sharp(Buffer.from(await tiled.arrayBuffer())).metadata();
+    assert.deepEqual([meta.width, meta.height], [1024, 1024]);
+    assert.equal((await json(`/api/projects/${id}/assets/${tile.id}/tiled.png?n=9`)).status, 400);
+  });
+
+  it("redraws an asset in demo mode as a linked version", async () => {
+    const asset = (await json(`/api/projects/${id}`)).body.assets[0];
+    const r = await json(`/api/projects/${id}/run`, { method: "POST", body: { redraw: { assetId: asset.id, feedback: "更亮" }, provider: "mock" } });
+    const evs = await events(r.body.jobId);
+    assert.ok(!evs.some((e) => e.type === "error"));
+    const created = (await json(`/api/projects/${id}`)).body.assets.at(-1);
+    assert.equal(created.parentId, asset.id);
+    assert.match(created.prompt, /Revision: 更亮$/);
+  });
+
+  it("stops a running job; a second run is refused while one is active", async () => {
+    process.env.MOCK_DELAY_MS = "5000";
+    try {
+      const r = await json(`/api/projects/${id}/run`, { method: "POST", body: { assetTypes: ["prop"], provider: "mock" } });
+      const busy = await json(`/api/projects/${id}/run`, { method: "POST", body: { assetTypes: ["prop"], provider: "mock" } });
+      assert.deepEqual([busy.status, busy.body.jobId], [409, r.body.jobId]);
+      await new Promise((res) => setTimeout(res, 50));
+      await json(`/api/jobs/${r.body.jobId}/stop`, { method: "POST" });
+      const evs = await events(r.body.jobId);
+      assert.ok(evs.some((e) => e.type === "status" && e.text === "已停止"));
+      const run = (await json(`/api/projects/${id}/usage`)).body.runs.find((x: { jobId: string }) => x.jobId === r.body.jobId);
+      assert.equal(run.status, "stopped");
+    } finally {
+      process.env.MOCK_DELAY_MS = "0";
+    }
+  });
+
   it("returns 404 for unknown projects and jobs", async () => {
     assert.equal((await json("/api/projects/prj_0000000000")).status, 404);
     assert.equal((await fetch(`${base}/api/jobs/job_nope/events`)).status, 404);

@@ -84,6 +84,7 @@ NODE_ENV=production npm run start:prod
 npm run typecheck   # tsc（strict + 未使用变量/参数检查，含 test/）
 npm run lint        # ESLint，检查无类型检查的前端模块 public/js
 npm test            # node:test + tsx：存储、工具校验、图像通道、图像处理、图集、ZIP、计费、鉴权与 HTTP API
+npm run coverage    # 测试 + 覆盖率（行 ≥ 90%、分支 ≥ 80%、函数 ≥ 85%，CI 同样要求）
 npm run check       # 以上全部
 ```
 
