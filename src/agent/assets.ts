@@ -36,6 +36,8 @@ export async function generateAsset(
         aspect: input.aspect,
         transparent: input.transparent_background,
         frames: input.asset_type === "sprite_sheet" ? (input.frames ?? 4) : undefined,
+        onRetry: ({ attempt, delayMs, reason }) =>
+          emit(job, { type: "status", text: `「${input.name}」图像接口${reason.includes("429") ? "限流" : "出错"}（${reason}），${Math.ceil(delayMs / 1000)} 秒后第 ${attempt} 次重试` }),
       },
       job.abort.signal,
     );

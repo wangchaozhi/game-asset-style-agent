@@ -12,6 +12,8 @@ export interface GenerateRequest {
   transparent: boolean;
   /** sprite sheets: number of frames laid out in one row */
   frames?: number;
+  /** told before each retry of a rate-limited or failed request */
+  onRetry?: (info: import("./retry.js").RetryInfo) => void;
 }
 
 export interface ImageProvider {

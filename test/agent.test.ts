@@ -103,6 +103,22 @@ describe("runTool", () => {
     assert.deepEqual([job.usage.images.calls, job.usage.images.failed], [1, 1]);
   });
 
+  it("image API retries show up in the job log", async () => {
+    const job = fakeJob(projectId);
+    const flaky = {
+      ...mock,
+      generate: async (req: Parameters<typeof mock.generate>[0], signal?: AbortSignal) => {
+        req.onRetry?.({ attempt: 1, delayMs: 2500, reason: "HTTP 429" });
+        return mock.generate(req, signal);
+      },
+    };
+    await runTool(job, flaky, call("generate_image", {
+      name: "金币", asset_type: "item_icon", prompt: "A gold coin icon, shiny, centred", aspect: "square", transparent_background: true,
+    }));
+    const status = job.events.find((e) => e.type === "status") as { text: string } | undefined;
+    assert.equal(status?.text, "「金币」图像接口限流（HTTP 429），3 秒后第 1 次重试");
+  });
+
   it("review_asset records the verdict, or errors for unknown ids", async () => {
     const id = (await store.loadProject(projectId)).assets[0].id;
     const ok = await runTool(fakeJob(projectId), mock, call("review_asset", { asset_id: id, verdict: "rejected", consistency_score: 4, notes: "颜色偏了" }));

@@ -14,11 +14,11 @@ const savedEnv = { ...process.env };
 let calls: Captured[] = [];
 
 /** Replace fetch with a stub that records the request and answers with `respond`. */
-function stubFetch(respond: () => Response) {
+function stubFetch(respond: (n: number) => Response) {
   calls = [];
   globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
     calls.push({ url: String(url), init: init ?? {} });
-    return respond();
+    return respond(calls.length);
   }) as typeof fetch;
 }
 
@@ -35,7 +35,7 @@ const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 beforeEach(() => {
-  process.env = { ...savedEnv, OPENAI_API_KEY: "sk-test", GEMINI_API_KEY: "g-test" };
+  process.env = { ...savedEnv, OPENAI_API_KEY: "sk-test", GEMINI_API_KEY: "g-test", IMAGE_MAX_RETRIES: "0" };
   delete process.env.OPENAI_BASE_URL;
   delete process.env.OPENAI_IMAGE_MODEL;
   delete process.env.GEMINI_IMAGE_MODEL;
@@ -95,6 +95,17 @@ describe("OpenAI provider", () => {
     stubFetch(() => jsonResponse({ data: [] }));
     await assert.rejects(openai.generate(req()), /no image/);
   });
+
+  it("retries a rate limit and reports it", async () => {
+    process.env.IMAGE_MAX_RETRIES = "2";
+    stubFetch((n) => (n === 1 ? new Response("slow down", { status: 429, headers: { "retry-after-ms": "5" } }) : jsonResponse({ data: [{ b64_json: PNG_B64 }] })));
+    const retries: unknown[] = [];
+    const out = await openai.generate(req({ references: ref(1), onRetry: (i) => retries.push(i) }));
+    assert.equal(out.data.toString(), "fake-png");
+    assert.equal(calls.length, 2);
+    assert.deepEqual(retries, [{ attempt: 1, delayMs: 5, reason: "HTTP 429" }]);
+    assert.equal((calls[1].init.body as FormData).getAll("image[]").length, 1, "the form is resent intact");
+  });
 });
 
 describe("Gemini provider", () => {
@@ -135,5 +146,12 @@ describe("Gemini provider", () => {
   it("surfaces HTTP errors", async () => {
     stubFetch(() => new Response('{"error":"bad key"}', { status: 403 }));
     await assert.rejects(gemini.generate(req()), /Gemini HTTP 403: \{"error":"bad key"\}/);
+  });
+
+  it("retries a 503 before giving up", async () => {
+    process.env.IMAGE_MAX_RETRIES = "1";
+    stubFetch(() => new Response("overloaded", { status: 503, headers: { "retry-after-ms": "1" } }));
+    await assert.rejects(gemini.generate(req()), /Gemini HTTP 503/);
+    assert.equal(calls.length, 2);
   });
 });

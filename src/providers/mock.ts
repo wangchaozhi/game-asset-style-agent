@@ -1,15 +1,7 @@
 import crypto from "node:crypto";
 import sharp from "sharp";
+import { abortableSleep } from "./retry.js";
 import type { ImageProvider } from "./types.js";
-
-/** Like a real network call, the simulated latency stops as soon as the job is aborted. */
-function sleep(ms: number, signal?: AbortSignal) {
-  return new Promise<void>((resolve, reject) => {
-    if (signal?.aborted) return reject(signal.reason);
-    const t = setTimeout(resolve, ms);
-    signal?.addEventListener("abort", () => (clearTimeout(t), reject(signal.reason)), { once: true });
-  });
-}
 
 /** Deterministic placeholder art, for running the whole pipeline without an image API. */
 export const mock: ImageProvider = {
@@ -48,7 +40,8 @@ export const mock: ImageProvider = {
       ${frames > 1 ? "" : `<text x="50%" y="${h - 24}" font-family="sans-serif" font-size="18" text-anchor="middle" fill="#222">${label}</text>`}
     </svg>`;
     const delay = Number(process.env.MOCK_DELAY_MS ?? 400);
-    if (delay > 0) await sleep(delay, signal);
+    // Like a real network call, the simulated latency stops as soon as the job is aborted.
+    if (delay > 0) await abortableSleep(delay, signal);
     return { data: await sharp(Buffer.from(svg)).png().toBuffer(), mime: "image/png" };
   },
 };

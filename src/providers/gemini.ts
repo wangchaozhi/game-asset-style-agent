@@ -1,3 +1,4 @@
+import { fetchWithRetry } from "./retry.js";
 import { type ImageProvider, failOnHttpError } from "./types.js";
 
 /** Google Gemini image models; multi-image reference via inline_data. */
@@ -17,15 +18,19 @@ export const gemini: ImageProvider = {
       ...req.references.slice(0, 14).map((r) => ({ inline_data: { mime_type: r.mime, data: r.data.toString("base64") } })),
       { text },
     ];
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: { responseModalities: ["TEXT", "IMAGE"], imageConfig: { aspectRatio } },
-      }),
-      signal,
-    });
+    const res = await fetchWithRetry(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts }],
+          generationConfig: { responseModalities: ["TEXT", "IMAGE"], imageConfig: { aspectRatio } },
+        }),
+        signal,
+      },
+      { onRetry: req.onRetry },
+    );
     await failOnHttpError(res, "Gemini");
     const json = (await res.json()) as {
       candidates?: { content?: { parts?: { inlineData?: { mimeType: string; data: string }; text?: string }[] } }[];

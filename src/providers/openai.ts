@@ -1,3 +1,4 @@
+import { fetchWithRetry } from "./retry.js";
 import { type ImageProvider, failOnHttpError } from "./types.js";
 
 /** OpenAI gpt-image family; the edits endpoint accepts multiple reference images. */
@@ -23,14 +24,18 @@ export const openai: ImageProvider = {
       req.references.slice(0, 16).forEach((r, i) => {
         form.append("image[]", new Blob([new Uint8Array(r.data)], { type: r.mime }), `ref${i}.png`);
       });
-      res = await fetch(`${base}/images/edits`, { method: "POST", headers: auth, body: form, signal });
+      res = await fetchWithRetry(`${base}/images/edits`, { method: "POST", headers: auth, body: form, signal }, { onRetry: req.onRetry });
     } else {
-      res = await fetch(`${base}/images/generations`, {
-        method: "POST",
-        headers: { ...auth, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, prompt: req.prompt, size, n: 1, background }),
-        signal,
-      });
+      res = await fetchWithRetry(
+        `${base}/images/generations`,
+        {
+          method: "POST",
+          headers: { ...auth, "Content-Type": "application/json" },
+          body: JSON.stringify({ model, prompt: req.prompt, size, n: 1, background }),
+          signal,
+        },
+        { onRetry: req.onRetry },
+      );
     }
     await failOnHttpError(res, "OpenAI");
     const json = (await res.json()) as { data?: { b64_json?: string }[] };
