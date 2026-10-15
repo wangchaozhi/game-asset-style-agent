@@ -116,7 +116,10 @@
   <dialog id="viewer">
     <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
     <div class="viewer-body">
-      <div class="checker"><img id="viewerImg" alt="" /></div>
+      <div class="viewer-left">
+        <div class="checker viewer-img" id="viewerImgWrap"><img id="viewerImg" alt="" /></div>
+        <div class="compare" id="viewerCompare" hidden></div>
+      </div>
       <div class="viewer-meta" id="viewerMeta"></div>
     </div>
   </dialog>
