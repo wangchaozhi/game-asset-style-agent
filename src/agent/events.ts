@@ -28,6 +28,8 @@ export interface Job {
   budgetNoticed?: boolean;
   /** image calls started but not finished (reserved against the budget) */
   imagesInFlight?: number;
+  /** downscaled reference images, keyed by file, shared by this job's parallel generations */
+  refCache?: Map<string, Promise<import("../providers/types.js").ImageInput>>;
 }
 
 export interface RunOptions {

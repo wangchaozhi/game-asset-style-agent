@@ -37,7 +37,18 @@ export async function generateAsset(
 
 async function generateReserved(job: Job, provider: ImageProvider, input: GenerateInput): Promise<{ asset: Asset; image: ImageInput }> {
   const project = await loadProject(job.projectId);
-  const refs = await Promise.all((await refImages(project)).map((r) => shrink(r, 1024)));
+  // Parallel generations share one decode + downscale of each reference.
+  const cache = (job.refCache ??= new Map());
+  const refs = await Promise.all(
+    project.refs.map((r) => {
+      let p = cache.get(r.file);
+      if (!p) {
+        p = readProjectFile(project.id, r.file).then((data) => shrink({ data, mime: r.mime }, 1024));
+        cache.set(r.file, p);
+      }
+      return p;
+    }),
+  );
   const extra = await Promise.all(
     (input.consistency_asset_ids ?? [])
       .map((id) => project.assets.find((a) => a.id === id))

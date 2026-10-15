@@ -9,6 +9,12 @@ import { bindViewer, openViewer } from "./viewer/index.js";
 import { bindBatch } from "./batch.js";
 import { bindRun, resumeJob } from "./run.js";
 
+// Safety net: an API failure in any handler that doesn't catch it still reaches the user.
+window.addEventListener("unhandledrejection", (e) => {
+  const msg = e.reason?.message ?? String(e.reason ?? "");
+  if (msg) toast(msg);
+});
+
 async function init() {
   state.config = await api("/api/config");
   if (state.config.auth) {

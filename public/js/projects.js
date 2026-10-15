@@ -74,7 +74,11 @@ export function bindProjects(onSwitch) {
   });
   $("#deleteProject").addEventListener("click", async () => {
     if (!confirm(`删除项目「${state.project.name}」及其全部素材？此操作不可撤销。`)) return;
-    await api(`/api/projects/${state.project.id}`, { method: "DELETE" });
+    try {
+      await api(`/api/projects/${state.project.id}`, { method: "DELETE" });
+    } catch (err) {
+      return toast(err.message);
+    }
     try { localStorage.removeItem("gaa.project"); } catch {}
     await loadProjects();
   });

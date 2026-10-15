@@ -376,6 +376,7 @@ describe("HTTP API (demo mode)", () => {
       const r = await json(`/api/projects/${id}/run`, { method: "POST", body: { assetTypes: ["prop"], provider: "mock" } });
       const busy = await json(`/api/projects/${id}/run`, { method: "POST", body: { assetTypes: ["prop"], provider: "mock" } });
       assert.deepEqual([busy.status, busy.body.jobId], [409, r.body.jobId]);
+      assert.equal((await json(`/api/projects/${id}`, { method: "DELETE" })).status, 409, "no deleting a project mid-run");
       await new Promise((res) => setTimeout(res, 50));
       await json(`/api/jobs/${r.body.jobId}/stop`, { method: "POST" });
       const evs = await events(r.body.jobId);

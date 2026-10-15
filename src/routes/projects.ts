@@ -43,6 +43,8 @@ projectsRouter.patch("/api/projects/:id", async (req, res) => {
 });
 
 projectsRouter.delete("/api/projects/:id", async (req, res) => {
+  // A running job would keep writing into the deleted folder.
+  if (runningJobFor(pid(req))) return void res.status(409).json({ error: "该项目有任务在运行，请先停止" });
   await deleteProject(pid(req));
   res.json({ ok: true });
 });
