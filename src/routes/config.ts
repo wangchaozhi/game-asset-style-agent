@@ -15,5 +15,6 @@ configRouter.get("/api/config", (_req, res) => {
     demo: config.demo,
     auth: !!config.accessToken,
     budget: resolveBudget(undefined),
+    trashDays: Number(process.env.TRASH_DAYS ?? 7),
   });
 });

@@ -8,8 +8,16 @@ const matchesQuery = (a, q) =>
   !q || [a.name, a.notes, a.prompt, a.id].some((v) => String(v ?? "").toLowerCase().includes(q));
 
 /** Assets currently visible under the status / type filters and search, newest first. */
+export const inTrash = () => state.filter === "trash";
+
 export const visibleAssets = () => {
   const q = state.query.trim().toLowerCase();
+  if (inTrash()) {
+    return (state.project.trash ?? [])
+      .filter((a) => (!state.typeFilter || a.assetType === state.typeFilter) && matchesQuery(a, q))
+      .slice()
+      .sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+  }
   return state.project.assets
     .filter((a) => (state.filter === "all" || a.status === state.filter) && (!state.typeFilter || a.assetType === state.typeFilter) && matchesQuery(a, q))
     .slice()
@@ -32,8 +40,11 @@ function renderTypeFilter() {
 
 export function renderAssets(newId) {
   const all = state.project.assets;
-  // Drop selections that no longer exist (deleted elsewhere, project switched).
-  for (const id of state.selected) if (!all.some((a) => a.id === id)) state.selected.delete(id);
+  // Drop selections that are not on screen any more (deleted, restored, project switched).
+  const pool = inTrash() ? (state.project.trash ?? []) : all;
+  for (const id of state.selected) if (!pool.some((a) => a.id === id)) state.selected.delete(id);
+  const trashCount = state.project.trash?.length ?? 0;
+  $("#trashFilter").textContent = trashCount ? `回收站 ${trashCount}` : "回收站";
   renderTypeFilter();
   const shown = visibleAssets();
   $("#assetCount").textContent = all.length ? `${all.filter((a) => a.status === "approved").length}/${all.length}` : "";
@@ -41,7 +52,9 @@ export function renderAssets(newId) {
   $("#assetSearch").closest(".asset-search").dataset.shown = filtered ? `显示 ${shown.length} / ${all.length}` : "";
   const typeName = (t) => state.config.assetTypes[t] ?? t;
   const grid = $("#assets");
-  grid.classList.toggle("selecting", state.selecting);
+  grid.classList.toggle("selecting", state.selecting || inTrash());
+  const days = state.config.trashDays ?? 7;
+  const left = (a) => Math.max(0, Math.ceil(days - (Date.now() - Date.parse(a.deletedAt)) / 86_400_000));
   grid.innerHTML = shown.length
     ? shown
         .map(
@@ -49,11 +62,15 @@ export function renderAssets(newId) {
             <span class="tick" aria-hidden="true"></span>
             <div class="checker"><img loading="lazy" decoding="async" src="${thumbUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /></div>
             <div class="meta"><span class="name">${esc(a.name)}</span>
-              <span class="sub"><span>${esc(typeName(a.assetType))}</span><span class="badge ${a.status}">${LABEL[a.status]}${a.score ? ` ${a.score}/10` : ""}</span></span>
+              <span class="sub"><span>${esc(typeName(a.assetType))}</span>${
+                a.deletedAt
+                  ? `<span class="badge trashed" title="删除于 ${esc(new Date(a.deletedAt).toLocaleString())}">${left(a)} 天后清除</span>`
+                  : `<span class="badge ${a.status}">${LABEL[a.status]}${a.score ? ` ${a.score}/10` : ""}</span>`
+              }</span>
             </div></div>`,
         )
         .join("")
-    : `<p class="empty">${all.length ? "没有符合筛选的素材" : "生成的素材会出现在这里"}</p>`;
+    : `<p class="empty">${inTrash() ? "回收站是空的" : all.length ? "没有符合筛选的素材" : "生成的素材会出现在这里"}</p>`;
   renderBatchBar();
 }
 
@@ -76,12 +93,19 @@ export function setSelecting(on) {
 
 function renderBatchBar() {
   const bar = $("#batchBar");
-  bar.hidden = !state.selecting;
-  if (!state.selecting) return;
+  const trash = inTrash();
+  bar.hidden = !state.selecting && !trash;
+  if (bar.hidden) return;
+  bar.classList.toggle("in-trash", trash);
   const n = state.selected.size;
-  bar.querySelector(".batch-count").textContent = n ? `已选 ${n} 个` : "点击素材进行选择（Shift 连选）";
+  bar.querySelector(".batch-count").textContent = n
+    ? `已选 ${n} 个`
+    : trash
+      ? `删除的素材保留 ${state.config.trashDays ?? 7} 天，可选择后恢复`
+      : "点击素材进行选择（Shift 连选）";
   bar.querySelectorAll("[data-batch]").forEach((b) => {
-    if (b.dataset.batch !== "all" && b.dataset.batch !== "none") b.disabled = !n;
+    if (b.dataset.batch === "empty") b.disabled = !(state.project.trash?.length);
+    else if (b.dataset.batch !== "all" && b.dataset.batch !== "none") b.disabled = !n;
   });
 }
 
@@ -101,6 +125,7 @@ export function bindAssets({ onOpen }) {
   $("#filters").addEventListener("click", (e) => {
     const f = e.target.dataset?.filter;
     if (!f) return;
+    if ((f === "trash") !== inTrash()) state.selected.clear();
     state.filter = f;
     document.querySelectorAll("#filters button").forEach((b) => b.classList.toggle("on", b.dataset.filter === f));
     renderAssets();
@@ -116,7 +141,7 @@ export function bindAssets({ onOpen }) {
   $("#assets").addEventListener("click", (e) => {
     const card = e.target.closest(".card");
     if (!card) return;
-    if (state.selecting) toggleSelection(card.dataset.asset, e.shiftKey);
+    if (state.selecting || inTrash()) toggleSelection(card.dataset.asset, e.shiftKey);
     else onOpen(card.dataset.asset);
   });
   $("#selectToggle").addEventListener("click", () => setSelecting(!state.selecting));

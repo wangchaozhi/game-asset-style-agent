@@ -48,7 +48,8 @@ export const removeRefFile = (projectId: string, refId: string) => removeOwned(p
 export async function removeOrphanFiles(project: Project) {
   const assetsDir = path.join(projectDir(project.id), "assets");
   const refsDir = path.join(projectDir(project.id), "refs");
-  const assetIds = project.assets.map((a) => a.id);
+  // Trashed assets keep their files until purged.
+  const assetIds = [...project.assets, ...(project.trash ?? [])].map((a) => a.id);
   const refFiles = new Set(project.refs.map((r) => path.basename(r.file)));
   const a = await removeFiles(assetsDir, (await listDir(assetsDir)).filter((f) => !assetIds.some((id) => ownedBy(f, id))));
   const r = await removeFiles(refsDir, (await listDir(refsDir)).filter((f) => !refFiles.has(f)));

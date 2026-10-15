@@ -172,11 +172,15 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ### `DELETE /api/projects/:id/assets/:assetId`
 
-删除素材及其全部文件，返回更新后的项目。
+把素材移到回收站（`project.trash`，带 `deletedAt`，文件保留 `TRASH_DAYS` 天，默认 7）。`?permanent=1` 立即彻底删除素材及其文件。返回更新后的项目。
 
 ### `POST /api/projects/:id/assets/batch`
 
-`{ "action": "approve" | "reject" | "pending" | "delete", "ids": ["ast_…"] }`，返回 `{ affected, project }`。
+`{ "action": "approve" | "reject" | "pending" | "delete" | "restore" | "purge", "ids": ["ast_…"] }`，返回 `{ affected, project }`。`delete` 移到回收站，`restore` 从回收站恢复，`purge` 彻底删除（素材库或回收站中的都可以）。
+
+### `POST /api/projects/:id/trash/empty`
+
+清空回收站（彻底删除其中所有素材及文件），返回 `{ affected, project }`。
 
 ### `POST /api/projects/:id/assets/:assetId/slice`
 

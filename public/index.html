@@ -97,6 +97,7 @@
           <button data-filter="approved">已通过</button>
           <button data-filter="rejected">已驳回</button>
           <button data-filter="pending_review">待审核</button>
+          <button data-filter="trash" id="trashFilter">回收站</button>
           <button id="selectToggle" class="select-toggle" type="button">选择</button>
         </div>
       </div>
@@ -108,7 +109,12 @@
         <span class="batch-count"></span>
         <button class="btn link" data-batch="all">全选</button>
         <button class="btn link" data-batch="none">清空</button>
-        <span class="batch-actions">
+        <span class="batch-actions trash-actions">
+          <button class="btn ghost small" data-batch="restore">↺ 恢复</button>
+          <button class="btn ghost small danger" data-batch="purge">彻底删除</button>
+          <button class="btn ghost small danger" data-batch="empty">清空回收站</button>
+        </span>
+        <span class="batch-actions library-actions">
           <button class="btn ghost small" data-batch="approve">✓ 通过</button>
           <button class="btn ghost small" data-batch="reject">✗ 驳回</button>
           <button class="btn ghost small" data-batch="zip">导出 ZIP</button>

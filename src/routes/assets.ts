@@ -7,7 +7,9 @@ import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { analyzeSeams, makeSeamless, tilePreview } from "../image/tiles.js";
 import { type AlignMode, alignFrames, joinFrames, measureJitter, sliceSheet } from "../image/spriteSheet.js";
-import { newId, projectDir, readProjectFile, removeAssetFiles, updateProject, writeProjectFile } from "../store/index.js";
+import {
+  moveToTrash, newId, projectDir, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject, writeProjectFile,
+} from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { attachment, findAsset, pid } from "./util.js";
 
@@ -15,35 +17,47 @@ export const assetsRouter = Router();
 
 const STATUSES = ["approved", "rejected", "pending_review"];
 
-const BATCH_ACTIONS = { approve: "approved", reject: "rejected", pending: "pending_review", delete: null } as const;
+const REVIEW_ACTIONS = { approve: "approved", reject: "rejected", pending: "pending_review" } as const;
+const BATCH_ACTIONS = ["approve", "reject", "pending", "delete", "restore", "purge"] as const;
+type BatchAction = (typeof BATCH_ACTIONS)[number];
 
-/** Apply one action to many assets at once: approve / reject / pending / delete. */
+/**
+ * Apply one action to many assets: approve / reject / pending (review), delete (to the trash),
+ * restore (from the trash), purge (permanently, from the library or the trash).
+ */
 assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
-  const action = req.body?.action as keyof typeof BATCH_ACTIONS;
+  const action = req.body?.action as BatchAction;
   const ids: unknown = req.body?.ids;
-  if (!(action in BATCH_ACTIONS)) return void res.status(400).json({ error: "无效的批量操作" });
+  if (!BATCH_ACTIONS.includes(action)) return void res.status(400).json({ error: "无效的批量操作" });
   if (!Array.isArray(ids) || !ids.length || ids.length > 1000 || !ids.every((x) => typeof x === "string")) {
     return void res.status(400).json({ error: "请提供要操作的素材 id 列表" });
   }
   const wanted = new Set(ids as string[]);
   let affected = 0;
-  let deleted: string[] = [];
+  let purged: string[] = [];
   const project = await updateProject(pid(req), (p) => {
-    if (action === "delete") {
-      deleted = p.assets.filter((a) => wanted.has(a.id)).map((a) => a.id);
-      p.assets = p.assets.filter((a) => !wanted.has(a.id));
-      affected = deleted.length;
-      return;
-    }
-    for (const a of p.assets) {
-      if (!wanted.has(a.id)) continue;
-      a.status = BATCH_ACTIONS[action]!;
-      a.reviewer = "user";
-      affected++;
+    if (action === "delete") affected = moveToTrash(p, wanted);
+    else if (action === "restore") affected = restoreFromTrash(p, wanted);
+    else if (action === "purge") affected = (purged = takeForPurge(p, wanted)).length;
+    else {
+      for (const a of p.assets) {
+        if (!wanted.has(a.id)) continue;
+        a.status = REVIEW_ACTIONS[action];
+        a.reviewer = "user";
+        affected++;
+      }
     }
   });
-  if (deleted.length) await removeAssetFiles(project.id, deleted);
+  if (purged.length) await removeAssetFiles(project.id, purged);
   res.json({ affected, project });
+});
+
+/** Empty the trash: permanently delete everything in it. */
+assetsRouter.post("/api/projects/:id/trash/empty", async (req, res) => {
+  let purged: string[] = [];
+  const project = await updateProject(pid(req), (p) => void (purged = takeForPurge(p, new Set((p.trash ?? []).map((a) => a.id)))));
+  if (purged.length) await removeAssetFiles(project.id, purged);
+  res.json({ affected: purged.length, project });
 });
 
 /** Manual review: set status and optional notes. */
@@ -62,14 +76,15 @@ assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
   res.json(asset);
 });
 
+/** Move an asset to the trash; ?permanent=1 deletes it and its files right away. */
 assetsRouter.delete("/api/projects/:id/assets/:assetId", async (req, res) => {
-  const assetId = String(req.params.assetId);
-  let existed = false;
+  const ids = new Set([String(req.params.assetId)]);
+  let purged: string[] = [];
   const project = await updateProject(pid(req), (p) => {
-    existed = p.assets.some((a) => a.id === assetId);
-    p.assets = p.assets.filter((a) => a.id !== assetId);
+    if (req.query.permanent) purged = takeForPurge(p, ids);
+    else moveToTrash(p, ids);
   });
-  if (existed) await removeAssetFiles(project.id, [assetId]);
+  if (purged.length) await removeAssetFiles(project.id, purged);
   res.json(project);
 });
 

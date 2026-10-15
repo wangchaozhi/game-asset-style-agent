@@ -52,6 +52,8 @@ export interface Asset {
   palette?: { coverage: number; meanDeltaE: number; offPalette: { hex: string; share: number }[] };
 }
 
+export type TrashedAsset = Asset & { deletedAt: string };
+
 export interface Project {
   id: string;
   name: string;
@@ -59,6 +61,8 @@ export interface Project {
   refs: RefImage[];
   styleGuide: StyleGuide | null;
   assets: Asset[];
+  /** deleted assets, kept with their files until restored or purged */
+  trash?: TrashedAsset[];
 }
 
 export interface Conversation {

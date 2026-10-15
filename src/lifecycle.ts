@@ -1,6 +1,8 @@
 import type { Server } from "node:http";
 import { jobs } from "./agent/index.js";
-import { flushUsageWrites, listProjects, markInterruptedRuns, removeOrphanFiles } from "./store/index.js";
+import { flushUsageWrites, listProjects, markInterruptedRuns, purgeExpiredTrash, removeOrphanFiles } from "./store/index.js";
+
+export { purgeExpiredTrash };
 
 /** On startup: runs left "running" by a previous process can never finish, so mark them interrupted. */
 export async function recoverInterruptedRuns(): Promise<number> {

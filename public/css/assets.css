@@ -45,3 +45,7 @@
 .asset-search input { flex: 1 1 160px; min-width: 0; font: inherit; font-size: 12px; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 .asset-search select { font-size: 12px; padding: 4px 6px; }
 .asset-search[data-shown]:not([data-shown=""])::after { content: attr(data-shown); flex-basis: 100%; font-size: 11px; color: var(--muted); }
+.batch-bar .trash-actions { display: none; }
+.batch-bar.in-trash .trash-actions { display: flex; }
+.batch-bar.in-trash .library-actions { display: none; }
+.badge.trashed { color: var(--muted); font-weight: 500; }

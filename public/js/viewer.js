@@ -36,7 +36,7 @@ export function openViewer(id) {
     <div class="actions">
       <a class="btn primary" href="${fileUrl(a.file)}" download="${esc(a.name)}.${a.file.split(".").pop()}">下载</a>
       <button class="btn ghost" data-variant="${a.id}">基于此图继续生成</button>
-      <button class="btn ghost danger" data-del-asset="${a.id}">删除</button>
+      <button class="btn ghost danger" data-del-asset="${a.id}" title="移到回收站">删除</button>
     </div>
     <p class="muted shortcuts"><kbd>←</kbd> <kbd>→</kbd> 切换 · <kbd>A</kbd> 通过 · <kbd>R</kbd> 驳回 · <kbd>Esc</kbd> 关闭</p>`;
   $("#viewer").showModal();
@@ -378,6 +378,7 @@ export function bindViewer() {
       state.project = await api(`/api/projects/${state.project.id}/assets/${del}`, { method: "DELETE" });
       $("#viewer").close();
       renderAssets();
+      toast(`已移到回收站，${state.config.trashDays ?? 7} 天内可恢复`);
     } else if (variant) {
       const a = state.project.assets.find((x) => x.id === variant);
       $("#viewer").close();

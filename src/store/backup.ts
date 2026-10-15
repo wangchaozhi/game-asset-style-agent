@@ -5,7 +5,7 @@ import { createZip, type ZipEntry } from "../export/zip.js";
 import { readZip } from "../export/unzip.js";
 import { projectDir, newId, readJson, writeAtomic } from "./fs.js";
 import { loadProject } from "./projects.js";
-import type { Asset, Project, RefImage } from "./types.js";
+import type { Asset, Project, RefImage, TrashedAsset } from "./types.js";
 
 export const BACKUP_FORMAT = "game-asset-agent/project-backup";
 const FILE_NAME = /^(refs|assets)\/[\w.-]+$/;
@@ -49,6 +49,7 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
   const hasFile = (rel: unknown): rel is string => typeof rel === "string" && FILE_NAME.test(rel) && byName.has(rel);
   const refs = (src.refs as RefImage[]).filter((r) => hasFile(r?.file) || (skipped.push(`参考图 ${r?.id ?? "?"}`), false));
   const assets = (src.assets as Asset[]).filter((a) => hasFile(a?.file) || (skipped.push(`素材 ${a?.name ?? a?.id ?? "?"}`), false));
+  const trash = (Array.isArray(src.trash) ? (src.trash as TrashedAsset[]) : []).filter((a) => hasFile(a?.file) && typeof a.deletedAt === "string");
   const styleGuide = src.styleGuide ? (StyleGuideInput.safeParse(src.styleGuide).data ?? null) : null;
   if (src.styleGuide && !styleGuide) skipped.push("风格指南（格式无效）");
 
@@ -59,6 +60,7 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
     refs,
     styleGuide,
     assets,
+    ...(trash.length ? { trash } : {}),
   };
   const dir = projectDir(project.id);
   await fs.mkdir(path.join(dir, "refs"), { recursive: true });

@@ -209,10 +209,24 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/export.zip?ids=ast_missing`)).status, 400);
 
     assert.ok(assetFiles(id, ids[0]).length > 0);
+    // delete → trash: off the library, files kept
     const del = await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "delete", ids: [ids[0]] } });
     assert.equal(del.body.affected, 1);
-    assert.deepEqual(assetFiles(id, ids[0]), [], "the deleted asset's files are gone");
     assert.ok(!del.body.project.assets.some((a: { id: string }) => a.id === ids[0]));
+    const trashed = del.body.project.trash.find((a: { id: string }) => a.id === ids[0]);
+    assert.ok(trashed?.deletedAt);
+    assert.ok(assetFiles(id, ids[0]).length > 0, "files stay while in the trash");
+    // the orphan sweep leaves trashed files alone
+    assert.equal((await json(`/api/projects/${id}/cleanup`, { method: "POST" })).body.removed, 0);
+    // restore → back in the library
+    const back = await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "restore", ids: [ids[0]] } });
+    assert.ok(back.body.project.assets.some((a: { id: string; deletedAt?: string }) => a.id === ids[0] && !a.deletedAt));
+    assert.ok(!back.body.project.trash.some((a: { id: string }) => a.id === ids[0]));
+    // purge → gone for good
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "delete", ids: [ids[0]] } });
+    const purge = await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [ids[0]] } });
+    assert.equal(purge.body.affected, 1);
+    assert.deepEqual(assetFiles(id, ids[0]), [], "purged files are gone");
 
     for (const bad of [{ action: "explode", ids }, { action: "approve", ids: [] }, { action: "approve", ids: [1, 2] }, { action: "approve" }]) {
       assert.equal((await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: bad })).status, 400, JSON.stringify(bad));
@@ -233,7 +247,16 @@ describe("HTTP API (demo mode)", () => {
     assert.deepEqual([swept.removed, swept.bytes], [1, 1000]);
 
     await json(`/api/projects/${id}/assets/${asset.id}`, { method: "DELETE" });
+    assert.ok(assetFiles(id, asset.id).length > 0, "moved to the trash, files kept");
+    const emptied = (await json(`/api/projects/${id}/trash/empty`, { method: "POST" })).body;
+    assert.ok(emptied.affected >= 1);
+    assert.deepEqual(emptied.project.trash, []);
     assert.deepEqual(assetFiles(id, asset.id), []);
+    // ?permanent=1 skips the trash
+    const other = (await json(`/api/projects/${id}`)).body.assets[0];
+    await json(`/api/projects/${id}/assets/${other.id}?permanent=1`, { method: "DELETE" });
+    assert.deepEqual(assetFiles(id, other.id), []);
+    assert.ok(!(await json(`/api/projects/${id}`)).body.trash?.some((a: { id: string }) => a.id === other.id));
   });
 
   it("deleting a reference removes its file", async () => {
