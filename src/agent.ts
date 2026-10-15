@@ -86,6 +86,7 @@ const GenerateInput = z.object({
   transparent_background: z.boolean(),
   consistency_asset_ids: z.array(z.string()).max(4).optional(),
   frames: z.number().int().min(2).max(16).optional(),
+  replaces_asset_id: z.string().optional(),
 });
 
 const ReviewInput = z.object({
@@ -154,6 +155,10 @@ const tools: Anthropic.Beta.BetaTool[] = [
           items: { type: "string" },
           description: "Up to 4 previously generated asset ids to also attach as references, e.g. the approved character design when drawing its sprite sheet or portrait.",
         },
+        replaces_asset_id: {
+          type: "string",
+          description: "When this is a redraw of an existing asset, its id (links the versions).",
+        },
         frames: {
           type: "integer",
           description: "sprite_sheet only: number of animation frames in the single horizontal row (2-16). The sheet is sliced into frames and a GIF preview automatically.",
@@ -221,6 +226,8 @@ export interface RunOptions {
   request: string;
   assetTypes: string[];
   providerId?: string;
+  /** redraw one asset following the user's feedback */
+  redraw?: { assetId: string; feedback: string };
 }
 
 export function startJob(opts: RunOptions): Job {
@@ -292,6 +299,7 @@ async function generateAsset(
     provider: provider.id,
     createdAt: new Date().toISOString(),
     originalFile,
+    parentId: input.replaces_asset_id,
   };
   if (input.asset_type === "sprite_sheet") {
     Object.assign(asset, await sliceAssetFrames(project.id, asset, img.data, input.frames).catch(() => ({})));
@@ -376,6 +384,7 @@ async function runTool(
         updated.status = parsed.data.verdict;
         updated.score = parsed.data.consistency_score;
         updated.notes = parsed.data.notes;
+        updated.reviewer = "agent";
       });
       if (!updated) return errResult(block.id, `Unknown asset_id ${parsed.data.asset_id}`);
       emit(job, { type: "asset", asset: updated });
@@ -398,6 +407,12 @@ async function runAgent(job: Job, opts: RunOptions) {
     .filter((t): t is AssetType => t in ASSET_TYPES)
     .map((t) => `${t}（${ASSET_TYPES[t]}）`);
 
+  const redrawTarget = opts.redraw ? project.assets.find((a) => a.id === opts.redraw!.assetId) : undefined;
+  if (opts.redraw && !redrawTarget) throw new Error("要重画的素材不存在");
+  const redrawImage = redrawTarget
+    ? await shrink({ data: await readProjectFile(project.id, redrawTarget.file), mime: redrawTarget.mime }, 768)
+    : undefined;
+
   const intro = [
     `Project: ${project.name}`,
     project.styleGuide
@@ -407,7 +422,12 @@ async function runAgent(job: Job, opts: RunOptions) {
       ? `Approved assets so far (usable in consistency_asset_ids):\n${existing.map((a) => `- ${a.id} ${a.name} [${a.assetType}]`).join("\n")}`
       : "",
     typeLabels.length ? `Asset categories the user selected: ${typeLabels.join(", ")}` : "",
-    `User request:\n${opts.request || "按参考图风格生成一套基础素材。"}`,
+    redrawTarget
+      ? `REDRAW TASK. The user reviewed asset ${redrawTarget.id} "${redrawTarget.name}" [${redrawTarget.assetType}] (shown in the last image above) and wants it redrawn.
+Their feedback: ${opts.redraw!.feedback || "(none given: fix whatever drifts from the style)"}
+Previous prompt:\n${redrawTarget.prompt}
+Generate exactly one new version with generate_image, passing replaces_asset_id="${redrawTarget.id}" and consistency_asset_ids=["${redrawTarget.id}"], keep the same name, asset_type and aspect, apply the feedback precisely, then review it. Do not create other assets.`
+      : `User request:\n${opts.request || "按参考图风格生成一套基础素材。"}`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -423,6 +443,15 @@ async function runAgent(job: Job, opts: RunOptions) {
             source: { type: "base64", media_type: "image/jpeg", data: r.data.toString("base64") },
           }),
         ),
+        ...(redrawImage
+          ? [
+              { type: "text" as const, text: `Asset to redraw (${redrawTarget!.id}):` },
+              {
+                type: "image" as const,
+                source: { type: "base64" as const, media_type: "image/jpeg" as const, data: redrawImage.data.toString("base64") },
+              },
+            ]
+          : []),
         { type: "text", text: intro },
       ],
     },
@@ -521,6 +550,26 @@ async function runDemo(job: Job, opts: RunOptions) {
       p.styleGuide = sg;
     });
     emit(job, { type: "style", styleGuide: sg });
+  }
+
+  if (opts.redraw) {
+    const old = project.assets.find((a) => a.id === opts.redraw!.assetId);
+    if (!old) throw new Error("要重画的素材不存在");
+    const input = {
+      name: old.name,
+      asset_type: old.assetType as AssetType,
+      prompt: `${old.prompt} Revision: ${opts.redraw.feedback}`,
+      aspect: old.assetType === "background" ? ("landscape" as const) : ("square" as const),
+      transparent_background: !["background", "tile"].includes(old.assetType),
+      consistency_asset_ids: [old.id],
+      replaces_asset_id: old.id,
+      frames: old.frames?.length,
+    };
+    emit(job, { type: "text", delta: `按意见重画「${old.name}」：${opts.redraw.feedback}\n` });
+    emit(job, { type: "tool", name: "generate_image", input });
+    const { asset } = await generateAsset(job, provider, input);
+    emit(job, { type: "asset", asset });
+    return;
   }
 
   const types = (opts.assetTypes.length ? opts.assetTypes : ["item_icon", "character", "tile"]).filter(

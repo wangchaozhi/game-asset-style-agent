@@ -52,6 +52,9 @@ export interface Asset {
   fps?: number;
   /** set once the background has been cut out; the untouched model output */
   originalFile?: string;
+  /** previous version this asset was redrawn from */
+  parentId?: string;
+  reviewer?: "agent" | "user";
 }
 
 export interface Project {

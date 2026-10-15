@@ -94,6 +94,21 @@ app.delete("/api/projects/:id/refs/:refId", async (req, res) => {
   res.json(await updateProject(pid(req), (p) => void (p.refs = p.refs.filter((r) => r.id !== req.params.refId))));
 });
 
+app.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
+  const status = req.body?.status;
+  if (!["approved", "rejected", "pending_review"].includes(status)) return void res.status(400).json({ error: "无效的状态" });
+  let asset;
+  await updateProject(pid(req), (p) => {
+    asset = p.assets.find((a) => a.id === req.params.assetId);
+    if (!asset) return;
+    asset.status = status;
+    asset.reviewer = "user";
+    if (typeof req.body?.notes === "string") asset.notes = req.body.notes.slice(0, 2000);
+  });
+  if (!asset) return void res.status(404).json({ error: "素材不存在" });
+  res.json(asset);
+});
+
 app.delete("/api/projects/:id/assets/:assetId", async (req, res) => {
   res.json(await updateProject(pid(req), (p) => void (p.assets = p.assets.filter((a) => a.id !== req.params.assetId))));
 });
@@ -211,6 +226,9 @@ app.post("/api/projects/:id/run", async (req, res) => {
     request: String(req.body?.request ?? "").slice(0, 4000),
     assetTypes: Array.isArray(req.body?.assetTypes) ? req.body.assetTypes.map(String) : [],
     providerId: req.body?.provider ? String(req.body.provider) : undefined,
+    redraw: req.body?.redraw?.assetId
+      ? { assetId: String(req.body.redraw.assetId), feedback: String(req.body.redraw.feedback ?? "").slice(0, 2000) }
+      : undefined,
   });
   res.json({ jobId: job.id });
 });

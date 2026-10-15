@@ -201,7 +201,16 @@ function openViewer(id) {
   $("#viewerMeta").innerHTML = `
     <h3 style="margin:0">${esc(a.name)}</h3>
     <div class="muted">${esc(state.config.assetTypes[a.assetType] ?? a.assetType)} · ${esc(a.provider)} · ${new Date(a.createdAt).toLocaleString()}</div>
-    ${a.notes ? `<div><b>审核：</b>${esc(a.notes)}${a.score ? `（一致性 ${a.score}/10）` : ""}</div>` : ""}
+    ${a.notes ? `<div><b>${a.reviewer === "user" ? "我的意见" : "Agent 审核"}：</b>${esc(a.notes)}${a.score && a.reviewer !== "user" ? `（一致性 ${a.score}/10）` : ""}</div>` : ""}
+    ${versionLinks(a)}
+    <div class="review">
+      <div class="verdict">
+        <button class="btn ghost ${a.status === "approved" ? "on-ok" : ""}" data-verdict="approved">✓ 通过</button>
+        <button class="btn ghost ${a.status === "rejected" ? "on-bad" : ""}" data-verdict="rejected">✗ 驳回</button>
+      </div>
+      <textarea id="feedback" rows="2" placeholder="修改意见，例如：剑身改成蓝色，描边再粗一点"></textarea>
+      <button class="btn primary" data-redraw="${a.id}">按意见重画</button>
+    </div>
     ${a.assetType === "sprite_sheet" ? spriteSection(a) : ""}
     <form class="cutout-form" data-cutout="${a.id}">
       <label>去背景容差 <input name="tolerance" type="range" min="4" max="100" value="28" /><output>28</output></label>
@@ -215,6 +224,14 @@ function openViewer(id) {
       <button class="btn ghost danger" data-del-asset="${a.id}">删除</button>
     </div>`;
   $("#viewer").showModal();
+}
+
+function versionLinks(a) {
+  const parent = a.parentId && state.project.assets.find((x) => x.id === a.parentId);
+  const children = state.project.assets.filter((x) => x.parentId === a.id);
+  if (!parent && !children.length) return "";
+  return `<div class="versions">${parent ? `<button class="btn link" data-open="${parent.id}">← 上一版本</button>` : ""}
+    ${children.map((c, i) => `<button class="btn link" data-open="${c.id}">新版本 ${i + 1} →</button>`).join("")}</div>`;
 }
 
 function spriteSection(a) {
@@ -311,15 +328,15 @@ async function loadProjectsQuiet() {
   sel.value = cur;
 }
 
-async function run(extraRequest) {
+async function run(extraRequest, redraw) {
   if (!state.project.refs.length) return toast("请先上传至少一张风格参考图");
   const request = extraRequest ?? $("#request").value.trim();
-  if (!request && !state.selectedTypes.size) return toast("请选择素材类型或描述需求");
+  if (!redraw && !request && !state.selectedTypes.size) return toast("请选择素材类型或描述需求");
   $("#log").innerHTML = "";
   try {
     const { jobId } = await api(`/api/projects/${state.project.id}/run`, {
       method: "POST",
-      body: { request, assetTypes: [...state.selectedTypes], provider: $("#providerSelect").value },
+      body: { request, assetTypes: redraw ? [] : [...state.selectedTypes], provider: $("#providerSelect").value, redraw },
     });
     attachJob(jobId);
   } catch (e) {
@@ -457,7 +474,27 @@ async function init() {
     }
   });
   $("#viewerMeta").addEventListener("click", async (e) => {
-    if (e.target.dataset?.restore) return cutout(e.target.dataset.restore, { restore: true });
+    const ds = e.target.dataset ?? {};
+    if (ds.restore) return cutout(ds.restore, { restore: true });
+    if (ds.open) return openViewer(ds.open);
+    if (ds.verdict) {
+      const id = $("#viewerMeta").querySelector("[data-redraw]").dataset.redraw;
+      const notes = $("#feedback").value.trim();
+      const asset = await api(`/api/projects/${state.project.id}/assets/${id}`, {
+        method: "PATCH",
+        body: notes ? { status: ds.verdict, notes } : { status: ds.verdict },
+      });
+      upsertAsset(asset);
+      openViewer(asset.id);
+      return toast(ds.verdict === "approved" ? "已标记为通过" : "已标记为驳回");
+    }
+    if (ds.redraw) {
+      if (state.job) return toast("已有任务在运行，请稍候");
+      const feedback = $("#feedback").value.trim();
+      if (!feedback) return toast("请先写下修改意见");
+      $("#viewer").close();
+      return run("", { assetId: ds.redraw, feedback });
+    }
     const del = e.target.dataset?.delAsset;
     const variant = e.target.dataset?.variant;
     if (del) {
