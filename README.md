@@ -120,6 +120,10 @@ Agent 工具：
 
 见 [.env.example](.env.example)。数据保存在 `data/`（已 gitignore）。
 
+## HTTP API
+
+界面能做的事都可以用接口完成（批量生成、导出、审核等），见 [docs/api.md](docs/api.md)，含一个从建项目到下载图集的脚本示例。设置了 `ACCESS_TOKEN` 时用 `Authorization: Bearer <令牌>` 调用。
+
 ## License
 
 MIT
