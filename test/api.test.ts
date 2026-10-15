@@ -130,6 +130,17 @@ describe("HTTP API (demo mode)", () => {
   it("exports a texture atlas with Phaser animations, and Godot .tres for sprite sheets", async () => {
     const run = await json(`/api/projects/${id}/run`, { method: "POST", body: { request: "走路", assetTypes: ["sprite_sheet", "background"], provider: "mock" } });
     await events(run.body.jobId);
+    // The mock's walk cycle bobs up and down: frame alignment flattens it into a new version.
+    const sheet = (await json(`/api/projects/${id}`)).body.assets.find((a: { assetType: string }) => a.assetType === "sprite_sheet");
+    const jitter = (await json(`/api/projects/${id}/assets/${sheet.id}/jitter`)).body;
+    assert.ok(jitter.vertical > 10, JSON.stringify(jitter));
+    const aligned = (await json(`/api/projects/${id}/assets/${sheet.id}/align-frames`, { method: "POST", body: { mode: "bottom" } })).body;
+    assert.equal(aligned.after.vertical, 0);
+    assert.deepEqual([aligned.asset.parentId, aligned.asset.frames.length, !!aligned.asset.gif], [sheet.id, 4, true]);
+    assert.equal((await json(`/api/projects/${id}/assets/${aligned.asset.id}/jitter`)).body.vertical, 0);
+    await json(`/api/projects/${id}/assets/${aligned.asset.id}`, { method: "DELETE" });
+    const tile = (await json(`/api/projects/${id}`)).body.assets.find((a: { assetType: string }) => a.assetType === "background");
+    assert.equal((await json(`/api/projects/${id}/assets/${tile.id}/jitter`)).status, 400);
     const atlasRes = await fetch(`${base}/api/projects/${id}/export-atlas.zip?max=64`);
     assert.equal(atlasRes.status, 200);
     const atlas = readZip(Buffer.from(await atlasRes.arrayBuffer()));

@@ -4,7 +4,7 @@ import sharp from "sharp";
 import { isOpaque, removeBackground } from "../src/image/background.js";
 import { shrink, toPng } from "../src/image/io.js";
 import { isPixelArt, parseSize, resizeAsset } from "../src/image/sizes.js";
-import { detectFrameCount, sliceSheet } from "../src/image/spriteSheet.js";
+import { alignFrames, contentBox, detectFrameCount, joinFrames, measureJitter, sliceSheet } from "../src/image/spriteSheet.js";
 import { analyzeSeams, makeSeamless, tilePreview } from "../src/image/tiles.js";
 import { pixel, solidPng, validStyleGuide } from "./helpers.js";
 
@@ -85,6 +85,59 @@ describe("sprite sheets", () => {
 
   it("refuses frames narrower than 4px", async () => {
     await assert.rejects(sliceSheet(await solidPng(20, 10, "#000000"), 10), /帧数过多/);
+  });
+});
+
+/** A 40×40 transparent frame with a 10×16 blob whose top-left is (x, y). */
+const frameAt = (x: number, y: number, color = "#cc3300") =>
+  sharp({ create: { width: 40, height: 40, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: { create: { width: 10, height: 16, channels: 3, background: color } }, left: x, top: y }])
+    .png()
+    .toBuffer();
+const opaqueCount = async (png: Buffer) => {
+  const { data } = await sharp(png).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  let n = 0;
+  for (let i = 3; i < data.length; i += 4) if (data[i] > 16) n++;
+  return n;
+};
+
+describe("frame alignment", () => {
+  it("finds the content box", async () => {
+    const b = await contentBox(await frameAt(5, 7));
+    assert.deepEqual([b.left, b.top, b.right, b.bottom, b.empty], [5, 7, 14, 22, false]);
+    assert.equal((await contentBox(await solidPng(8, 8, "#000000", 0))).empty, true);
+  });
+
+  it("measures and removes bottom-centre jitter without losing pixels", async () => {
+    const frames = await Promise.all([frameAt(5, 10), frameAt(12, 14), frameAt(20, 8), frameAt(9, 12)]);
+    const before = await measureJitter(frames);
+    assert.deepEqual(before, { horizontal: 15, vertical: 6 });
+    const aligned = await alignFrames(frames);
+    assert.deepEqual(await measureJitter(aligned), { horizontal: 0, vertical: 0 });
+    for (const f of aligned) {
+      const m = await sharp(f).metadata();
+      assert.deepEqual([m.width, m.height], [40, 40]);
+      assert.equal(await opaqueCount(f), 160);
+    }
+  });
+
+  it("centre mode aligns vertical centres instead of bottoms", async () => {
+    const frames = await Promise.all([frameAt(5, 2), frameAt(5, 20)]);
+    assert.equal((await measureJitter(await alignFrames(frames, "center"), "center")).vertical, 0);
+  });
+
+  it("clamps shifts so content stays inside the cell, and leaves empty frames alone", async () => {
+    const empty = await solidPng(40, 40, "#000000", 0);
+    const frames = await Promise.all([frameAt(0, 24), frameAt(30, 24), frameAt(29, 24)]);
+    const aligned = await alignFrames([...frames, empty]);
+    for (const f of aligned.slice(0, 3)) assert.equal(await opaqueCount(f), 160);
+    assert.ok(aligned[3].equals(empty));
+  });
+
+  it("joins frames into one row", async () => {
+    const sheet = await joinFrames(await Promise.all([frameAt(1, 1), frameAt(2, 2), frameAt(3, 3)]));
+    const m = await sharp(sheet).metadata();
+    assert.deepEqual([m.width, m.height], [120, 40]);
   });
 });
 

@@ -6,6 +6,7 @@ import { removeBackground } from "../image/background.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { analyzeSeams, makeSeamless, tilePreview } from "../image/tiles.js";
+import { type AlignMode, alignFrames, joinFrames, measureJitter, sliceSheet } from "../image/spriteSheet.js";
 import { newId, projectDir, readProjectFile, removeAssetFiles, updateProject, writeProjectFile } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { attachment, findAsset, pid } from "./util.js";
@@ -184,4 +185,54 @@ assetsRouter.post("/api/projects/:id/assets/:assetId/make-seamless", async (req,
   };
   await updateProject(project.id, (p) => void p.assets.push(created));
   res.json(created);
+});
+
+/** Frames of a sprite sheet: the sliced files if present, else an equal split (default 4). */
+async function sheetFrames(projectId: string, asset: Asset): Promise<Buffer[]> {
+  if (asset.frames?.length) return Promise.all(asset.frames.map((f) => readProjectFile(projectId, f)));
+  return (await sliceSheet(await readProjectFile(projectId, asset.file), 4)).frames;
+}
+
+const alignMode = (v: unknown): AlignMode => (v === "center" ? "center" : "bottom");
+
+/** How much the content wanders between frames (px). */
+assetsRouter.get("/api/projects/:id/assets/:assetId/jitter", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以检测帧抖动" });
+  res.json(await measureJitter(await sheetFrames(found.project.id, found.asset), alignMode(req.query.mode)));
+});
+
+/** Align frames on a shared anchor; the result is a new version linked to the original. */
+assetsRouter.post("/api/projects/:id/assets/:assetId/align-frames", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  const { project, asset } = found;
+  if (asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以对齐帧" });
+  const mode = alignMode(req.body?.mode);
+  const frames = await sheetFrames(project.id, asset);
+  const before = await measureJitter(frames, mode);
+  const aligned = await alignFrames(frames, mode);
+  const after = await measureJitter(aligned, mode);
+  const id = newId("ast");
+  const file = `assets/${id}.png`;
+  await writeProjectFile(project.id, file, await joinFrames(aligned));
+  const created: Asset = {
+    id,
+    name: asset.name,
+    assetType: asset.assetType,
+    prompt: asset.prompt,
+    file,
+    mime: "image/png",
+    status: "pending_review",
+    notes: `由「${asset.name}」对齐帧（${mode === "bottom" ? "底边居中" : "中心"}）：水平抖动 ${before.horizontal}→${after.horizontal}px，${mode === "bottom" ? "底边" : "垂直"} ${before.vertical}→${after.vertical}px`,
+    reviewer: "user",
+    runId: asset.runId,
+    provider: "postprocess",
+    createdAt: new Date().toISOString(),
+    parentId: asset.id,
+  };
+  Object.assign(created, await sliceAssetFrames(project.id, created, await readProjectFile(project.id, file), aligned.length, asset.fps ?? 8));
+  await updateProject(project.id, (p) => void p.assets.push(created));
+  res.json({ asset: created, before, after });
 });

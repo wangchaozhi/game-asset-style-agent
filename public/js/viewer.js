@@ -40,9 +40,24 @@ export function openViewer(id) {
   $("#viewer").showModal();
   if (a.assetType === "tile") loadSeams(a.id);
   if (state.project.styleGuide) loadPalette(a.id);
+  if (a.assetType === "sprite_sheet") loadJitter(a.id);
 }
 
 const pct = (x) => `${Math.round(x * 100)}%`;
+
+/** How far the content drifts between frames; > 2px is visible as jitter. */
+export async function loadJitter(id, mode = "bottom") {
+  const el = $("#viewerMeta .jitter");
+  try {
+    const r = await api(`/api/projects/${state.project.id}/assets/${id}/jitter?mode=${mode}`);
+    if (!el?.isConnected) return;
+    const worst = Math.max(r.horizontal, r.vertical);
+    el.className = `jitter ${worst <= 2 ? "ok" : worst <= 8 ? "warn" : "bad"}`;
+    el.textContent = `帧抖动：水平 ${r.horizontal}px · ${mode === "bottom" ? "底边" : "垂直"} ${r.vertical}px`;
+  } catch (err) {
+    if (el) el.textContent = err.message;
+  }
+}
 
 /** Palette check: share of pixels on-palette, per-colour usage bar, and the main off-palette colours. */
 export async function loadPalette(id) {
@@ -197,6 +212,11 @@ export function spriteSection(a) {
         <button class="btn ghost" type="submit">${frames.length ? "重新切帧" : "切帧"}</button>
         ${a.gif ? `<a class="btn ghost" href="${fileUrl(a.gif)}" download="${esc(a.name)}.gif">下载 GIF</a>` : ""}
       </form>
+      <form class="align-form" data-align="${a.id}">
+        <span class="jitter muted">帧抖动检测中…</span>
+        <select name="mode"><option value="bottom">底边居中（角色）</option><option value="center">中心（特效 / 漂浮物）</option></select>
+        <button class="btn ghost" type="submit">对齐帧（生成新版本）</button>
+      </form>
     </div>`;
 }
 
@@ -246,6 +266,26 @@ export function bindViewer() {
     if (!form) return;
     e.preventDefault();
     cutout(form.dataset.cutout, { tolerance: Number(new FormData(form).get("tolerance")) });
+  });
+  $("#viewerMeta").addEventListener("change", (e) => {
+    const form = e.target.closest("form[data-align]");
+    if (form && e.target.name === "mode") loadJitter(form.dataset.align, e.target.value);
+  });
+  $("#viewerMeta").addEventListener("submit", async (e) => {
+    const form = e.target.closest("form[data-align]");
+    if (!form) return;
+    e.preventDefault();
+    try {
+      const { asset, before, after } = await api(`/api/projects/${state.project.id}/assets/${form.dataset.align}/align-frames`, {
+        method: "POST",
+        body: { mode: new FormData(form).get("mode") },
+      });
+      upsertAsset(asset);
+      openViewer(asset.id);
+      toast(`已对齐：水平 ${before.horizontal}→${after.horizontal}px，垂直 ${before.vertical}→${after.vertical}px`);
+    } catch (err) {
+      toast(err.message);
+    }
   });
   $("#viewerMeta").addEventListener("submit", async (e) => {
     const form = e.target.closest("form[data-seamless]");
