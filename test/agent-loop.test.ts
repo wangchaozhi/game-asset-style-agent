@@ -113,6 +113,8 @@ describe("agent loop against a fake Messages API", () => {
     assert.deepEqual([byName["火焰剑"].status, byName["火焰剑"].score, byName["铁盾"].status, byName["铁盾"].notes], ["approved", 9, "rejected", "描边太细"]);
     assert.ok(events.some((e) => e.type === "thinking" && e.text === "先提炼风格。"));
     assert.equal(events.filter((e) => e.type === "text").map((e) => (e as { delta: string }).delta).join(""), "我先提炼风格指南。完成：火焰剑、铁盾。");
+    // The fake streams text in 8-character deltas; the stored log keeps one event per run of text.
+    assert.ok(events.filter((e) => e.type === "text").length <= 2, "consecutive deltas are merged in the replay log");
     assert.deepEqual(events.filter((e) => e.type === "tool").map((e) => (e as { name: string }).name), ["save_style_guide", "generate_image", "generate_image", "review_asset", "review_asset"]);
 
     // usage: 4 requests, tokens summed, priced at Opus 5.5 rates

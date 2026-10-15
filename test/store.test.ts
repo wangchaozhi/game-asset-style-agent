@@ -104,6 +104,12 @@ describe("conversation", () => {
 });
 
 describe("usage log", () => {
+  it("ignores malformed entries (e.g. from an imported backup)", async () => {
+    const { id } = await store.createProject("bad-usage");
+    fs.writeFileSync(path.join(dataDir, "projects", id, "usage.json"), JSON.stringify([null, 5, { jobId: "x" }, newRunUsage("job_ok", "", "demo")]));
+    assert.deepEqual((await store.loadUsage(id)).map((r) => r.jobId), ["job_ok"]);
+  });
+
   it("upserts runs by job id, serialized per project", async () => {
     const { id } = await store.createProject("usage");
     assert.deepEqual(await store.loadUsage(id), []);

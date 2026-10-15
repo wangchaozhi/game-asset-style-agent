@@ -9,9 +9,19 @@ const queue = createKeyedQueue();
 /** Wait for every pending usage write (used before the process exits). */
 export const flushUsageWrites = () => queue.drain();
 
+/** Enough structure for summaries not to crash (files may come from an imported backup). */
+const isRunUsage = (r: unknown): r is RunUsage => {
+  const x = r as RunUsage | null;
+  return (
+    !!x && typeof x.jobId === "string" && typeof x.startedAt === "string" &&
+    !!x.claude && typeof x.claude.byModel === "object" && !!x.images && typeof x.images.calls === "number" &&
+    !!x.cost && typeof x.cost.total === "number"
+  );
+};
+
 export async function loadUsage(projectId: string): Promise<RunUsage[]> {
-  const list = await readJson<RunUsage[]>(usageFile(projectId));
-  return Array.isArray(list) ? list : [];
+  const list = await readJson<unknown[]>(usageFile(projectId));
+  return Array.isArray(list) ? list.filter(isRunUsage) : [];
 }
 
 /** Insert or replace the run with the same jobId. Writes are serialized per project. */

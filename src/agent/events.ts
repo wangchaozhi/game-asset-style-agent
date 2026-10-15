@@ -59,7 +59,10 @@ export function emit(job: Job, e: AgentEvent) {
     const i = job.events.findIndex((x) => x.type === "usage");
     if (i >= 0) job.events.splice(i, 1);
   }
-  job.events.push(e);
+  // Store streamed text as one event per paragraph run, not one per token; live listeners still get every delta.
+  const last = job.events.at(-1);
+  if (e.type === "text" && last?.type === "text") job.events[job.events.length - 1] = { type: "text", delta: last.delta + e.delta };
+  else job.events.push(e);
   for (const l of job.listeners) l(e);
 }
 
