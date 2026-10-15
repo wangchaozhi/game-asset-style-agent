@@ -50,6 +50,8 @@ export interface Asset {
   frames?: string[];
   gif?: string;
   fps?: number;
+  /** set once the background has been cut out; the untouched model output */
+  originalFile?: string;
 }
 
 export interface Project {

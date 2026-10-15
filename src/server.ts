@@ -15,6 +15,7 @@ import {
   writeProjectFile,
 } from "./store.js";
 import { providers, toPng } from "./imageProviders.js";
+import { removeBackground } from "./postprocess.js";
 import { ASSET_TYPES, type AgentEvent, jobs, sliceAssetFrames, startJob } from "./agent.js";
 
 
@@ -99,6 +100,30 @@ app.post("/api/projects/:id/assets/:assetId/slice", async (req, res) => {
   const p = await updateProject(projectId, (p) => {
     const a = p.assets.find((x) => x.id === asset.id);
     if (a) Object.assign(a, sliced);
+  });
+  res.json(p.assets.find((a) => a.id === asset.id));
+});
+
+app.post("/api/projects/:id/assets/:assetId/cutout", async (req, res) => {
+  const projectId = pid(req);
+  const project = await loadProject(projectId);
+  const asset = project.assets.find((a) => a.id === req.params.assetId);
+  if (!asset) return void res.status(404).json({ error: "素材不存在" });
+  const tolerance = Math.max(1, Math.min(120, Number(req.body?.tolerance ?? 28)));
+  const restore = !!req.body?.restore;
+  const originalFile = asset.originalFile ?? `assets/${asset.id}_orig.${asset.file.split(".").pop()}`;
+  if (!asset.originalFile) await writeProjectFile(projectId, originalFile, await readProjectFile(projectId, asset.file));
+  let file = originalFile;
+  if (!restore) {
+    file = `assets/${asset.id}_cut${Date.now().toString(36)}.png`;
+    await writeProjectFile(projectId, file, await removeBackground(await readProjectFile(projectId, originalFile), tolerance));
+  }
+  const sliced = asset.frames?.length
+    ? await sliceAssetFrames(projectId, asset, await readProjectFile(projectId, file), asset.frames.length, asset.fps)
+    : {};
+  const p = await updateProject(projectId, (p) => {
+    const a = p.assets.find((x) => x.id === asset.id);
+    if (a) Object.assign(a, { originalFile, file, mime: restore ? asset.mime : "image/png" }, sliced);
   });
   res.json(p.assets.find((a) => a.id === asset.id));
 });

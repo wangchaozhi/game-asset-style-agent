@@ -13,6 +13,7 @@ import {
 } from "./store.js";
 import { type ImageInput, type ImageProvider, getProvider, shrink } from "./imageProviders.js";
 import { detectFrameCount, sliceSheet } from "./spriteSheet.js";
+import { isOpaque, removeBackground } from "./postprocess.js";
 
 const MODEL = process.env.CLAUDE_MODEL ?? "claude-opus-5-5";
 const EFFORT = (process.env.CLAUDE_EFFORT ?? "medium") as "low" | "medium" | "high" | "xhigh" | "max";
@@ -259,7 +260,7 @@ async function generateAsset(
       .filter((a): a is Asset => !!a)
       .map(async (a) => shrink({ data: await readProjectFile(project.id, a.file), mime: a.mime }, 1024)),
   );
-  const img = await provider.generate(
+  let img = await provider.generate(
     {
       prompt: input.prompt,
       references: [...extra, ...refs],
@@ -270,6 +271,13 @@ async function generateAsset(
     job.abort.signal,
   );
   const id = newId("ast");
+  let originalFile: string | undefined;
+  // Many image models can't output alpha; cut the flat backdrop out ourselves.
+  if (input.transparent_background && (await isOpaque(img.data))) {
+    originalFile = `assets/${id}_orig.${extFor(img.mime)}`;
+    await writeProjectFile(project.id, originalFile, img.data);
+    img = { data: await removeBackground(img.data), mime: "image/png" };
+  }
   const file = `assets/${id}.${extFor(img.mime)}`;
   await writeProjectFile(project.id, file, img.data);
   const asset: Asset = {
@@ -283,6 +291,7 @@ async function generateAsset(
     runId: job.id,
     provider: provider.id,
     createdAt: new Date().toISOString(),
+    originalFile,
   };
   if (input.asset_type === "sprite_sheet") {
     Object.assign(asset, await sliceAssetFrames(project.id, asset, img.data, input.frames).catch(() => ({})));

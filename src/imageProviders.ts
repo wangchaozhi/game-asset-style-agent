@@ -151,7 +151,7 @@ const mock: ImageProvider = {
         : shape(w / 2, h / 2, Math.min(w, h) * (0.22 + (hash[3] % 10) / 100), 0);
     const label = req.prompt.replace(/[<>&"]/g, "").slice(0, 38);
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-      ${req.transparent ? "" : `<rect width="100%" height="100%" fill="${c3}" opacity="0.35"/>`}
+      ${req.transparent ? `<rect width="100%" height="100%" fill="#ffffff"/>` : `<rect width="100%" height="100%" fill="${c3}" opacity="0.35"/>`}
       ${body}
       ${frames > 1 ? "" : `<text x="50%" y="${h - 24}" font-family="sans-serif" font-size="18" text-anchor="middle" fill="#222">${label}</text>`}
     </svg>`;

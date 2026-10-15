@@ -152,6 +152,11 @@ function openViewer(id) {
     <div class="muted">${esc(state.config.assetTypes[a.assetType] ?? a.assetType)} · ${esc(a.provider)} · ${new Date(a.createdAt).toLocaleString()}</div>
     ${a.notes ? `<div><b>审核：</b>${esc(a.notes)}${a.score ? `（一致性 ${a.score}/10）` : ""}</div>` : ""}
     ${a.assetType === "sprite_sheet" ? spriteSection(a) : ""}
+    <form class="cutout-form" data-cutout="${a.id}">
+      <label>去背景容差 <input name="tolerance" type="range" min="4" max="100" value="28" /><output>28</output></label>
+      <button class="btn ghost" type="submit">${a.originalFile ? "重新抠图" : "去除背景"}</button>
+      ${a.originalFile ? `<button class="btn ghost" type="button" data-restore="${a.id}">恢复原图</button>` : ""}
+    </form>
     <div><b>Prompt</b></div><pre>${esc(a.prompt)}</pre>
     <div class="actions">
       <a class="btn primary" href="${fileUrl(a.file)}" download="${esc(a.name)}.${a.file.split(".").pop()}">下载</a>
@@ -347,6 +352,25 @@ async function init() {
     const card = e.target.closest(".card");
     if (card) openViewer(card.dataset.asset);
   });
+  $("#viewerMeta").addEventListener("input", (e) => {
+    if (e.target.name === "tolerance") e.target.nextElementSibling.value = e.target.value;
+  });
+  const cutout = async (id, body) => {
+    try {
+      const asset = await api(`/api/projects/${state.project.id}/assets/${id}/cutout`, { method: "POST", body });
+      upsertAsset(asset);
+      openViewer(asset.id);
+      toast(body.restore ? "已恢复原图" : "背景已去除");
+    } catch (err) {
+      toast(err.message);
+    }
+  };
+  $("#viewerMeta").addEventListener("submit", (e) => {
+    const form = e.target.closest("form[data-cutout]");
+    if (!form) return;
+    e.preventDefault();
+    cutout(form.dataset.cutout, { tolerance: Number(new FormData(form).get("tolerance")) });
+  });
   $("#viewerMeta").addEventListener("submit", async (e) => {
     const form = e.target.closest("form[data-slice]");
     if (!form) return;
@@ -365,6 +389,7 @@ async function init() {
     }
   });
   $("#viewerMeta").addEventListener("click", async (e) => {
+    if (e.target.dataset?.restore) return cutout(e.target.dataset.restore, { restore: true });
     const del = e.target.dataset?.delAsset;
     const variant = e.target.dataset?.variant;
     if (del) {
