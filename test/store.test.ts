@@ -63,6 +63,14 @@ describe("projects", () => {
     }
   });
 
+  it("refuses project file paths outside refs/ and assets/", async () => {
+    const p = await store.createProject("paths");
+    for (const bad of ["../x", "assets/../../x", "assets/a/b.png", "project.json", "/etc/passwd", "assets/..", "thumbs/a.png"]) {
+      await assert.rejects(store.readProjectFile(p.id, bad), /invalid project file path/, bad);
+      await assert.rejects(store.writeProjectFile(p.id, bad, Buffer.from("x")), /invalid project file path/, bad);
+    }
+  });
+
   it("reads and writes project files; maps mime to extension", async () => {
     const p = await store.createProject("files");
     await store.writeProjectFile(p.id, "assets/x.bin", Buffer.from("hello"));

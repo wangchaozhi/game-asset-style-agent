@@ -101,6 +101,30 @@ describe("project backup", () => {
     assert.ok(!fs.existsSync(path.join(dataDir, "projects", project.id, "conversation.json")), "invalid JSON is not restored");
   });
 
+  it("drops frame / gif / original paths that point outside the backup (path traversal)", async () => {
+    const asset = (id: string, extra: object) => ({
+      id, name: id, assetType: "sprite_sheet", prompt: "", file: `assets/${id}.png`, mime: "image/png",
+      status: "approved", runId: "", provider: "", createdAt: "", ...extra,
+    });
+    const zip = createZip([
+      meta,
+      json("project.json", {
+        name: "evil", refs: [],
+        assets: [
+          asset("ast_a", { frames: ["../../SECRET.txt"], gif: "assets/ast_a.gif" }),
+          asset("ast_b", { gif: "../x.gif", originalFile: "/etc/passwd" }),
+          asset("ast_c", { frames: ["assets/ast_c_f0.png"], gif: "assets/ast_c.gif", originalFile: "assets/ast_c_orig.png" }),
+        ],
+      }),
+      ...["ast_a.png", "ast_a.gif", "ast_b.png", "ast_c.png", "ast_c_f0.png", "ast_c.gif", "ast_c_orig.png"].map((n) => ({ name: `assets/${n}`, data: Buffer.from("x") })),
+    ]);
+    const { project } = await store.importBackup(zip);
+    const [a, b, c] = project.assets;
+    assert.deepEqual([a.frames, a.gif], [undefined, undefined], "frames dropped, and the gif with them");
+    assert.deepEqual([b.gif, b.originalFile], [undefined, undefined]);
+    assert.deepEqual([c.frames, c.gif, c.originalFile], [["assets/ast_c_f0.png"], "assets/ast_c.gif", "assets/ast_c_orig.png"], "valid paths are kept");
+  });
+
   it("refuses archives that are not project backups", async () => {
     await assert.rejects(store.importBackup(createZip([json("project.json", { refs: [], assets: [] })])), /不是本工具导出的项目备份/);
     await assert.rejects(store.importBackup(createZip([meta, json("project.json", { refs: "nope" })])), /project.json 无效/);

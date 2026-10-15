@@ -5,7 +5,7 @@ import { runningJobFor } from "../agent/index.js";
 import { StyleGuideInput } from "../agent/schemas.js";
 import {
   clearConversation, createProject, deleteProject, listProjects, loadConversation, loadProject, projectDir,
-  buildBackup, importBackup, loadStyleHistory, projectDiskUsage, recordStyleVersion, removeOrphanFiles, styleDiff,
+  buildBackup, importBackup, isProjectFile, loadStyleHistory, projectDiskUsage, recordStyleVersion, removeOrphanFiles, styleDiff,
   updateProject,
 } from "../store/index.js";
 import { THUMB_WIDTHS, getThumb } from "../image/thumbs.js";
@@ -96,14 +96,14 @@ projectsRouter.delete("/api/projects/:id/conversation", async (req, res) => {
 /** Serve reference images and asset files. Only flat names under refs/ or assets/ are allowed. */
 projectsRouter.get("/api/projects/:id/files/*rel", (req, res) => {
   const rel = ([] as string[]).concat(req.params.rel as string | string[]).join("/");
-  if (!/^(refs|assets)\/[\w.-]+$/.test(rel)) return void res.status(400).end();
+  if (!isProjectFile(rel)) return void res.status(400).end();
   res.sendFile(path.join(projectDir(pid(req)), rel));
 });
 
 /** Cached WebP thumbnail of a reference or asset file: ?w=160|320|640 (default 320). */
 projectsRouter.get("/api/projects/:id/thumbs/*rel", async (req, res) => {
   const rel = ([] as string[]).concat(req.params.rel as string | string[]).join("/");
-  if (!/^(refs|assets)\/[\w.-]+$/.test(rel)) return void res.status(400).end();
+  if (!isProjectFile(rel)) return void res.status(400).end();
   const w = Number(req.query.w ?? 320);
   if (!(THUMB_WIDTHS as readonly number[]).includes(w)) return void res.status(400).json({ error: `w 需为 ${THUMB_WIDTHS.join(" / ")}` });
   const project = await loadProject(pid(req));

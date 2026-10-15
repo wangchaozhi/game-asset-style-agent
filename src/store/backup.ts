@@ -4,11 +4,10 @@ import { StyleGuideInput } from "../agent/schemas.js";
 import { createZip, type ZipEntry } from "../export/zip.js";
 import { readZip } from "../export/unzip.js";
 import { projectDir, newId, readJson, writeAtomic } from "./fs.js";
-import { loadProject } from "./projects.js";
+import { isProjectFile, loadProject } from "./projects.js";
 import type { Asset, Project, RefImage, TrashedAsset } from "./types.js";
 
 export const BACKUP_FORMAT = "game-asset-agent/project-backup";
-const FILE_NAME = /^(refs|assets)\/[\w.-]+$/;
 const DATA_FILES = ["conversation.json", "usage.json", "style-history.json"] as const;
 
 /** Everything needed to recreate the project elsewhere: metadata, history, usage and all files. */
@@ -46,10 +45,25 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
   if (!src || !Array.isArray(src.refs) || !Array.isArray(src.assets)) throw new Error("备份中的 project.json 无效");
 
   const skipped: string[] = [];
-  const hasFile = (rel: unknown): rel is string => typeof rel === "string" && FILE_NAME.test(rel) && byName.has(rel);
+  const hasFile = (rel: unknown): rel is string => typeof rel === "string" && isProjectFile(rel) && byName.has(rel);
   const refs = (src.refs as RefImage[]).filter((r) => hasFile(r?.file) || (skipped.push(`参考图 ${r?.id ?? "?"}`), false));
-  const assets = (src.assets as Asset[]).filter((a) => hasFile(a?.file) || (skipped.push(`素材 ${a?.name ?? a?.id ?? "?"}`), false));
-  const trash = (Array.isArray(src.trash) ? (src.trash as TrashedAsset[]) : []).filter((a) => hasFile(a?.file) && typeof a.deletedAt === "string");
+  // Every path an asset carries must point into the backup; drop optional ones that don't.
+  const cleanAsset = <T extends Asset>(a: T): T => {
+    const c = { ...a };
+    if (c.originalFile !== undefined && !hasFile(c.originalFile)) delete c.originalFile;
+    if (c.gif !== undefined && !hasFile(c.gif)) delete c.gif;
+    if (c.frames !== undefined && !(Array.isArray(c.frames) && c.frames.every(hasFile))) {
+      delete c.frames;
+      delete c.gif;
+    }
+    return c;
+  };
+  const assets = (src.assets as Asset[])
+    .filter((a) => hasFile(a?.file) || (skipped.push(`素材 ${a?.name ?? a?.id ?? "?"}`), false))
+    .map(cleanAsset);
+  const trash = (Array.isArray(src.trash) ? (src.trash as TrashedAsset[]) : [])
+    .filter((a) => hasFile(a?.file) && typeof a.deletedAt === "string")
+    .map(cleanAsset);
   const styleGuide = src.styleGuide ? (StyleGuideInput.safeParse(src.styleGuide).data ?? null) : null;
   if (src.styleGuide && !styleGuide) skipped.push("风格指南（格式无效）");
 
@@ -66,7 +80,7 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
   await fs.mkdir(path.join(dir, "refs"), { recursive: true });
   await fs.mkdir(path.join(dir, "assets"), { recursive: true });
   for (const e of entries) {
-    if (FILE_NAME.test(e.name)) await fs.writeFile(path.join(dir, e.name), e.data);
+    if (isProjectFile(e.name)) await fs.writeFile(path.join(dir, e.name), e.data);
     else if ((DATA_FILES as readonly string[]).includes(e.name) && parse(e.data) !== null) await fs.writeFile(path.join(dir, e.name), e.data);
   }
   await writeAtomic(path.join(dir, "project.json"), JSON.stringify(project, null, 2));

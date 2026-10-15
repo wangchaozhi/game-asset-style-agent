@@ -58,10 +58,21 @@ const EXT: Record<string, string> = {
 
 export const extFor = (mime: string) => EXT[mime] ?? "png";
 
+/** Project files are always a flat name under refs/ or assets/; anything else is refused. */
+export const PROJECT_FILE = /^(refs|assets)\/[\w.-]+$/;
+
+export const isProjectFile = (rel: string) => PROJECT_FILE.test(rel) && !rel.split("/").some((part) => part === "." || part === "..");
+
+/** Absolute path of a project file, refusing paths that could leave the project directory. */
+export function projectFilePath(projectId: string, rel: string): string {
+  if (!isProjectFile(rel)) throw new Error(`invalid project file path: ${rel}`);
+  return path.join(projectDir(projectId), rel);
+}
+
 export async function writeProjectFile(projectId: string, rel: string, data: Buffer) {
-  await fs.writeFile(path.join(projectDir(projectId), rel), data);
+  await fs.writeFile(projectFilePath(projectId, rel), data);
 }
 
 export async function readProjectFile(projectId: string, rel: string): Promise<Buffer> {
-  return fs.readFile(path.join(projectDir(projectId), rel));
+  return fs.readFile(projectFilePath(projectId, rel));
 }

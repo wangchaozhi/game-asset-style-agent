@@ -136,6 +136,17 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(revalidated, 304);
     assert.equal((await fetch(`${base}/api/projects/${id}/thumbs/${tile.file}?w=999`)).status, 400);
     assert.equal((await fetch(`${base}/api/projects/${id}/thumbs/project.json`)).status, 400);
+    // fetch() normalises "..", even percent-encoded; send the raw path the way a hostile client would.
+    const rawStatus = (p: string) =>
+      new Promise<number>((resolve, reject) => {
+        const u = new URL(base);
+        http.get({ host: u.hostname, port: u.port, path: p }, (r) => (r.resume(), resolve(r.statusCode!))).on("error", reject);
+      });
+    for (const route of ["files", "thumbs"]) {
+      assert.equal(await rawStatus(`/api/projects/${id}/${route}/assets/..`), 400, route);
+      assert.equal(await rawStatus(`/api/projects/${id}/${route}/assets/%2E%2E`), 400, route);
+      assert.equal(await rawStatus(`/api/projects/${id}/${route}/assets/..%2Fproject.json`), 400, route);
+    }
     assert.equal((await fetch(`${base}/api/projects/${id}/files/project.json`)).status, 400);
     assert.equal((await fetch(`${base}/api/projects/${id}/files/assets/..%2Fproject.json`)).status, 400);
     const sized = await fetch(`${base}/api/projects/${id}/assets/${tile.id}/sized.png?size=32`);
