@@ -40,6 +40,7 @@ export function renderAll() {
   $("#exportAll").href = `/api/projects/${state.project.id}/export.zip?status=all`;
   $("#exportSized").href = `/api/projects/${state.project.id}/export.zip?sizes=1`;
   $("#exportAtlas").href = `/api/projects/${state.project.id}/export-atlas.zip`;
+  $("#backupProject").href = `/api/projects/${state.project.id}/backup.zip`;
   state.pixelKernel = /pixel|像素|8-?bit|16-?bit/i.test(JSON.stringify(state.project.styleGuide ?? ""));
   renderRefs();
   renderStyle();
@@ -72,6 +73,21 @@ export function bindProjects(onSwitch) {
     await loadProjects();
   });
 
+  $("#importProject").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("backup", file);
+    toast("正在导入…");
+    try {
+      const { project, skipped } = await api("/api/projects/import", { method: "POST", body: fd });
+      await loadProjects(project.id);
+      toast(skipped.length ? `已导入「${project.name}」，跳过：${skipped.slice(0, 3).join("、")}${skipped.length > 3 ? " 等" : ""}` : `已导入「${project.name}」`);
+    } catch (err) {
+      toast(err.message);
+    }
+  });
   $("#convBar").addEventListener("click", async (e) => {
     if (e.target.id !== "newConv") return;
     if (!confirm("清空与 Agent 的对话记忆？风格指南和已生成的素材都会保留。")) return;

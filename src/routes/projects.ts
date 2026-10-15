@@ -1,12 +1,13 @@
 import { Router } from "express";
+import multer from "multer";
 import path from "node:path";
 import { runningJobFor } from "../agent/index.js";
 import { StyleGuideInput } from "../agent/schemas.js";
 import {
   clearConversation, createProject, deleteProject, listProjects, loadConversation, loadProject, projectDir,
-  projectDiskUsage, removeOrphanFiles, updateProject,
+  buildBackup, importBackup, projectDiskUsage, removeOrphanFiles, updateProject,
 } from "../store/index.js";
-import { pid } from "./util.js";
+import { attachment, pid } from "./util.js";
 
 export const projectsRouter = Router();
 
@@ -73,4 +74,28 @@ projectsRouter.post("/api/projects/:id/cleanup", async (req, res) => {
   const project = await loadProject(pid(req));
   if (runningJobFor(project.id)) return void res.status(409).json({ error: "该项目有任务在运行，请稍后再清理" });
   res.json(await removeOrphanFiles(project));
+});
+
+/** Whole-project backup: metadata, conversation, usage log and every file. */
+projectsRouter.get("/api/projects/:id/backup.zip", async (req, res) => {
+  const { filename, zip } = await buildBackup(pid(req));
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", attachment("backup.zip", filename));
+  res.send(zip);
+});
+
+const backupUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: Number(process.env.BACKUP_MAX_MB ?? 500) * 1024 * 1024, files: 1 },
+});
+
+/** Restore a backup as a new project. */
+projectsRouter.post("/api/projects/import", backupUpload.single("backup"), async (req, res) => {
+  if (!req.file) return void res.status(400).json({ error: "请选择备份文件（.zip）" });
+  try {
+    const { project, skipped } = await importBackup(req.file.buffer);
+    res.json({ project, skipped });
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+  }
 });

@@ -208,6 +208,21 @@ describe("HTTP API (demo mode)", () => {
     assert.deepEqual([usage.images.calls, usage.budget.maxImages, usage.status], [2, 2, "ok"]);
   });
 
+  it("backs a project up and restores it as a new one", async () => {
+    const res = await fetch(`${base}/api/projects/${id}/backup.zip`);
+    assert.equal(res.status, 200);
+    const fd = new FormData();
+    fd.append("backup", new Blob([new Uint8Array(await res.arrayBuffer())], { type: "application/zip" }), "b.zip");
+    const imported = await json("/api/projects/import", { method: "POST", body: fd });
+    assert.equal(imported.status, 200);
+    const original = (await json(`/api/projects/${id}`)).body;
+    assert.notEqual(imported.body.project.id, id);
+    assert.equal(imported.body.project.assets.length, original.assets.length);
+    const bad = new FormData();
+    bad.append("backup", new Blob([new Uint8Array([1, 2, 3])]), "x.zip");
+    assert.equal((await json("/api/projects/import", { method: "POST", body: bad })).status, 400);
+  });
+
   it("returns 404 for unknown projects and jobs", async () => {
     assert.equal((await json("/api/projects/prj_0000000000")).status, 404);
     assert.equal((await fetch(`${base}/api/jobs/job_nope/events`)).status, 404);
