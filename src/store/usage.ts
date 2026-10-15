@@ -6,6 +6,9 @@ import { createKeyedQueue, projectDir, readJson, writeAtomic } from "./fs.js";
 const usageFile = (projectId: string) => path.join(projectDir(projectId), "usage.json");
 const queue = createKeyedQueue();
 
+/** Wait for every pending usage write (used before the process exits). */
+export const flushUsageWrites = () => queue.drain();
+
 export async function loadUsage(projectId: string): Promise<RunUsage[]> {
   const list = await readJson<RunUsage[]>(usageFile(projectId));
   return Array.isArray(list) ? list : [];
@@ -19,5 +22,24 @@ export function saveRunUsage(projectId: string, run: RunUsage): Promise<void> {
     if (i >= 0) list[i] = run;
     else list.push(run);
     await writeAtomic(usageFile(projectId), JSON.stringify(list, null, 2));
+  });
+}
+
+/**
+ * After a restart, no job is running: any run still marked "running" was cut off.
+ * Returns how many runs were marked "interrupted".
+ */
+export function markInterruptedRuns(projectId: string, now = new Date().toISOString()): Promise<number> {
+  return queue(projectId, async () => {
+    const list = await loadUsage(projectId);
+    let n = 0;
+    for (const r of list) {
+      if (r.status !== "running") continue;
+      r.status = "interrupted";
+      r.finishedAt ??= now;
+      n++;
+    }
+    if (n) await writeAtomic(usageFile(projectId), JSON.stringify(list, null, 2));
+    return n;
   });
 }

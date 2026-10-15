@@ -108,3 +108,17 @@ describe("usage log", () => {
     assert.deepEqual(list.map((r) => [r.jobId, r.status]), [["job_a", "ok"], ["job_b", "running"]]);
   });
 });
+
+describe("keyed queue", () => {
+  it("drain waits for queued work and the key map empties afterwards", async () => {
+    const { createKeyedQueue } = await import("../src/store/fs.js");
+    const q = createKeyedQueue();
+    const order: number[] = [];
+    void q("a", async () => { await new Promise((r) => setTimeout(r, 20)); order.push(1); });
+    void q("a", async () => { order.push(2); });
+    void q("b", async () => { throw new Error("ignored"); }).catch(() => undefined);
+    await q.drain();
+    assert.deepEqual(order, [1, 2]);
+    await q.drain(); // nothing pending: resolves immediately
+  });
+});

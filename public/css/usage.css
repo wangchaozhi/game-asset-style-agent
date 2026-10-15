@@ -19,5 +19,5 @@
 .usage-table .req { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
 .run-status.ok { color: var(--ok); }
 .run-status.error, .bad { color: var(--bad); }
-.run-status.stopped { color: var(--muted); }
+.run-status.stopped, .run-status.interrupted { color: var(--muted); }
 .run-status.running { color: var(--pending); }

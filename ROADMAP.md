@@ -15,3 +15,13 @@
 - [x] 单元测试：store / 工具输入校验 / mock provider（node:test）
 - [x] GitHub Actions：typecheck + 测试
 - [x] Dockerfile 与一键部署说明
+
+## 第二轮
+
+- [x] 中断任务处理：服务重启后把残留的「进行中」运行标记为已中断；优雅退出时中止进行中的任务
+- [ ] 可选访问令牌：设置 ACCESS_TOKEN 后所有页面与 API 需要登录
+- [ ] 色板一致性检测：量化素材颜色与风格色板的偏离，查看器展示，并附在 generate_image 结果里供 Agent 审核参考
+- [ ] 图集导出：已通过素材打包成 atlas PNG + JSON（Phaser / TexturePacker 格式），精灵表额外导出 Godot SpriteFrames
+- [ ] 批量操作：素材库多选，批量通过 / 驳回 / 删除 / 导出
+- [ ] 图像通道请求单测：mock fetch 校验 OpenAI / Gemini 请求格式与错误处理
+- [ ] ESLint + CI lint

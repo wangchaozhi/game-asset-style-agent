@@ -2,12 +2,21 @@ import crypto from "node:crypto";
 import sharp from "sharp";
 import type { ImageProvider } from "./types.js";
 
+/** Like a real network call, the simulated latency stops as soon as the job is aborted. */
+function sleep(ms: number, signal?: AbortSignal) {
+  return new Promise<void>((resolve, reject) => {
+    if (signal?.aborted) return reject(signal.reason);
+    const t = setTimeout(resolve, ms);
+    signal?.addEventListener("abort", () => (clearTimeout(t), reject(signal.reason)), { once: true });
+  });
+}
+
 /** Deterministic placeholder art, for running the whole pipeline without an image API. */
 export const mock: ImageProvider = {
   id: "mock",
   label: "Mock（离线占位图）",
   available: () => true,
-  async generate(req) {
+  async generate(req, signal) {
     const frames = Math.max(1, req.frames ?? 1);
     const [cw, h] = { square: [512, 512], landscape: [768, 512], portrait: [512, 768] }[req.aspect];
     const w = frames > 1 ? frames * 192 : cw;
@@ -39,7 +48,7 @@ export const mock: ImageProvider = {
       ${frames > 1 ? "" : `<text x="50%" y="${h - 24}" font-family="sans-serif" font-size="18" text-anchor="middle" fill="#222">${label}</text>`}
     </svg>`;
     const delay = Number(process.env.MOCK_DELAY_MS ?? 400);
-    if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+    if (delay > 0) await sleep(delay, signal);
     return { data: await sharp(Buffer.from(svg)).png().toBuffer(), mime: "image/png" };
   },
 };

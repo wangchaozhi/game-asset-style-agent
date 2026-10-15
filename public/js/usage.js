@@ -42,7 +42,7 @@ export function renderLiveUsage(usage) {
     <button class="btn link" data-usage-open>项目用量 ›</button>`;
 }
 
-const STATUS = { running: "进行中", ok: "完成", error: "出错", stopped: "已停止" };
+const STATUS = { running: "进行中", ok: "完成", error: "出错", stopped: "已停止", interrupted: "已中断" };
 
 export async function openUsageDialog(projectId) {
   const dlg = $("#usageDialog");

@@ -22,6 +22,8 @@ export function startJob(opts: RunOptions): Job {
     usage: newRunUsage(id, requestLabel(opts), demo ? "demo" : "agent"),
   };
   jobs.set(job.id, job);
+  // Record the run immediately so a crash before the first image call still leaves a trace.
+  reportUsage(job);
   const runner = demo ? runDemo : runAgent;
   runner(job, opts)
     .then(() => {

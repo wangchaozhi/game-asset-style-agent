@@ -18,7 +18,8 @@ export interface RunUsage {
   request: string;
   startedAt: string;
   finishedAt?: string;
-  status: "running" | "ok" | "error" | "stopped";
+  /** "interrupted": the server stopped before the run finished */
+  status: "running" | "ok" | "error" | "stopped" | "interrupted";
   /** "demo" when no Claude call was made */
   mode: "agent" | "demo";
   claude: {
