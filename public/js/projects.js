@@ -19,6 +19,10 @@ export async function loadProjects(selectId) {
 }
 
 export async function openProject(id) {
+  state.query = "";
+  state.typeFilter = "";
+  const search = $("#assetSearch");
+  if (search) search.value = "";
   try { localStorage.setItem("gaa.project", id); } catch {}
   state.project = await api(`/api/projects/${id}`);
   renderAll();

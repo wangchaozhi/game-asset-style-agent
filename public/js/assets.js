@@ -4,16 +4,41 @@ import { fileUrl, state } from "./state.js";
 
 const LABEL = { approved: "✓ 通过", rejected: "✗ 驳回", pending_review: "… 审核中" };
 
-/** Assets currently visible under the active filter, newest first. */
-export const visibleAssets = () =>
-  state.project.assets.filter((a) => state.filter === "all" || a.status === state.filter).slice().reverse();
+const matchesQuery = (a, q) =>
+  !q || [a.name, a.notes, a.prompt, a.id].some((v) => String(v ?? "").toLowerCase().includes(q));
+
+/** Assets currently visible under the status / type filters and search, newest first. */
+export const visibleAssets = () => {
+  const q = state.query.trim().toLowerCase();
+  return state.project.assets
+    .filter((a) => (state.filter === "all" || a.status === state.filter) && (!state.typeFilter || a.assetType === state.typeFilter) && matchesQuery(a, q))
+    .slice()
+    .reverse();
+};
+
+/** Type dropdown lists only types present in the project, with counts. */
+function renderTypeFilter() {
+  const sel = $("#typeFilter");
+  const counts = {};
+  for (const a of state.project.assets) counts[a.assetType] = (counts[a.assetType] ?? 0) + 1;
+  if (state.typeFilter && !counts[state.typeFilter]) state.typeFilter = "";
+  sel.innerHTML =
+    `<option value="">全部类型（${state.project.assets.length}）</option>` +
+    Object.entries(counts)
+      .map(([t, n]) => `<option value="${esc(t)}">${esc(state.config.assetTypes[t] ?? t)}（${n}）</option>`)
+      .join("");
+  sel.value = state.typeFilter;
+}
 
 export function renderAssets(newId) {
   const all = state.project.assets;
   // Drop selections that no longer exist (deleted elsewhere, project switched).
   for (const id of state.selected) if (!all.some((a) => a.id === id)) state.selected.delete(id);
+  renderTypeFilter();
   const shown = visibleAssets();
   $("#assetCount").textContent = all.length ? `${all.filter((a) => a.status === "approved").length}/${all.length}` : "";
+  const filtered = shown.length !== all.length;
+  $("#assetSearch").closest(".asset-search").dataset.shown = filtered ? `显示 ${shown.length} / ${all.length}` : "";
   const typeName = (t) => state.config.assetTypes[t] ?? t;
   const grid = $("#assets");
   grid.classList.toggle("selecting", state.selecting);
@@ -78,6 +103,14 @@ export function bindAssets({ onOpen }) {
     if (!f) return;
     state.filter = f;
     document.querySelectorAll("#filters button").forEach((b) => b.classList.toggle("on", b.dataset.filter === f));
+    renderAssets();
+  });
+  $("#assetSearch").addEventListener("input", (e) => {
+    state.query = e.target.value;
+    renderAssets();
+  });
+  $("#typeFilter").addEventListener("change", (e) => {
+    state.typeFilter = e.target.value;
     renderAssets();
   });
   $("#assets").addEventListener("click", (e) => {
