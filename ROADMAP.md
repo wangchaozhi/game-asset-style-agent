@@ -25,3 +25,12 @@
 - [x] 批量操作：素材库多选，批量通过 / 驳回 / 删除 / 导出
 - [x] 图像通道请求单测：mock fetch 校验 OpenAI / Gemini 请求格式与错误处理
 - [x] ESLint + CI lint（前端 JS 用 ESLint；TypeScript 7 已无 typescript-eslint 所需的编译器 API，TS 由 tsc 严格模式与 noUnused* 检查）
+
+## 第三轮
+
+- [x] Agent 循环集成测试：本地假 Messages API（SSE 流），覆盖工具调用 → 结果 → 结束、续接对话、用量统计与错误路径
+- [ ] 删除时清理文件：删除素材 / 参考图时移除对应文件，并提供孤儿文件清理
+- [ ] 图像通道重试：429 / 5xx / 网络错误按 Retry-After 指数退避重试，可中止
+- [ ] 预算上限：单次运行的图像调用次数与估算费用上限，超出后停止生成并告知 Agent
+- [ ] 版本对比：查看器中并排对比重画前后的版本
+- [ ] 本地 Stable Diffusion 通道（AUTOMATIC1111 / Forge WebUI API）
