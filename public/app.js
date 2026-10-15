@@ -1,0 +1,360 @@
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+const state = {
+  config: null,
+  project: null,
+  selectedTypes: new Set(),
+  filter: "all",
+  job: null,
+  source: null,
+  textEntry: null,
+};
+
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: opts.body && !(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : undefined,
+    body: opts.body && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { data });
+  return data;
+}
+
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => (t.hidden = true), 3500);
+}
+
+const fileUrl = (rel) => `/api/projects/${state.project.id}/files/${rel}`;
+
+// ---------------- projects ----------------
+
+async function loadProjects(selectId) {
+  const list = await api("/api/projects");
+  const sel = $("#projectSelect");
+  if (!list.length) {
+    const p = await api("/api/projects", { method: "POST", body: { name: "我的第一个项目" } });
+    return loadProjects(p.id);
+  }
+  sel.innerHTML = list.map((p) => `<option value="${p.id}">${esc(p.name)}（${p.assets}）</option>`).join("");
+  const id = selectId || localStorage.getItem("gaa.project") || list[0].id;
+  sel.value = list.some((p) => p.id === id) ? id : list[0].id;
+  await openProject(sel.value);
+}
+
+async function openProject(id) {
+  try { localStorage.setItem("gaa.project", id); } catch {}
+  state.project = await api(`/api/projects/${id}`);
+  renderAll();
+}
+
+function renderAll() {
+  renderRefs();
+  renderStyle();
+  renderAssets();
+}
+
+// ---------------- refs ----------------
+
+function renderRefs() {
+  const refs = state.project.refs;
+  $("#refs").innerHTML = refs
+    .map((r) => `<div class="ref"><img src="${fileUrl(r.file)}" alt="${esc(r.originalName)}" /><button data-ref="${r.id}" title="移除">×</button></div>`)
+    .join("");
+}
+
+async function uploadRefs(files) {
+  const imgs = [...files].filter((f) => f.type.startsWith("image/"));
+  if (!imgs.length) return;
+  const fd = new FormData();
+  imgs.slice(0, 8).forEach((f) => fd.append("images", f));
+  toast("上传中…");
+  try {
+    state.project = await api(`/api/projects/${state.project.id}/refs`, { method: "POST", body: fd });
+    renderRefs();
+    toast(`已添加 ${imgs.length} 张参考图`);
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+// ---------------- style guide ----------------
+
+const STYLE_FIELDS = [
+  ["rendering", "技法"],
+  ["line_and_edges", "线条"],
+  ["lighting_and_shading", "光影"],
+  ["perspective", "视角"],
+  ["proportions", "比例"],
+  ["texture_and_detail", "细节"],
+  ["mood", "氛围"],
+];
+
+function renderStyle() {
+  const sg = state.project.styleGuide;
+  const box = $("#styleGuide");
+  $("#resetStyle").hidden = !sg;
+  if (!sg) {
+    box.className = "style-guide empty";
+    box.textContent = "还没有风格指南，第一次运行时 Agent 会根据参考图自动生成。";
+    return;
+  }
+  box.className = "style-guide";
+  box.innerHTML = `
+    <p class="summary">${esc(sg.summary)}</p>
+    <div class="palette">${sg.palette
+      .map((c) => `<div class="swatch" title="${esc(c.role)}"><i style="background:${esc(c.hex)}"></i>${esc(c.hex)}</div>`)
+      .join("")}</div>
+    <dl>${STYLE_FIELDS.map(([k, l]) => `<dt>${l}</dt><dd>${esc(sg[k])}</dd>`).join("")}
+      ${sg.avoid?.length ? `<dt>避免</dt><dd>${esc(sg.avoid.join("；"))}</dd>` : ""}</dl>`;
+}
+
+// ---------------- assets ----------------
+
+function renderAssets(newId) {
+  const all = state.project.assets;
+  const shown = all.filter((a) => state.filter === "all" || a.status === state.filter).slice().reverse();
+  $("#assetCount").textContent = all.length ? `${all.filter((a) => a.status === "approved").length}/${all.length}` : "";
+  const label = { approved: "✓ 通过", rejected: "✗ 驳回", pending_review: "… 审核中" };
+  const typeName = (t) => state.config.assetTypes[t] ?? t;
+  $("#assets").innerHTML = shown.length
+    ? shown
+        .map(
+          (a) => `<div class="card ${a.status} ${a.id === newId ? "new" : ""}" data-asset="${a.id}">
+            <div class="checker"><img loading="lazy" src="${fileUrl(a.file)}" alt="${esc(a.name)}" /></div>
+            <div class="meta"><span class="name">${esc(a.name)}</span>
+              <span class="sub"><span>${esc(typeName(a.assetType))}</span><span class="badge ${a.status}">${label[a.status]}${a.score ? ` ${a.score}/10` : ""}</span></span>
+            </div></div>`,
+        )
+        .join("")
+    : `<p class="empty">${all.length ? "没有符合筛选的素材" : "生成的素材会出现在这里"}</p>`;
+}
+
+function upsertAsset(asset) {
+  const list = state.project.assets;
+  const i = list.findIndex((a) => a.id === asset.id);
+  if (i >= 0) list[i] = asset;
+  else list.push(asset);
+  renderAssets(i >= 0 ? undefined : asset.id);
+}
+
+function openViewer(id) {
+  const a = state.project.assets.find((x) => x.id === id);
+  if (!a) return;
+  $("#viewerImg").src = fileUrl(a.file);
+  $("#viewerMeta").innerHTML = `
+    <h3 style="margin:0">${esc(a.name)}</h3>
+    <div class="muted">${esc(state.config.assetTypes[a.assetType] ?? a.assetType)} · ${esc(a.provider)} · ${new Date(a.createdAt).toLocaleString()}</div>
+    ${a.notes ? `<div><b>审核：</b>${esc(a.notes)}${a.score ? `（一致性 ${a.score}/10）` : ""}</div>` : ""}
+    <div><b>Prompt</b></div><pre>${esc(a.prompt)}</pre>
+    <div class="actions">
+      <a class="btn primary" href="${fileUrl(a.file)}" download="${esc(a.name)}.${a.file.split(".").pop()}">下载</a>
+      <button class="btn ghost" data-variant="${a.id}">基于此图继续生成</button>
+      <button class="btn ghost danger" data-del-asset="${a.id}">删除</button>
+    </div>`;
+  $("#viewer").showModal();
+}
+
+// ---------------- run + log ----------------
+
+function logEntry(cls, html) {
+  const log = $("#log");
+  if (log.querySelector(".muted:only-child")) log.innerHTML = "";
+  const el = document.createElement("div");
+  el.className = `entry ${cls}`;
+  el.innerHTML = html;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+  return el;
+}
+
+const TOOL_LABEL = { save_style_guide: "提炼风格指南", generate_image: "生成", review_asset: "审核" };
+
+function describeTool(name, input) {
+  if (name === "generate_image") return `<b>${TOOL_LABEL[name]}</b> ${esc(input.name)} <span class="muted">[${esc(input.asset_type)}]</span>`;
+  if (name === "review_asset") {
+    const a = state.project.assets.find((x) => x.id === input.asset_id);
+    return `<b>${TOOL_LABEL[name]}</b> ${esc(a?.name ?? input.asset_id)} → ${input.verdict === "approved" ? "通过" : "驳回"} ${input.consistency_score}/10 <span class="muted">${esc(input.notes)}</span>`;
+  }
+  return `<b>${TOOL_LABEL[name] ?? esc(name)}</b>`;
+}
+
+function handleEvent(e) {
+  if (e.type !== "text") state.textEntry = null;
+  switch (e.type) {
+    case "status": logEntry("status", esc(e.text)); break;
+    case "text":
+      if (!state.textEntry) state.textEntry = logEntry("text", "");
+      state.textEntry.textContent += e.delta;
+      $("#log").scrollTop = $("#log").scrollHeight;
+      break;
+    case "thinking": logEntry("thinking", esc(e.text)); break;
+    case "tool": logEntry("tool", describeTool(e.name, e.input)); break;
+    case "style": state.project.styleGuide = e.styleGuide; renderStyle(); break;
+    case "asset": upsertAsset(e.asset); break;
+    case "error": logEntry("error", esc(e.message)); break;
+    case "done": finishJob(); break;
+  }
+}
+
+function attachJob(jobId) {
+  state.job = jobId;
+  try { localStorage.setItem(`gaa.job.${state.project.id}`, jobId); } catch {}
+  $("#runBtn").disabled = true;
+  $("#runBtn").textContent = "生成中…";
+  $("#stopBtn").hidden = false;
+  state.source?.close();
+  const src = new EventSource(`/api/jobs/${jobId}/events`);
+  state.source = src;
+  src.onmessage = (m) => handleEvent(JSON.parse(m.data));
+  src.onerror = () => {
+    // The job is gone (server restart) or finished; stop retrying.
+    if (!state.job) return;
+    src.close();
+    finishJob();
+  };
+}
+
+function finishJob() {
+  state.source?.close();
+  state.source = null;
+  state.job = null;
+  state.textEntry = null;
+  try { localStorage.removeItem(`gaa.job.${state.project.id}`); } catch {}
+  $("#runBtn").disabled = false;
+  $("#runBtn").textContent = "开始生成";
+  $("#stopBtn").hidden = true;
+  loadProjectsQuiet();
+}
+
+async function loadProjectsQuiet() {
+  const list = await api("/api/projects");
+  const sel = $("#projectSelect");
+  const cur = sel.value;
+  sel.innerHTML = list.map((p) => `<option value="${p.id}">${esc(p.name)}（${p.assets}）</option>`).join("");
+  sel.value = cur;
+}
+
+async function run(extraRequest) {
+  if (!state.project.refs.length) return toast("请先上传至少一张风格参考图");
+  const request = extraRequest ?? $("#request").value.trim();
+  if (!request && !state.selectedTypes.size) return toast("请选择素材类型或描述需求");
+  $("#log").innerHTML = "";
+  try {
+    const { jobId } = await api(`/api/projects/${state.project.id}/run`, {
+      method: "POST",
+      body: { request, assetTypes: [...state.selectedTypes], provider: $("#providerSelect").value },
+    });
+    attachJob(jobId);
+  } catch (e) {
+    if (e.data?.jobId) attachJob(e.data.jobId);
+    else toast(e.message);
+  }
+}
+
+// ---------------- init ----------------
+
+async function init() {
+  state.config = await api("/api/config");
+  const chips = $("#typeChips");
+  chips.innerHTML = Object.entries(state.config.assetTypes)
+    .map(([k, v]) => `<button class="chip" data-type="${k}">${esc(v)}</button>`)
+    .join("");
+  const ps = $("#providerSelect");
+  ps.innerHTML = state.config.providers
+    .map((p) => `<option value="${p.id}" ${p.available ? "" : "disabled"}>${esc(p.label)}${p.available ? "" : "（未配置）"}</option>`)
+    .join("");
+  ps.value = state.config.providers.find((p) => p.available)?.id;
+  if (state.config.demo) logEntry("status", "当前为演示模式（AGENT_MODE=demo）：不调用 Claude，仅走一遍流水线。");
+
+  chips.addEventListener("click", (e) => {
+    const b = e.target.closest(".chip");
+    if (!b) return;
+    const t = b.dataset.type;
+    state.selectedTypes.has(t) ? state.selectedTypes.delete(t) : state.selectedTypes.add(t);
+    b.classList.toggle("on");
+  });
+
+  $("#projectSelect").addEventListener("change", (e) => openProject(e.target.value).then(resumeJob));
+  $("#newProject").addEventListener("click", async () => {
+    const name = prompt("项目名称", "新项目");
+    if (name === null) return;
+    const p = await api("/api/projects", { method: "POST", body: { name } });
+    await loadProjects(p.id);
+  });
+  $("#deleteProject").addEventListener("click", async () => {
+    if (!confirm(`删除项目「${state.project.name}」及其全部素材？此操作不可撤销。`)) return;
+    await api(`/api/projects/${state.project.id}`, { method: "DELETE" });
+    try { localStorage.removeItem("gaa.project"); } catch {}
+    await loadProjects();
+  });
+
+  const dz = $("#dropzone");
+  $("#refInput").addEventListener("change", (e) => { uploadRefs(e.target.files); e.target.value = ""; });
+  dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("over"); });
+  dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+  dz.addEventListener("drop", (e) => { e.preventDefault(); dz.classList.remove("over"); uploadRefs(e.dataTransfer.files); });
+  document.addEventListener("paste", (e) => {
+    const files = [...(e.clipboardData?.files ?? [])];
+    if (files.length && !e.target.closest?.("textarea")) uploadRefs(files);
+  });
+  $("#refs").addEventListener("click", async (e) => {
+    const id = e.target.dataset?.ref;
+    if (!id) return;
+    state.project = await api(`/api/projects/${state.project.id}/refs/${id}`, { method: "DELETE" });
+    renderRefs();
+  });
+
+  $("#resetStyle").addEventListener("click", async () => {
+    if (!confirm("清空当前风格指南？下次运行时 Agent 会重新从参考图提炼。")) return;
+    state.project = await api(`/api/projects/${state.project.id}`, { method: "PATCH", body: { resetStyle: true } });
+    renderStyle();
+  });
+
+  $("#runBtn").addEventListener("click", () => run());
+  $("#stopBtn").addEventListener("click", () => state.job && api(`/api/jobs/${state.job}/stop`, { method: "POST" }));
+  $("#request").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); });
+  $("#showThinking").addEventListener("change", (e) => $("#log").classList.toggle("hide-thinking", !e.target.checked));
+
+  $("#filters").addEventListener("click", (e) => {
+    const f = e.target.dataset?.filter;
+    if (!f) return;
+    state.filter = f;
+    document.querySelectorAll("#filters button").forEach((b) => b.classList.toggle("on", b.dataset.filter === f));
+    renderAssets();
+  });
+  $("#assets").addEventListener("click", (e) => {
+    const card = e.target.closest(".card");
+    if (card) openViewer(card.dataset.asset);
+  });
+  $("#viewerMeta").addEventListener("click", async (e) => {
+    const del = e.target.dataset?.delAsset;
+    const variant = e.target.dataset?.variant;
+    if (del) {
+      state.project = await api(`/api/projects/${state.project.id}/assets/${del}`, { method: "DELETE" });
+      $("#viewer").close();
+      renderAssets();
+    } else if (variant) {
+      const a = state.project.assets.find((x) => x.id === variant);
+      $("#viewer").close();
+      $("#request").value = `以素材 ${a.id}（${a.name}）为一致性参考，`;
+      $("#request").focus();
+    }
+  });
+
+  await loadProjects();
+  resumeJob();
+}
+
+function resumeJob() {
+  let jobId = null;
+  try { jobId = localStorage.getItem(`gaa.job.${state.project.id}`); } catch {}
+  if (jobId && !state.job) attachJob(jobId);
+}
+
+init().catch((e) => toast(e.message));

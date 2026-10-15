@@ -1,0 +1,503 @@
+import Anthropic from "@anthropic-ai/sdk";
+import { z } from "zod";
+import {
+  type Asset,
+  type Project,
+  type StyleGuide,
+  extFor,
+  loadProject,
+  newId,
+  readProjectFile,
+  updateProject,
+  writeProjectFile,
+} from "./store.js";
+import { type ImageInput, type ImageProvider, getProvider, shrink } from "./imageProviders.js";
+
+const MODEL = process.env.CLAUDE_MODEL ?? "claude-opus-5-5";
+const EFFORT = (process.env.CLAUDE_EFFORT ?? "medium") as "low" | "medium" | "high" | "xhigh" | "max";
+const MAX_TURNS = Number(process.env.AGENT_MAX_TURNS ?? 40);
+
+export const ASSET_TYPES = {
+  character: "角色立绘 / 角色设定",
+  sprite_sheet: "角色动画帧（精灵表）",
+  enemy: "敌人 / 怪物",
+  item_icon: "道具 / 装备图标",
+  tile: "地图瓦片 / 地形",
+  prop: "场景物件",
+  background: "场景背景",
+  ui: "UI 元素（按钮、面板、图标）",
+  vfx: "技能特效",
+  portrait: "头像 / 对话立绘",
+} as const;
+type AssetType = keyof typeof ASSET_TYPES;
+const ASSET_TYPE_KEYS = Object.keys(ASSET_TYPES) as [AssetType, ...AssetType[]];
+
+// ---------------- events ----------------
+
+export type AgentEvent =
+  | { type: "status"; text: string }
+  | { type: "text"; delta: string }
+  | { type: "thinking"; text: string }
+  | { type: "tool"; name: string; input: unknown }
+  | { type: "style"; styleGuide: StyleGuide }
+  | { type: "asset"; asset: Asset }
+  | { type: "error"; message: string }
+  | { type: "done"; summary?: string };
+
+export interface Job {
+  id: string;
+  projectId: string;
+  events: AgentEvent[];
+  listeners: Set<(e: AgentEvent) => void>;
+  finished: boolean;
+  abort: AbortController;
+}
+
+export const jobs = new Map<string, Job>();
+
+function emit(job: Job, e: AgentEvent) {
+  job.events.push(e);
+  for (const l of job.listeners) l(e);
+}
+
+// ---------------- tools ----------------
+
+const StyleGuideInput = z.object({
+  summary: z.string().min(1),
+  palette: z.array(z.object({ hex: z.string().regex(/^#[0-9a-fA-F]{6}$/), role: z.string() })).min(3),
+  rendering: z.string(),
+  line_and_edges: z.string(),
+  lighting_and_shading: z.string(),
+  perspective: z.string(),
+  proportions: z.string(),
+  texture_and_detail: z.string(),
+  mood: z.string(),
+  avoid: z.array(z.string()),
+  prompt_prefix: z.string().min(20),
+});
+
+const GenerateInput = z.object({
+  name: z.string().min(1),
+  asset_type: z.enum(ASSET_TYPE_KEYS),
+  prompt: z.string().min(20),
+  aspect: z.enum(["square", "landscape", "portrait"]),
+  transparent_background: z.boolean(),
+  consistency_asset_ids: z.array(z.string()).max(4).optional(),
+});
+
+const ReviewInput = z.object({
+  asset_id: z.string(),
+  verdict: z.enum(["approved", "rejected"]),
+  consistency_score: z.number().int().min(1).max(10),
+  notes: z.string(),
+});
+
+const tools: Anthropic.Beta.BetaTool[] = [
+  {
+    name: "save_style_guide",
+    description:
+      "Persist the project's style bible, distilled from the reference images. Every later generation prompt is built on it, so be concrete and visual (e.g. '2px dark-purple outline, cel shading with exactly 2 tones, 3/4 top-down camera, 1:2.5 head-to-body chibi proportions') rather than vague ('nice, colorful'). Call again only if the user asks to change the style.",
+    eager_input_streaming: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        summary: { type: "string", description: "One or two sentences naming the overall style, in the user's language." },
+        palette: {
+          type: "array",
+          description: "5-10 dominant colours sampled from the references.",
+          items: {
+            type: "object",
+            properties: { hex: { type: "string", description: "#RRGGBB" }, role: { type: "string" } },
+            required: ["hex", "role"],
+          },
+        },
+        rendering: { type: "string", description: "Medium / technique: pixel art (state the pixel density), vector flat, hand-painted, 3D render, etc." },
+        line_and_edges: { type: "string" },
+        lighting_and_shading: { type: "string" },
+        perspective: { type: "string", description: "Camera angle and projection, e.g. side-view, isometric 2:1, top-down 3/4." },
+        proportions: { type: "string" },
+        texture_and_detail: { type: "string" },
+        mood: { type: "string" },
+        avoid: { type: "array", items: { type: "string" }, description: "Things that would break the style." },
+        prompt_prefix: {
+          type: "string",
+          description: "An English style paragraph (60-120 words) to prepend to every image prompt. Must include the palette hex codes.",
+        },
+      },
+      required: [
+        "summary", "palette", "rendering", "line_and_edges", "lighting_and_shading", "perspective",
+        "proportions", "texture_and_detail", "mood", "avoid", "prompt_prefix",
+      ],
+    },
+  },
+  {
+    name: "generate_image",
+    description:
+      "Generate one game asset with the image model. The project's style reference images are attached automatically; you write the full English prompt. Returns the asset id and the rendered image so you can inspect it. Several calls in one turn run in parallel.",
+    eager_input_streaming: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Short display name in the user's language, e.g. '火焰剑'." },
+        asset_type: { type: "string", enum: ASSET_TYPE_KEYS },
+        prompt: {
+          type: "string",
+          description: "Complete English prompt: style prefix + subject + composition rules for this asset type + what to avoid.",
+        },
+        aspect: { type: "string", enum: ["square", "landscape", "portrait"] },
+        transparent_background: { type: "boolean", description: "true for icons, sprites, props, UI, VFX; false for backgrounds and tiles." },
+        consistency_asset_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Up to 4 previously generated asset ids to also attach as references, e.g. the approved character design when drawing its sprite sheet or portrait.",
+        },
+      },
+      required: ["name", "asset_type", "prompt", "aspect", "transparent_background"],
+    },
+  },
+  {
+    name: "review_asset",
+    description:
+      "Record your verdict on a generated asset after comparing it to the reference images and style guide. Reject when palette, rendering technique, line work, perspective or proportions drift, or when the asset is unusable for its type (cropped, text artefacts, wrong background, inconsistent character).",
+    eager_input_streaming: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        asset_id: { type: "string" },
+        verdict: { type: "string", enum: ["approved", "rejected"] },
+        consistency_score: { type: "integer", description: "1-10 style consistency with the references." },
+        notes: { type: "string", description: "Short reason in the user's language." },
+      },
+      required: ["asset_id", "verdict", "consistency_score", "notes"],
+    },
+  },
+];
+
+const SYSTEM = `You are an art director agent for a game studio. Your job: produce game assets that look like they come from the same game as the user's reference images.
+
+How you work:
+1. If the project has no style guide yet, study the reference images closely and call save_style_guide. Pin down concrete, reproducible traits: palette hex codes, rendering technique, outline weight and colour, shading steps, light direction, camera/perspective, proportions, level of detail.
+2. Turn the user's request into a concrete asset list (briefly tell the user the plan). Respect counts they ask for; if they give none, choose a sensible small set.
+3. For each asset call generate_image. Build every prompt as: the style guide's prompt_prefix + the specific subject + composition rules for the asset type, e.g.
+   - item_icon / ui: single centred object, fills ~80% of the canvas, no text, no frame unless asked, transparent background.
+   - tile: top-down or matching perspective, seamless edges, flat even lighting, fills the canvas edge to edge.
+   - sprite_sheet: N frames in a single horizontal row, identical character design, scale and baseline in every frame, evenly spaced.
+   - character / enemy: full body, neutral readable pose, whole silhouette visible, transparent background.
+   - background: no characters, leave gameplay space, matching perspective.
+   When an asset must match an earlier one (same character in a new pose, matching set of icons), pass its id in consistency_asset_ids.
+   Issue independent generations in parallel in one turn.
+4. Look at every returned image and call review_asset. If rejected, regenerate with a corrected prompt that names the specific drift. Retry each asset at most twice.
+5. Finish with a short summary in the user's language: what was made, and anything that still drifts.
+
+Write your messages to the user in the same language they use (usually Chinese). Keep narration brief; the UI already shows every image.`;
+
+// ---------------- helpers ----------------
+
+async function refImages(project: Project): Promise<ImageInput[]> {
+  return Promise.all(
+    project.refs.map(async (r) => ({ data: await readProjectFile(project.id, r.file), mime: r.mime })),
+  );
+}
+
+function styleGuideText(sg: StyleGuide) {
+  return JSON.stringify(sg, null, 2);
+}
+
+function errResult(id: string, message: string): Anthropic.Beta.BetaToolResultBlockParam {
+  return { type: "tool_result", tool_use_id: id, is_error: true, content: message };
+}
+
+// ---------------- the agent loop ----------------
+
+export interface RunOptions {
+  projectId: string;
+  request: string;
+  assetTypes: string[];
+  providerId?: string;
+}
+
+export function startJob(opts: RunOptions): Job {
+  const job: Job = {
+    id: newId("job"),
+    projectId: opts.projectId,
+    events: [],
+    listeners: new Set(),
+    finished: false,
+    abort: new AbortController(),
+  };
+  jobs.set(job.id, job);
+  const runner = process.env.AGENT_MODE === "demo" ? runDemo : runAgent;
+  runner(job, opts)
+    .catch((err: unknown) => {
+      if (job.abort.signal.aborted) emit(job, { type: "status", text: "已停止" });
+      else emit(job, { type: "error", message: err instanceof Error ? err.message : String(err) });
+    })
+    .finally(() => {
+      job.finished = true;
+      emit(job, { type: "done" });
+      setTimeout(() => jobs.delete(job.id), 30 * 60_000);
+    });
+  return job;
+}
+
+async function generateAsset(
+  job: Job,
+  provider: ImageProvider,
+  input: z.infer<typeof GenerateInput>,
+): Promise<{ asset: Asset; image: ImageInput }> {
+  const project = await loadProject(job.projectId);
+  const refs = await Promise.all((await refImages(project)).map((r) => shrink(r, 1024)));
+  const extra = await Promise.all(
+    (input.consistency_asset_ids ?? [])
+      .map((id) => project.assets.find((a) => a.id === id))
+      .filter((a): a is Asset => !!a)
+      .map(async (a) => shrink({ data: await readProjectFile(project.id, a.file), mime: a.mime }, 1024)),
+  );
+  const img = await provider.generate(
+    { prompt: input.prompt, references: [...extra, ...refs], aspect: input.aspect, transparent: input.transparent_background },
+    job.abort.signal,
+  );
+  const id = newId("ast");
+  const file = `assets/${id}.${extFor(img.mime)}`;
+  await writeProjectFile(project.id, file, img.data);
+  const asset: Asset = {
+    id,
+    name: input.name,
+    assetType: input.asset_type,
+    prompt: input.prompt,
+    file,
+    mime: img.mime,
+    status: "pending_review",
+    runId: job.id,
+    provider: provider.id,
+    createdAt: new Date().toISOString(),
+  };
+  await updateProject(project.id, (p) => {
+    p.assets.push(asset);
+  });
+  emit(job, { type: "asset", asset });
+  return { asset, image: img };
+}
+
+async function runTool(
+  job: Job,
+  provider: ImageProvider,
+  block: Anthropic.Beta.BetaToolUseBlock,
+): Promise<Anthropic.Beta.BetaToolResultBlockParam> {
+  const invalid = () => errResult(block.id, JSON.stringify({ INVALID_JSON: JSON.stringify(block.input) }));
+  switch (block.name) {
+    case "save_style_guide": {
+      const parsed = StyleGuideInput.safeParse(block.input);
+      if (!parsed.success) return invalid();
+      await updateProject(job.projectId, (p) => {
+        p.styleGuide = parsed.data;
+      });
+      emit(job, { type: "style", styleGuide: parsed.data });
+      return { type: "tool_result", tool_use_id: block.id, content: "Style guide saved." };
+    }
+    case "generate_image": {
+      const parsed = GenerateInput.safeParse(block.input);
+      if (!parsed.success) return invalid();
+      try {
+        const { asset, image } = await generateAsset(job, provider, parsed.data);
+        const preview = await shrink(image, 768);
+        return {
+          type: "tool_result",
+          tool_use_id: block.id,
+          content: [
+            { type: "text", text: `asset_id=${asset.id} name=${asset.name}. Review it against the references now.` },
+            {
+              type: "image",
+              source: { type: "base64", media_type: preview.mime as "image/jpeg", data: preview.data.toString("base64") },
+            },
+          ],
+        };
+      } catch (err) {
+        if (job.abort.signal.aborted) throw err;
+        return errResult(block.id, `Image generation failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    case "review_asset": {
+      const parsed = ReviewInput.safeParse(block.input);
+      if (!parsed.success) return invalid();
+      let updated: Asset | undefined;
+      await updateProject(job.projectId, (p) => {
+        updated = p.assets.find((a) => a.id === parsed.data.asset_id);
+        if (!updated) return;
+        updated.status = parsed.data.verdict;
+        updated.score = parsed.data.consistency_score;
+        updated.notes = parsed.data.notes;
+      });
+      if (!updated) return errResult(block.id, `Unknown asset_id ${parsed.data.asset_id}`);
+      emit(job, { type: "asset", asset: updated });
+      return { type: "tool_result", tool_use_id: block.id, content: "Recorded." };
+    }
+    default:
+      return errResult(block.id, `Unknown tool ${block.name}`);
+  }
+}
+
+async function runAgent(job: Job, opts: RunOptions) {
+  const client = new Anthropic();
+  const provider = getProvider(opts.providerId);
+  const project = await loadProject(opts.projectId);
+  if (!project.refs.length) throw new Error("请先上传至少一张风格参考图");
+
+  const refs = await Promise.all((await refImages(project)).map((r) => shrink(r, 1024)));
+  const existing = project.assets.filter((a) => a.status === "approved");
+  const typeLabels = opts.assetTypes
+    .filter((t): t is AssetType => t in ASSET_TYPES)
+    .map((t) => `${t}（${ASSET_TYPES[t]}）`);
+
+  const intro = [
+    `Project: ${project.name}`,
+    project.styleGuide
+      ? `This project already has a style guide. Reuse it as-is:\n${styleGuideText(project.styleGuide)}`
+      : "No style guide yet: create one first from the reference images above.",
+    existing.length
+      ? `Approved assets so far (usable in consistency_asset_ids):\n${existing.map((a) => `- ${a.id} ${a.name} [${a.assetType}]`).join("\n")}`
+      : "",
+    typeLabels.length ? `Asset categories the user selected: ${typeLabels.join(", ")}` : "",
+    `User request:\n${opts.request || "按参考图风格生成一套基础素材。"}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
+  const messages: Anthropic.Beta.BetaMessageParam[] = [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: `Style reference images (${refs.length}):` },
+        ...refs.map(
+          (r): Anthropic.Beta.BetaImageBlockParam => ({
+            type: "image",
+            source: { type: "base64", media_type: "image/jpeg", data: r.data.toString("base64") },
+          }),
+        ),
+        { type: "text", text: intro },
+      ],
+    },
+  ];
+
+  emit(job, { type: "status", text: `Agent 启动 · ${MODEL} · 图像通道 ${provider.label}` });
+  let jsonRetries = 0;
+
+  for (let turn = 0; turn < MAX_TURNS; turn++) {
+    const stream = client.beta.messages.stream(
+      {
+        model: MODEL,
+        max_tokens: 64000,
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        cache_control: { type: "ephemeral" },
+        thinking: { type: "adaptive", display: "summarized" },
+        output_config: { effort: EFFORT },
+        system: SYSTEM,
+        tools,
+        messages,
+      },
+      { signal: job.abort.signal },
+    );
+    stream.on("text", (delta) => emit(job, { type: "text", delta }));
+
+    let message: Anthropic.Beta.BetaMessage;
+    try {
+      message = await stream.finalMessage();
+      jsonRetries = 0;
+    } catch (err) {
+      if (err instanceof Anthropic.APIError || job.abort.signal.aborted || jsonRetries++ >= 2) throw err;
+      emit(job, { type: "status", text: "工具参数解析失败，重试本轮" });
+      continue;
+    }
+
+    for (const b of message.content) {
+      if (b.type === "thinking" && b.thinking) emit(job, { type: "thinking", text: b.thinking });
+    }
+
+    if (message.stop_reason === "refusal") {
+      throw new Error(`模型拒绝了该请求${message.stop_details?.explanation ? `：${message.stop_details.explanation}` : ""}`);
+    }
+    if (message.stop_reason === "pause_turn") {
+      messages.push({ role: "assistant", content: message.content });
+      continue;
+    }
+
+    const toolUses = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
+    if (message.stop_reason === "end_turn" || toolUses.length === 0) return;
+    if (message.stop_reason === "max_tokens") throw new Error("输出超出 max_tokens，工具参数被截断");
+
+    messages.push({ role: "assistant", content: message.content });
+    for (const t of toolUses) emit(job, { type: "tool", name: t.name, input: t.input });
+    // Every tool_result goes back in one user message; generations run concurrently.
+    const results = await Promise.all(toolUses.map((t) => runTool(job, provider, t)));
+    messages.push({ role: "user", content: results });
+  }
+  emit(job, { type: "status", text: `已达到最大轮数 ${MAX_TURNS}，停止` });
+}
+
+// ---------------- demo mode: scripted run, no Claude call (for trying the UI without an API key) ----------------
+
+async function runDemo(job: Job, opts: RunOptions) {
+  const provider = getProvider(opts.providerId);
+  const project = await loadProject(opts.projectId);
+  if (!project.refs.length) throw new Error("请先上传至少一张风格参考图");
+  emit(job, { type: "status", text: `演示模式（AGENT_MODE=demo）· 图像通道 ${provider.label}` });
+
+  let sg = project.styleGuide;
+  if (!sg) {
+    const { default: sharp } = await import("sharp");
+    const stats = await sharp(await readProjectFile(project.id, project.refs[0].file)).stats();
+    const d = stats.dominant;
+    const hex = (r: number, g: number, b: number) =>
+      "#" + [r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("");
+    const palette = [
+      { hex: hex(d.r, d.g, d.b), role: "主色" },
+      { hex: hex(d.r * 0.6, d.g * 0.6, d.b * 0.6), role: "暗部" },
+      { hex: hex(255 - d.r, 255 - d.g, 255 - d.b), role: "强调色" },
+    ];
+    sg = {
+      summary: "演示风格指南（从参考图主色自动提取）",
+      palette,
+      rendering: "flat vector",
+      line_and_edges: "bold dark outline",
+      lighting_and_shading: "two-tone cel shading",
+      perspective: "front view",
+      proportions: "chunky",
+      texture_and_detail: "low detail",
+      mood: "playful",
+      avoid: ["photorealism"],
+      prompt_prefix: `Flat vector game art, bold outline, palette ${palette.map((p) => p.hex).join(" ")}.`,
+    };
+    await updateProject(project.id, (p) => {
+      p.styleGuide = sg;
+    });
+    emit(job, { type: "style", styleGuide: sg });
+  }
+
+  const types = (opts.assetTypes.length ? opts.assetTypes : ["item_icon", "character", "tile"]).filter(
+    (t): t is AssetType => t in ASSET_TYPES,
+  );
+  emit(job, { type: "text", delta: `计划生成 ${types.length} 个素材：${types.map((t) => ASSET_TYPES[t]).join("、")}。\n` });
+  await Promise.all(
+    types.map(async (t, i) => {
+      const input = {
+        name: `${ASSET_TYPES[t]} #${i + 1}`,
+        asset_type: t,
+        prompt: `${sg!.prompt_prefix} ${opts.request} ${t}`,
+        aspect: t === "background" ? ("landscape" as const) : ("square" as const),
+        transparent_background: t !== "background" && t !== "tile",
+      };
+      emit(job, { type: "tool", name: "generate_image", input });
+      const { asset } = await generateAsset(job, provider, input);
+      await updateProject(project.id, (p) => {
+        const a = p.assets.find((x) => x.id === asset.id)!;
+        a.status = "approved";
+        a.score = 7;
+        a.notes = "演示模式自动通过";
+        Object.assign(asset, a);
+      });
+      emit(job, { type: "asset", asset });
+    }),
+  );
+  emit(job, { type: "text", delta: "演示完成。配置 ANTHROPIC_API_KEY 并去掉 AGENT_MODE=demo 即可启用真正的 Claude 美术总监。\n" });
+}

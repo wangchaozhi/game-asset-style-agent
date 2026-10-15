@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Game Asset Agent</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">◆</span>
+      <div>
+        <h1>Game Asset Agent</h1>
+        <p>上传风格参考图 → AI 美术总监提炼风格 → 批量生成风格一致的游戏素材</p>
+      </div>
+    </div>
+    <div class="project-bar">
+      <select id="projectSelect" aria-label="选择项目"></select>
+      <button id="newProject" class="btn ghost">新建项目</button>
+      <button id="deleteProject" class="btn ghost danger" title="删除当前项目">删除</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="panel" id="stylePanel">
+      <h2>① 风格参考</h2>
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="refInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden />
+        <span>拖入或点击上传参考图（最多 8 张）</span>
+        <small>截图、原画、已有素材都可以，越能代表目标风格越好</small>
+      </label>
+      <div class="refs" id="refs"></div>
+
+      <div class="style-head">
+        <h2>风格指南</h2>
+        <button id="resetStyle" class="btn link" hidden>重新提炼</button>
+      </div>
+      <div id="styleGuide" class="style-guide empty">还没有风格指南，第一次运行时 Agent 会根据参考图自动生成。</div>
+    </section>
+
+    <section class="panel" id="runPanel">
+      <h2>② 描述需求</h2>
+      <div class="chips" id="typeChips"></div>
+      <textarea id="request" rows="4" placeholder="例如：为一个蘑菇森林关卡做 6 个道具图标（回血蘑菇、毒蘑菇、木剑、铁盾、金币、钥匙），再做主角小狐狸的立绘和 4 帧走路动画。"></textarea>
+      <div class="run-row">
+        <label class="provider">图像模型
+          <select id="providerSelect"></select>
+        </label>
+        <button id="runBtn" class="btn primary">开始生成</button>
+        <button id="stopBtn" class="btn ghost" hidden>停止</button>
+      </div>
+      <div class="log-head">
+        <h2>Agent 工作日志</h2>
+        <label class="toggle"><input type="checkbox" id="showThinking" checked /> 显示思考</label>
+      </div>
+      <div id="log" class="log"><p class="muted">运行后，这里会实时显示 Agent 的分析、计划、生成与审核过程。</p></div>
+    </section>
+
+    <section class="panel" id="assetPanel">
+      <div class="asset-head">
+        <h2>③ 素材库 <span id="assetCount" class="count"></span></h2>
+        <div class="filters" id="filters">
+          <button data-filter="all" class="on">全部</button>
+          <button data-filter="approved">已通过</button>
+          <button data-filter="rejected">已驳回</button>
+        </div>
+      </div>
+      <div id="assets" class="assets"></div>
+    </section>
+  </main>
+
+  <dialog id="viewer">
+    <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
+    <div class="viewer-body">
+      <div class="checker"><img id="viewerImg" alt="" /></div>
+      <div class="viewer-meta" id="viewerMeta"></div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
