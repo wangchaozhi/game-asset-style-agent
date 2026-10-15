@@ -50,3 +50,8 @@ export const RemoveBackgroundInput = z.object({
   asset_id: z.string(),
   tolerance: z.number().int().min(4).max(100).optional(),
 });
+
+export const SnapPaletteInput = z.object({
+  asset_id: z.string(),
+  dither: z.enum(["none", "ordered"]).optional(),
+});

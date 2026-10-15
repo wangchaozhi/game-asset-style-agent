@@ -128,4 +128,17 @@ export const tools: Anthropic.Beta.BetaTool[] = [
       required: ["asset_id"],
     },
   },
+  {
+    name: "snap_to_palette",
+    description:
+      "Recolour an asset so every pixel uses the nearest style-palette colour (no image-model call, no cost). Use it when the palette check shows clear off-palette colours in a flat, cel-shaded or pixel-art style with a strict palette. Avoid it for painterly or gradient-heavy styles, where it causes banding. Creates a new version (pending review) and returns palette coverage before/after; review the new version.",
+    input_schema: {
+      type: "object",
+      properties: {
+        asset_id: { type: "string" },
+        dither: { type: "string", enum: ["none", "ordered"], description: "none: hard snap (pixel art, flat colour). ordered: Bayer dithering keeps some sense of gradients." },
+      },
+      required: ["asset_id"],
+    },
+  },
 ];

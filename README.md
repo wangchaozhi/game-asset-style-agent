@@ -136,6 +136,7 @@ Agent 工具：
 | `fix_tile_seams` | 瓦片接缝检测不通过时边缘融合成无缝版本（不调用图像模型） |
 | `align_sprite_frames` | 精灵表帧抖动时按锚点对齐各帧（不调用图像模型） |
 | `remove_background` | 换个容差重新抠背景（不调用图像模型） |
+| `snap_to_palette` | 平涂 / 像素风素材出现色板外颜色时，把颜色吸附到风格色板（不调用图像模型） |
 
 默认模型 `claude-opus-5-5`（adaptive thinking，effort 可通过 `CLAUDE_EFFORT` 调整），已开启服务端 refusal fallback（`fallbacks: "default"`）和 prompt caching。
 

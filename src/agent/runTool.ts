@@ -3,14 +3,14 @@ import { shrink } from "../image/io.js";
 import { describePalette } from "../image/palette.js";
 import type { Jitter } from "../image/spriteSheet.js";
 import type { SeamReport } from "../image/tiles.js";
-import { alignedVersion, cutoutAsset, jitterOf, seamlessVersion, seamsOf } from "../ops/assetOps.js";
+import { alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, seamlessVersion, seamsOf } from "../ops/assetOps.js";
 import type { ImageProvider } from "../providers/types.js";
 import { loadProject, readProjectFile, recordStyleVersion, updateProject } from "../store/index.js";
 import type { Asset, Project } from "../store/types.js";
 import { generateAsset } from "./assets.js";
 import { BudgetExceededError } from "./budget.js";
 import { type Job, emit } from "./events.js";
-import { AlignFramesInput, FixSeamsInput, GenerateInput, RemoveBackgroundInput, ReviewInput, StyleGuideInput } from "./schemas.js";
+import { AlignFramesInput, FixSeamsInput, GenerateInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput } from "./schemas.js";
 
 type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
 
@@ -151,6 +151,22 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
         `Background re-cut for asset_id=${updated.id} with tolerance ${parsed.data.tolerance ?? 28} (shown on white; transparent areas appear white). Check for halo or missing pixels.`,
         await readProjectFile(found.project.id, updated.file),
         updated.mime,
+      );
+    }
+    case "snap_to_palette": {
+      const parsed = SnapPaletteInput.safeParse(block.input);
+      if (!parsed.success) return invalid();
+      const found = await findAssetFor(job, parsed.data.asset_id);
+      if (!found) return errResult(block.id, `Unknown asset_id ${parsed.data.asset_id}`);
+      if (!found.project.styleGuide?.palette.length) return errResult(block.id, "There is no style guide palette yet; call save_style_guide first.");
+      const r = await paletteSnapVersion(found.project, found.asset, parsed.data.dither ?? "none", { by: "agent", runId: job.id });
+      emit(job, { type: "asset", asset: r.asset });
+      const pct = (x: number) => `${Math.round(x * 100)}%`;
+      return withImage(
+        block.id,
+        `New version asset_id=${r.asset.id} (from ${found.asset.id}). On-palette pixels ${pct(r.before.coverage)} → ${pct(r.after.coverage)}. Check for banding or lost detail, then review the new version.`,
+        await readProjectFile(found.project.id, r.asset.file),
+        r.asset.mime,
       );
     }
     default:

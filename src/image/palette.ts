@@ -121,5 +121,49 @@ export function describePalette(r: PaletteSummary, threshold = 20): string {
   const off = r.offPalette.length
     ? `; main off-palette colours: ${r.offPalette.map((o) => `${o.hex} (${Math.round(o.share * 100)}%)`).join(", ")}`
     : "";
-  return `Palette check: ${Math.round(r.coverage * 100)}% of opaque pixels within ΔE ${threshold} of the style palette (mean ΔE ${r.meanDeltaE})${off}. Shading/anti-aliasing adds some in-between colours; treat a low score as a drift hint and confirm by eye.`;
+  return `Palette check: ${Math.round(r.coverage * 100)}% of opaque pixels within ΔE ${threshold} of the style palette (mean ΔE ${r.meanDeltaE})${off}. Shading/anti-aliasing adds some in-between colours; treat a low score as a drift hint and confirm by eye; for flat or pixel-art styles snap_to_palette can fix it.`;
+}
+
+/** 4×4 Bayer matrix, values 0..15. */
+const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+/**
+ * Map every visible pixel to its nearest palette colour (ΔE in Lab), keeping alpha.
+ * "ordered" dithering alternates between the two nearest colours in a Bayer pattern, weighted by
+ * how close each is, which keeps the impression of gradients that pure snapping would band.
+ */
+export async function snapToPalette(data: Buffer, palette: string[], opts: { dither?: "none" | "ordered" } = {}): Promise<Buffer> {
+  if (!palette.length) throw new Error("色板为空");
+  const { data: px, info } = await sharp(data).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const pal = palette.map((h) => ({ rgb: hexToRgb(h), lab: rgbToLab(...hexToRgb(h)) }));
+  const cache = new Map<number, [number, number, number]>(); // rgb → [nearest, second, ratio×1000]
+  const dither = opts.dither === "ordered" && pal.length > 1;
+  for (let i = 0, p = 0; i < px.length; i += 4, p++) {
+    if (px[i + 3] === 0) continue;
+    const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
+    let hit = cache.get(key);
+    if (!hit) {
+      const lab = rgbToLab(px[i], px[i + 1], px[i + 2]);
+      let a = 0, b = 0, da = Infinity, db = Infinity;
+      pal.forEach((c, j) => {
+        const d = deltaE(lab, c.lab);
+        if (d < da) [b, db, a, da] = [a, da, j, d];
+        else if (d < db) [b, db] = [j, d];
+      });
+      hit = [a, b, da + db > 0 ? Math.round((da / (da + db)) * 1000) : 0];
+      cache.set(key, hit);
+    }
+    let pick = hit[0];
+    if (dither) {
+      const x = p % info.width;
+      const y = (p / info.width) | 0;
+      // The further the pixel is from its nearest colour, the more often the second one shows.
+      if ((BAYER4[(y & 3) * 4 + (x & 3)] + 0.5) / 16 < hit[2] / 1000) pick = hit[1];
+    }
+    const [r, g, b] = pal[pick].rgb;
+    px[i] = r;
+    px[i + 1] = g;
+    px[i + 2] = b;
+  }
+  return sharp(px, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer();
 }

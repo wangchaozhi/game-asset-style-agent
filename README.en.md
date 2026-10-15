@@ -110,6 +110,7 @@ The agent is a hand-written tool-use loop on the Anthropic TypeScript SDK (`src/
 | `fix_tile_seams` | Cross-fade a tile's edges into a seamless new version (no image-model call) |
 | `align_sprite_frames` | Align a sprite sheet's frames on a shared anchor (no image-model call) |
 | `remove_background` | Re-cut the background with another tolerance (no image-model call) |
+| `snap_to_palette` | Recolour a flat / pixel-art asset to the style palette when stray colours appear (no image-model call) |
 
 See the architecture section of the [Chinese README](README.md#架构) for the source layout.
 

@@ -93,3 +93,5 @@ kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5p
 .viewer-title { margin: 0; display: flex; align-items: baseline; gap: 6px; padding-right: 28px; }
 .viewer-title .rename { font-size: 14px; color: var(--muted); }
 .viewer-title .rename:hover { color: var(--accent); }
+.snap-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.snap-form select { padding: 3px 6px; font-size: 12px; }

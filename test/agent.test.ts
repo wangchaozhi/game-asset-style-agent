@@ -32,7 +32,7 @@ const types = (events: AgentEvent[]) => events.map((e) => e.type);
 describe("tool definitions", () => {
   it("every tool has a schema whose required fields are declared", () => {
     assert.deepEqual(tools.map((t) => t.name), [
-      "save_style_guide", "generate_image", "review_asset", "fix_tile_seams", "align_sprite_frames", "remove_background",
+      "save_style_guide", "generate_image", "review_asset", "fix_tile_seams", "align_sprite_frames", "remove_background", "snap_to_palette",
     ]);
     for (const t of tools) {
       const props = Object.keys(t.input_schema.properties ?? {});
@@ -192,6 +192,17 @@ describe("post-processing tools", () => {
     const after = (await store.loadProject(projectId)).assets.find((a) => a.id === icon.id)!;
     assert.notEqual(after.file, icon.file);
     assert.ok(after.originalFile);
+  });
+
+  it("snap_to_palette makes a fully on-palette version, or explains why it can't", async () => {
+    const icon = (await store.loadProject(projectId)).assets.find((a) => a.assetType === "item_icon")!;
+    const noGuide = await runTool(fakeJob(projectId), mock, call("snap_to_palette", { asset_id: icon.id }));
+    assert.match(String(noGuide.content), /no style guide palette/);
+    await store.updateProject(projectId, (p) => void (p.styleGuide = validStyleGuide()));
+    const r = await runTool(fakeJob(projectId), mock, call("snap_to_palette", { asset_id: icon.id, dither: "none" }));
+    assert.match(textOf(r), /On-palette pixels \d+% → 100%/);
+    const created = (await store.loadProject(projectId)).assets.at(-1)!;
+    assert.deepEqual([created.parentId, created.palette?.coverage], [icon.id, 1]);
   });
 
   it("refuses the wrong asset type or an unknown id", async () => {

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-  alignedVersion, cutoutAsset, jitterOf, parseAlignMode, seamlessVersion, seamsOf, sliceAssetFrames,
+  alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, seamsOf, sliceAssetFrames,
 } from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
@@ -178,4 +178,13 @@ assetsRouter.post("/api/projects/:id/assets/:assetId/align-frames", async (req, 
   if (!found) return;
   if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以对齐帧" });
   res.json(await alignedVersion(found.project, found.asset, parseAlignMode(req.body?.mode), { by: "user" }));
+});
+
+/** Snap colours to the style palette; the result is a new version. Body: { dither: "none" | "ordered" }. */
+assetsRouter.post("/api/projects/:id/assets/:assetId/snap-palette", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  if (!found.project.styleGuide?.palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  const dither = req.body?.dither === "ordered" ? "ordered" : "none";
+  res.json(await paletteSnapVersion(found.project, found.asset, dither, { by: "user" }));
 });

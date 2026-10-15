@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { removeBackground } from "../image/background.js";
+import { analyzePalette, snapToPalette } from "../image/palette.js";
 import { isPixelArt } from "../image/sizes.js";
 import { type AlignMode, type Jitter, alignFrames, detectFrameCount, joinFrames, measureJitter, sliceSheet } from "../image/spriteSheet.js";
 import { analyzeSeams, makeSeamless, type SeamReport } from "../image/tiles.js";
@@ -121,5 +122,23 @@ export async function alignedVersion(project: Project, asset: Asset, mode: Align
   const sheet = await joinFrames(aligned);
   const notes = `由「${asset.name}」对齐帧（${mode === "bottom" ? "底边居中" : "中心"}）：水平抖动 ${before.horizontal}→${after.horizontal}px，${mode === "bottom" ? "底边" : "垂直"} ${before.vertical}→${after.vertical}px`;
   const created = await newVersion(project, asset, sheet, notes, actor, (a) => sliceAssetFrames(project.id, a, sheet, aligned.length, asset.fps ?? 8));
+  return { asset: created, before, after };
+}
+
+/** Snap an asset's colours to the style palette as a new version; reports palette coverage before/after. */
+export async function paletteSnapVersion(project: Project, asset: Asset, dither: "none" | "ordered", actor: Actor) {
+  const hexes = project.styleGuide?.palette.map((p) => p.hex) ?? [];
+  if (!hexes.length) throw new Error("项目还没有风格指南色板");
+  const src = await readProjectFile(project.id, asset.file);
+  const png = await snapToPalette(src, hexes, { dither });
+  const [before, after] = await Promise.all([analyzePalette(src, hexes), analyzePalette(png, hexes)]);
+  const pct = (x: number) => `${Math.round(x * 100)}%`;
+  const notes = `由「${asset.name}」吸附到色板（${dither === "ordered" ? "有序抖动" : "不抖动"}）：色板内像素 ${pct(before.coverage)}→${pct(after.coverage)}`;
+  const palette = { coverage: after.coverage, meanDeltaE: after.meanDeltaE, offPalette: after.offPalette };
+  const created = await newVersion(project, asset, png, notes, actor, async (a) => ({
+    palette,
+    // Sprite sheets keep their frame count.
+    ...(asset.frames?.length ? await sliceAssetFrames(project.id, a, png, asset.frames.length, asset.fps ?? 8) : {}),
+  }));
   return { asset: created, before, after };
 }

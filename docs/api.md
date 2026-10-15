@@ -218,6 +218,10 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 色板一致性：`?threshold=20`（ΔE）。返回 `{ coverage, meanDeltaE, usage, offPalette, pixels, threshold }`。
 
+### `POST /api/projects/:id/assets/:assetId/snap-palette`
+
+把每个像素换成最接近的风格色板颜色（Lab 色差），生成新版本：`{ "dither": "none" | "ordered" }`（有序抖动保留渐变感）。返回 `{ asset, before, after }`，后两者为吸附前后的色板检测结果。
+
 ### `GET /api/projects/:id/assets/:assetId/jitter`
 
 精灵表帧抖动：`?mode=bottom|center`，返回 `{ horizontal, vertical }`（像素）。

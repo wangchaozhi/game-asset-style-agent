@@ -159,6 +159,8 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/assets/${fixed.body.id}/seams`)).body.seamless, true);
     assert.equal((await json(`/api/projects/${id}/assets/${tile.id}/make-seamless`, { method: "POST", body: { overlap: 0.9 } })).status, 400);
     assert.equal((await json(`/api/projects/${id}/assets/ast_missing/seams`)).status, 404);
+    const snapped = (await json(`/api/projects/${id}/assets/${tile.id}/snap-palette`, { method: "POST", body: { dither: "ordered" } })).body;
+    assert.deepEqual([snapped.asset.parentId, snapped.after.coverage], [tile.id, 1]);
     const pal = (await json(`/api/projects/${id}/assets/${tile.id}/palette?threshold=25`)).body;
     assert.equal(pal.threshold, 25);
     assert.equal(pal.usage.length, 3);

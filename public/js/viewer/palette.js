@@ -1,12 +1,27 @@
 // Palette check against the style guide.
 import { $, api, esc } from "../lib.js";
 import { state } from "../state.js";
-import { pct } from "./common.js";
+import { onSubmit, pct } from "./common.js";
 
-export const html = () =>
+export const html = (a) =>
   state.project.styleGuide
-    ? `<div class="palette-check"><div class="sizes-head"><b>色板一致性</b><span class="pal-result muted">检测中…</span></div></div>`
+    ? `<div class="palette-check"><div class="sizes-head"><b>色板一致性</b><span class="pal-result muted">检测中…</span></div>
+        <form class="snap-form" data-snap="${a.id}" hidden>
+          <select name="dither" aria-label="抖动方式"><option value="none">硬吸附（像素风 / 平涂）</option><option value="ordered">有序抖动（保留渐变感）</option></select>
+          <button class="btn ghost" type="submit" title="把每个像素换成最接近的色板颜色，生成新版本">吸附到色板（生成新版本）</button>
+        </form>
+      </div>`
     : "";
+
+export function bind(root, ctx) {
+  onSubmit(root, "form[data-snap]", async (form, fd) => {
+    const { asset, before, after } = await api(`/api/projects/${state.project.id}/assets/${form.dataset.snap}/snap-palette`, {
+      method: "POST",
+      body: { dither: fd.get("dither") },
+    });
+    ctx.show(asset, `已吸附：色板内像素 ${pct(before.coverage)} → ${pct(after.coverage)}`);
+  });
+}
 
 /** Share of pixels on-palette, per-colour usage bar, and the main off-palette colours. */
 export async function load(a) {
@@ -35,6 +50,12 @@ export async function load(a) {
           : `<div class="muted pal-off">没有明显的色板外颜色${offShare > 0.02 ? "（零散的过渡色）" : ""}</div>`
       }`,
     );
+    // Offer snapping only when something is actually off-palette.
+    const form = box.querySelector(".snap-form");
+    if (r.coverage < 0.99) {
+      box.append(form);
+      form.hidden = false;
+    }
   } catch (err) {
     if (label) label.textContent = err.message;
   }
