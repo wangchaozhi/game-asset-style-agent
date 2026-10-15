@@ -19,6 +19,8 @@ export async function loadProjects(selectId) {
 }
 
 export async function openProject(id) {
+  // Let the run module detach from a job that belongs to the project being left.
+  document.dispatchEvent(new CustomEvent("gaa:project-switch", { detail: { from: state.project?.id, to: id } }));
   state.query = "";
   state.typeFilter = "";
   const search = $("#assetSearch");

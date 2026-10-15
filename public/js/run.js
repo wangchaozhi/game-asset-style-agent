@@ -53,6 +53,8 @@ export function handleEvent(e) {
     case "tool": logEntry("tool", describeTool(e.name, e.input)); break;
     case "style": state.project.styleGuide = e.styleGuide; renderStyle(); break;
     case "asset":
+      // Never mix a job's assets into another project's library.
+      if (state.run?.projectId !== state.project.id) break;
       if (state.run && !state.run.known.has(e.asset.id)) {
         state.run.known.add(e.asset.id);
         jobProgress(++state.run.made);
@@ -71,7 +73,7 @@ export function handleEvent(e) {
 export function attachJob(jobId) {
   state.job = jobId;
   // Assets already in the library don't count as new when the event log is replayed.
-  state.run = { known: new Set(state.project.assets.map((a) => a.id)), made: 0, error: null };
+  state.run = { projectId: state.project.id, known: new Set(state.project.assets.map((a) => a.id)), made: 0, error: null };
   jobStarted();
   try { localStorage.setItem(`gaa.job.${state.project.id}`, jobId); } catch {}
   $("#runBtn").disabled = true;
@@ -87,6 +89,24 @@ export function attachJob(jobId) {
     src.close();
     finishJob();
   };
+}
+
+/**
+ * Stop listening to the current job without forgetting it: it keeps running on the server and
+ * resumeJob() re-attaches (replaying its events) when its project is opened again.
+ */
+export function detachJob() {
+  state.source?.close();
+  state.source = null;
+  state.job = null;
+  state.run = null;
+  state.textEntry = null;
+  $("#runBtn").disabled = false;
+  $("#runBtn").textContent = "开始生成";
+  $("#stopBtn").hidden = true;
+  renderLiveUsage(null);
+  $("#log").innerHTML = "";
+  document.title = document.title.replace(/^⏳ (\(\d+\) )?生成中 · /, "");
 }
 
 export function finishJob() {
@@ -176,6 +196,9 @@ function bindBudget() {
 /** Asset-type chips, provider picker and run controls. */
 export function bindRun() {
   bindBudget();
+  document.addEventListener("gaa:project-switch", (e) => {
+    if (state.job && state.run?.projectId === e.detail.from && e.detail.from !== e.detail.to) detachJob();
+  });
   bindNotify();
   const chips = $("#typeChips");
   chips.innerHTML = Object.entries(state.config.assetTypes)

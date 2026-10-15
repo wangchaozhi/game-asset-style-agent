@@ -17,7 +17,7 @@ export const state = {
   lastSelected: null,
   /** id of the asset open in the viewer */
   viewing: null,
-  /** the attached job's tally: { known: Set<assetId>, made, error } */
+  /** the attached job's tally: { projectId, known: Set<assetId>, made, error } */
   run: null,
 };
 
