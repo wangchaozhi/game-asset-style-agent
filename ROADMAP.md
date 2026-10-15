@@ -33,4 +33,4 @@
 - [x] 图像通道重试：429 / 5xx / 网络错误按 Retry-After 指数退避重试，可中止
 - [x] 预算上限：单次运行的图像调用次数与估算费用上限，超出后停止生成并告知 Agent
 - [x] 版本对比：查看器中并排对比重画前后的版本
-- [ ] 本地 Stable Diffusion 通道（AUTOMATIC1111 / Forge WebUI API）
+- [x] 本地 Stable Diffusion 通道（AUTOMATIC1111 / Forge WebUI API）

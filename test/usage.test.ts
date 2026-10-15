@@ -26,6 +26,8 @@ describe("modelPrice", () => {
 describe("imagePrice", () => {
   it("mock is free; others come from IMAGE_PRICE_<ID>", () => {
     assert.equal(imagePrice("mock", {}), 0);
+    assert.equal(imagePrice("sdwebui", {}), 0, "local SD is free unless priced");
+    assert.equal(imagePrice("sdwebui", { IMAGE_PRICE_SDWEBUI: "0.002" }), 0.002);
     assert.equal(imagePrice("openai", {}), null);
     assert.equal(imagePrice("openai", { IMAGE_PRICE_OPENAI: "0.17" }), 0.17);
     assert.equal(imagePrice("gemini", { IMAGE_PRICE_GEMINI: " " }), null);

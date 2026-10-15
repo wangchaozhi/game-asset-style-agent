@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { gemini } from "../src/providers/gemini.js";
 import { openai } from "../src/providers/openai.js";
+import { sdCanvasSize, sdwebui } from "../src/providers/sdwebui.js";
 import type { GenerateRequest } from "../src/providers/types.js";
 
 interface Captured {
@@ -39,6 +40,7 @@ beforeEach(() => {
   delete process.env.OPENAI_BASE_URL;
   delete process.env.OPENAI_IMAGE_MODEL;
   delete process.env.GEMINI_IMAGE_MODEL;
+  for (const k of Object.keys(process.env)) if (k.startsWith("SD_")) delete process.env[k];
 });
 afterEach(() => {
   globalThis.fetch = realFetch;
@@ -153,5 +155,66 @@ describe("Gemini provider", () => {
     stubFetch(() => new Response("overloaded", { status: 503, headers: { "retry-after-ms": "1" } }));
     await assert.rejects(gemini.generate(req()), /Gemini HTTP 503/);
     assert.equal(calls.length, 2);
+  });
+});
+
+describe("Stable Diffusion WebUI provider", () => {
+  const sdOk = () => jsonResponse({ images: [PNG_B64], info: "{}" });
+
+  it("is available when SD_WEBUI_URL is set", () => {
+    assert.equal(sdwebui.available(), false);
+    process.env.SD_WEBUI_URL = "http://127.0.0.1:7860";
+    assert.equal(sdwebui.available(), true);
+  });
+
+  it("posts txt2img with SDXL-sized canvas, white-background hint and defaults", async () => {
+    process.env.SD_WEBUI_URL = "http://sd.local:7860/";
+    stubFetch(sdOk);
+    const out = await sdwebui.generate(req({ aspect: "landscape" }));
+    assert.equal(out.data.toString(), "fake-png");
+    const { url, init } = calls[0];
+    assert.equal(url, "http://sd.local:7860/sdapi/v1/txt2img");
+    const body = JSON.parse(String(init.body));
+    assert.deepEqual([body.width, body.height], [1216, 832]);
+    assert.match(body.prompt, /^A sword icon, isolated on a plain flat pure white background/);
+    assert.match(body.negative_prompt, /watermark/);
+    assert.equal(body.steps, 28);
+    assert.equal(body.alwayson_scripts, undefined, "no IP-Adapter unless configured");
+    assert.equal((init.headers as Record<string, string>).Authorization, undefined);
+  });
+
+  it("uses an IP-Adapter ControlNet unit for the first reference when configured", async () => {
+    Object.assign(process.env, {
+      SD_WEBUI_URL: "http://sd", SD_IPADAPTER_MODEL: "ip-adapter_sdxl [abc]", SD_IPADAPTER_WEIGHT: "0.5",
+      SD_API_AUTH: "me:pw", SD_CHECKPOINT: "pixelArtXL", SD_SIZE: "512",
+    });
+    stubFetch(sdOk);
+    await sdwebui.generate(req({ references: ref(3), transparent: false }));
+    const { init } = calls[0];
+    const body = JSON.parse(String(init.body));
+    const unit = body.alwayson_scripts.controlnet.args[0];
+    assert.deepEqual([unit.enabled, unit.model, unit.weight, unit.image], [true, "ip-adapter_sdxl [abc]", 0.5, Buffer.from("ref0").toString("base64")]);
+    assert.deepEqual(body.override_settings, { sd_model_checkpoint: "pixelArtXL" });
+    assert.deepEqual([body.width, body.height], [512, 512]);
+    assert.equal(body.prompt, "A sword icon");
+    assert.equal((init.headers as Record<string, string>).Authorization, `Basic ${Buffer.from("me:pw").toString("base64")}`);
+  });
+
+  it("strips a data-URL prefix and errors on empty results", async () => {
+    process.env.SD_WEBUI_URL = "http://sd";
+    stubFetch(() => jsonResponse({ images: [`data:image/png;base64,${PNG_B64}`] }));
+    assert.equal((await sdwebui.generate(req())).data.toString(), "fake-png");
+    stubFetch(() => jsonResponse({ images: [] }));
+    await assert.rejects(sdwebui.generate(req()), /SD WebUI returned no image/);
+    stubFetch(() => new Response("Not Found", { status: 404 }));
+    await assert.rejects(sdwebui.generate(req()), /SD WebUI HTTP 404/);
+  });
+
+  it("sizes sprite strips as one row of square-ish cells within 2× the base", () => {
+    const s4 = sdCanvasSize("square", 4, 1024);
+    assert.deepEqual(s4, { width: 2048, height: 512 });
+    const s8 = sdCanvasSize("square", 8, 1024);
+    assert.ok(s8.width <= 2048 && s8.width % 8 === 0 && s8.height % 8 === 0);
+    assert.deepEqual(sdCanvasSize("portrait", undefined, 1024), { width: 832, height: 1216 });
   });
 });

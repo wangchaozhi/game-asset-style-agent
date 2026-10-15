@@ -66,6 +66,7 @@ describe("getProvider", () => {
     delete process.env.OPENAI_API_KEY;
     delete process.env.GEMINI_API_KEY;
     delete process.env.GOOGLE_API_KEY;
+    delete process.env.SD_WEBUI_URL;
     assert.equal(getProvider(undefined).id, "mock");
     assert.equal(getProvider("nope").id, "mock");
     process.env.GEMINI_API_KEY = "k";
@@ -77,7 +78,7 @@ describe("getProvider", () => {
     assert.throws(() => getProvider("openai"), /未配置/);
   });
 
-  it("exposes openai, gemini and mock", () => {
-    assert.deepEqual(providers.map((p) => p.id), ["openai", "gemini", "mock"]);
+  it("exposes openai, gemini, sdwebui and mock", () => {
+    assert.deepEqual(providers.map((p) => p.id), ["openai", "gemini", "sdwebui", "mock"]);
   });
 });
