@@ -5,14 +5,14 @@ import { onSubmit } from "./common.js";
 
 export function html(a) {
   if (a.assetType !== "sprite_sheet") return "";
-  const frames = a.frames ?? [];
+  const frameFiles = a.frames ?? [];
   return `<div class="sprite">
       ${a.gif ? `<div class="checker sprite-gif"><img src="${fileUrl(a.gif)}?t=${Date.now()}" alt="动画预览" /></div>` : ""}
-      ${frames.length ? `<div class="frame-strip">${frames.map((f, i) => `<a class="checker" href="${fileUrl(f)}" download="${esc(a.name)}_${i}.png" title="下载第 ${i + 1} 帧"><img src="${fileUrl(f)}?t=${Date.now()}" alt="帧 ${i + 1}" /></a>`).join("")}</div>` : ""}
+      ${frameFiles.length ? `<div class="frame-strip">${frameFiles.map((f, i) => `<a class="checker" href="${fileUrl(f)}" download="${esc(a.name)}_${i}.png" title="下载第 ${i + 1} 帧"><img src="${fileUrl(f)}?t=${Date.now()}" alt="帧 ${i + 1}" /></a>`).join("")}</div>` : ""}
       <form class="slice-form" data-slice="${a.id}">
-        <label>帧数 <input name="frames" type="number" min="1" max="32" value="${frames.length || 4}" /></label>
+        <label>帧数 <input name="frames" type="number" min="1" max="32" value="${frameFiles.length || 4}" /></label>
         <label>FPS <input name="fps" type="number" min="1" max="30" value="${a.fps ?? 8}" /></label>
-        <button class="btn ghost" type="submit">${frames.length ? "重新切帧" : "切帧"}</button>
+        <button class="btn ghost" type="submit">${frameFiles.length ? "重新切帧" : "切帧"}</button>
         ${a.gif ? `<a class="btn ghost" href="${fileUrl(a.gif)}" download="${esc(a.name)}.gif">下载 GIF</a>` : ""}
       </form>
       <form class="align-form" data-align="${a.id}">

@@ -50,7 +50,7 @@ export async function saveStyle(form) {
     role: r.querySelector('[data-pal="role"]').value.trim(),
   }));
   const body = { palette, avoid: String(fd.get("avoid")).split("\n").map((s) => s.trim()).filter(Boolean) };
-  for (const k of ["summary", "prompt_prefix", ...STYLE_FIELDS.map(([k]) => k)]) body[k] = String(fd.get(k)).trim();
+  for (const k of ["summary", "prompt_prefix", ...STYLE_FIELDS.map(([field]) => field)]) body[k] = String(fd.get(k)).trim();
   try {
     state.project = await api(`/api/projects/${state.project.id}/style-guide`, { method: "PUT", body });
     renderStyle();

@@ -18,6 +18,8 @@ export default [
       "no-var": "error",
       "prefer-const": "error",
       "no-implicit-globals": "error",
+      // e.g. `import * as prompt` silently hid window.prompt() in the viewer once
+      "no-shadow": ["error", { builtinGlobals: true, hoist: "functions", allow: ["name", "status", "event", "top", "length", "close", "open", "find", "print", "stop", "origin", "parent", "self", "history", "location", "screen"] }],
     },
   },
   {
