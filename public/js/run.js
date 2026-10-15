@@ -94,6 +94,7 @@ export async function run(extraRequest, redraw) {
         provider: $("#providerSelect").value,
         redraw,
         continueConversation: $("#continueConv").checked,
+        budget: readBudget(),
       },
     });
     attachJob(jobId);
@@ -111,8 +112,43 @@ export function resumeJob() {
 }
 
 
+/** Per-run limits from the budget popover; empty fields are left out so server defaults apply. */
+function readBudget() {
+  const out = {};
+  const images = $("#budgetImages").value.trim();
+  const usd = $("#budgetUsd").value.trim();
+  if (images !== "") out.maxImages = Number(images);
+  if (usd !== "") out.maxUsd = Number(usd);
+  return out;
+}
+
+function bindBudget() {
+  const d = state.config.budget ?? {};
+  $("#budgetImages").placeholder = d.maxImages ? `默认 ${d.maxImages}` : "默认不限";
+  $("#budgetUsd").placeholder = d.maxUsd ? `默认 $${d.maxUsd}` : "默认不限";
+  try {
+    const saved = JSON.parse(localStorage.getItem("gaa.budget") ?? "{}");
+    if (saved.images !== undefined) $("#budgetImages").value = saved.images;
+    if (saved.usd !== undefined) $("#budgetUsd").value = saved.usd;
+  } catch {}
+  const summary = () => {
+    const b = readBudget();
+    const parts = [
+      b.maxImages !== undefined ? (b.maxImages > 0 ? `${b.maxImages} 张` : "不限张数") : "",
+      b.maxUsd !== undefined ? (b.maxUsd > 0 ? `$${b.maxUsd}` : "不限费用") : "",
+    ].filter(Boolean);
+    $("#budget summary").textContent = parts.length ? `预算：${parts.join(" · ")}` : "预算";
+  };
+  $("#budget").addEventListener("input", () => {
+    try { localStorage.setItem("gaa.budget", JSON.stringify({ images: $("#budgetImages").value, usd: $("#budgetUsd").value })); } catch {}
+    summary();
+  });
+  summary();
+}
+
 /** Asset-type chips, provider picker and run controls. */
 export function bindRun() {
+  bindBudget();
   const chips = $("#typeChips");
   chips.innerHTML = Object.entries(state.config.assetTypes)
     .map(([k, v]) => `<button class="chip" data-type="${k}">${esc(v)}</button>`)

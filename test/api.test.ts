@@ -44,6 +44,7 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(body.demo, true);
     assert.ok(body.providers.some((p: { id: string; available: boolean }) => p.id === "mock" && p.available));
     assert.ok("item_icon" in body.assetTypes);
+    assert.equal(body.budget.maxImages, 40);
     const html = await (await fetch(base + "/")).text();
     assert.match(html, /js\/main\.js/);
   });
@@ -194,6 +195,17 @@ describe("HTTP API (demo mode)", () => {
     assert.ok(fs.existsSync(path.join(dataDir, "projects", id, ref.file)));
     await json(`/api/projects/${id}/refs/${ref.id}`, { method: "DELETE" });
     assert.ok(!fs.existsSync(path.join(dataDir, "projects", id, ref.file)));
+  });
+
+  it("demo runs respect the per-run image budget", async () => {
+    const fd = new FormData();
+    fd.append("images", new Blob([new Uint8Array(await solidPng(40, 40, "#22aa66"))], { type: "image/png" }), "ref.png");
+    await json(`/api/projects/${id}/refs`, { method: "POST", body: fd });
+    const run = await json(`/api/projects/${id}/run`, { method: "POST", body: { assetTypes: ["prop", "ui", "vfx"], provider: "mock", budget: { maxImages: 2 } } });
+    const evs = await events(run.body.jobId);
+    assert.ok(!evs.some((e) => e.type === "error"));
+    const usage = (await json(`/api/projects/${id}/usage`)).body.runs[0];
+    assert.deepEqual([usage.images.calls, usage.budget.maxImages, usage.status], [2, 2, "ok"]);
   });
 
   it("returns 404 for unknown projects and jobs", async () => {

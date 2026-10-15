@@ -60,6 +60,14 @@
           <select id="providerSelect"></select>
         </label>
         <label class="toggle" title="Agent 会记得本项目之前的需求与结果，可以说「把刚才的剑改成蓝色」"><input type="checkbox" id="continueConv" checked /> 延续对话</label>
+        <details class="budget" id="budget">
+          <summary title="单次运行的上限，达到后不再生成新图">预算</summary>
+          <div class="budget-pop">
+            <label>图像次数上限 <input type="number" id="budgetImages" min="0" step="1" /></label>
+            <label>费用上限（美元） <input type="number" id="budgetUsd" min="0" step="0.1" /></label>
+            <small class="muted">留空用默认值，填 0 表示不限</small>
+          </div>
+        </details>
         <button id="runBtn" class="btn primary">开始生成</button>
         <button id="stopBtn" class="btn ghost" hidden>停止</button>
       </div>

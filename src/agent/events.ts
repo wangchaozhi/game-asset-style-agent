@@ -1,6 +1,7 @@
 import type { Asset, StyleGuide } from "../store/types.js";
 import { saveRunUsage } from "../store/usage.js";
 import type { RunUsage } from "../usage/types.js";
+import type { Budget } from "./budget.js";
 
 export type AgentEvent =
   | { type: "status"; text: string }
@@ -22,6 +23,11 @@ export interface Job {
   finished: boolean;
   abort: AbortController;
   usage: RunUsage;
+  budget: Budget;
+  /** set once the budget-reached notice has been shown */
+  budgetNoticed?: boolean;
+  /** image calls started but not finished (reserved against the budget) */
+  imagesInFlight?: number;
 }
 
 export interface RunOptions {
@@ -33,6 +39,8 @@ export interface RunOptions {
   redraw?: { assetId: string; feedback: string };
   /** append to the project's previous agent conversation instead of starting fresh */
   continueConversation?: boolean;
+  /** per-run limits; missing fields fall back to RUN_MAX_IMAGES / RUN_MAX_USD */
+  budget?: { maxImages?: unknown; maxUsd?: unknown };
 }
 
 /** In-memory registry of running and recently finished jobs. */

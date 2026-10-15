@@ -1,6 +1,7 @@
 import { config } from "../config.js";
 import { newId } from "../store/index.js";
 import { newRunUsage } from "../usage/record.js";
+import { resolveBudget } from "./budget.js";
 import { runDemo } from "./demo.js";
 import { type Job, type RunOptions, emit, jobs, reportUsage, requestLabel } from "./events.js";
 import { runAgent } from "./loop.js";
@@ -20,7 +21,9 @@ export function startJob(opts: RunOptions): Job {
     finished: false,
     abort: new AbortController(),
     usage: newRunUsage(id, requestLabel(opts), demo ? "demo" : "agent"),
+    budget: resolveBudget(opts.budget),
   };
+  job.usage.budget = job.budget;
   jobs.set(job.id, job);
   // Record the run immediately so a crash before the first image call still leaves a trace.
   reportUsage(job);

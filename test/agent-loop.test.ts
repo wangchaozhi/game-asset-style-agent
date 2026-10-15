@@ -225,6 +225,32 @@ describe("agent loop against a fake Messages API", () => {
     assert.equal(job.usage.cost.claude, 2);
   });
 
+  it("refuses generations past the image budget and tells Claude to wrap up", async () => {
+    const projectId = await newProject();
+    fake.script({ content: [gen("toolu_a", "一"), gen("toolu_b", "二"), gen("toolu_c", "三")], stop_reason: "tool_use" }, say("预算用完，已生成一个。"));
+    const { job, events } = await run({ projectId, budget: { maxImages: 1 } });
+    assert.deepEqual(errorsOf(events), []);
+    assert.equal(job.usage.status, "ok");
+    assert.equal(job.usage.images.calls, 1);
+    const results = toolResults(fake.requests[1]);
+    assert.equal(results.filter((r) => r.is_error && /BUDGET_EXHAUSTED/.test(String(r.content))).length, 2);
+    assert.equal(events.filter((e) => e.type === "status" && /图像调用上限 1 次/.test((e as { text: string }).text)).length, 1, "noticed once");
+    assert.ok(events.some((e) => e.type === "status" && /预算 图像 ≤ 1 次/.test((e as { text: string }).text)));
+    assert.equal((await store.loadProject(projectId)).assets.length, 1);
+    assert.deepEqual(job.usage.budget, { maxImages: 1, maxUsd: null });
+  });
+
+  it("cuts the loop off once spending is well past the cost cap", async () => {
+    const projectId = await newProject();
+    const pricey: Turn = { content: [{ type: "tool_use", id: "toolu_x", name: "nope", input: {} }], stop_reason: "tool_use", usage: { output_tokens: 100_000 } }; // $2
+    fake.script(pricey, pricey, pricey);
+    const { job, events } = await run({ projectId, budget: { maxUsd: 1 } });
+    assert.equal(fake.requests.length, 1);
+    assert.equal(job.usage.status, "ok");
+    assert.ok(events.some((e) => e.type === "status" && /强制结束本次运行/.test((e as { text: string }).text)));
+    assert.equal(await store.loadConversation(projectId), null, "an unfinished conversation is not saved");
+  });
+
   it("a redraw sends the old image and asks for exactly one replacement", async () => {
     const projectId = await newProject();
     fake.script({ content: [gen("toolu_g", "木剑")], stop_reason: "tool_use" }, say("ok"));

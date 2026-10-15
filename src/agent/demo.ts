@@ -4,6 +4,7 @@ import { getProvider } from "../providers/index.js";
 import { loadConversation, loadProject, readProjectFile, saveConversation, updateProject } from "../store/index.js";
 import type { StyleGuide } from "../store/types.js";
 import { generateAsset } from "./assets.js";
+import { BudgetExceededError } from "./budget.js";
 import { type Job, type RunOptions, emit, requestLabel } from "./events.js";
 import type { GenerateInput } from "./schemas.js";
 
@@ -96,7 +97,12 @@ export async function runDemo(job: Job, opts: RunOptions) {
         transparent_background: !isOpaqueType(t),
       };
       emit(job, { type: "tool", name: "generate_image", input });
-      const { asset } = await generateAsset(job, provider, input);
+      const made = await generateAsset(job, provider, input).catch((err) => {
+        if (err instanceof BudgetExceededError) return null;
+        throw err;
+      });
+      if (!made) return;
+      const { asset } = made;
       await updateProject(project.id, (p) => {
         const a = p.assets.find((x) => x.id === asset.id)!;
         a.status = "approved";

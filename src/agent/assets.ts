@@ -6,6 +6,7 @@ import type { ImageInput, ImageProvider } from "../providers/types.js";
 import { extFor, loadProject, newId, readProjectFile, updateProject, writeProjectFile } from "../store/index.js";
 import type { Asset, Project } from "../store/types.js";
 import { addImageCall } from "../usage/record.js";
+import { BudgetExceededError, budgetBlock } from "./budget.js";
 import { type Job, emit, reportUsage } from "./events.js";
 import type { GenerateInput } from "./schemas.js";
 
@@ -19,6 +20,22 @@ export async function generateAsset(
   provider: ImageProvider,
   input: GenerateInput,
 ): Promise<{ asset: Asset; image: ImageInput }> {
+  // Check and reserve synchronously: parallel tool calls all reach this point before any finishes.
+  const blocked = budgetBlock(job.budget, job.usage, job.imagesInFlight ?? 0);
+  if (blocked) {
+    if (!job.budgetNoticed) emit(job, { type: "status", text: `${blocked}，不再生成新图` });
+    job.budgetNoticed = true;
+    throw new BudgetExceededError(blocked);
+  }
+  job.imagesInFlight = (job.imagesInFlight ?? 0) + 1;
+  try {
+    return await generateReserved(job, provider, input);
+  } finally {
+    job.imagesInFlight--;
+  }
+}
+
+async function generateReserved(job: Job, provider: ImageProvider, input: GenerateInput): Promise<{ asset: Asset; image: ImageInput }> {
   const project = await loadProject(job.projectId);
   const refs = await Promise.all((await refImages(project)).map((r) => shrink(r, 1024)));
   const extra = await Promise.all(

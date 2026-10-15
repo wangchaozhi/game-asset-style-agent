@@ -33,6 +33,8 @@ export interface RunUsage {
     byProvider: Record<string, number>;
   };
   cost: Cost;
+  /** limits this run was started with */
+  budget?: { maxImages: number | null; maxUsd: number | null };
 }
 
 export interface UsageSummary {

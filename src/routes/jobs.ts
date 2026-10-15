@@ -17,6 +17,7 @@ jobsRouter.post("/api/projects/:id/run", async (req, res) => {
     assetTypes: Array.isArray(req.body?.assetTypes) ? req.body.assetTypes.map(String) : [],
     providerId: req.body?.provider ? String(req.body.provider) : undefined,
     continueConversation: req.body?.continueConversation !== false,
+    budget: typeof req.body?.budget === "object" && req.body.budget ? req.body.budget : undefined,
     redraw: req.body?.redraw?.assetId
       ? { assetId: String(req.body.redraw.assetId), feedback: String(req.body.redraw.feedback ?? "").slice(0, 2000) }
       : undefined,

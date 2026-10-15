@@ -37,8 +37,8 @@ export function renderLiveUsage(usage) {
       : `<span title="输入 / 输出 / 缓存写 / 缓存读">Claude ${usage.claude.requests} 次 · ↑${fmtTokens(t.input_tokens + t.cache_creation_input_tokens + t.cache_read_input_tokens)} ↓${fmtTokens(t.output_tokens)}${t.cache_read_input_tokens ? ` · 缓存命中 ${fmtTokens(t.cache_read_input_tokens)}` : ""}</span>`;
   bar.hidden = false;
   bar.innerHTML = `<span class="usage-label">本次</span>${claude}
-    <span>图像 ${usage.images.calls} 次${usage.images.failed ? `（失败 ${usage.images.failed}）` : ""}</span>
-    <span class="usage-cost" title="估算费用${esc(costNote(usage.cost))}">≈ ${fmtCost(usage.cost.total)}</span>
+    <span>图像 ${usage.images.calls}${usage.budget?.maxImages ? ` / ${usage.budget.maxImages}` : ""} 次${usage.images.failed ? `（失败 ${usage.images.failed}）` : ""}</span>
+    <span class="usage-cost" title="估算费用${esc(costNote(usage.cost))}">≈ ${fmtCost(usage.cost.total)}${usage.budget?.maxUsd ? ` / $${usage.budget.maxUsd}` : ""}</span>
     <button class="btn link" data-usage-open>项目用量 ›</button>`;
 }
 

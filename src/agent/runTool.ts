@@ -5,6 +5,7 @@ import type { ImageProvider } from "../providers/types.js";
 import { updateProject } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { generateAsset } from "./assets.js";
+import { BudgetExceededError } from "./budget.js";
 import { type Job, emit } from "./events.js";
 import { GenerateInput, ReviewInput, StyleGuideInput } from "./schemas.js";
 
@@ -55,6 +56,12 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
         };
       } catch (err) {
         if (job.abort.signal.aborted) throw err;
+        if (err instanceof BudgetExceededError) {
+          return errResult(
+            block.id,
+            `BUDGET_EXHAUSTED: ${err.message}. The user's budget for this run is used up. Do not call generate_image again; review what exists and finish with a summary that lists the assets you could not make.`,
+          );
+        }
         return errResult(block.id, `Image generation failed: ${err instanceof Error ? err.message : String(err)}`);
       }
     }

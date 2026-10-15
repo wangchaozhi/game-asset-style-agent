@@ -5,6 +5,7 @@ import { getProvider } from "../providers/index.js";
 import { loadConversation, loadProject, readProjectFile, saveConversation } from "../store/index.js";
 import { addTokens } from "../usage/record.js";
 import { refImages } from "./assets.js";
+import { pastHardStop } from "./budget.js";
 import { type Job, type RunOptions, emit, reportUsage, requestLabel } from "./events.js";
 import { SYSTEM, buildIntro } from "./prompts.js";
 import { runTool } from "./runTool.js";
@@ -62,9 +63,13 @@ export async function runAgent(job: Job, opts: RunOptions) {
     },
   ];
 
+  const limits = [
+    job.budget.maxImages !== null ? `图像 ≤ ${job.budget.maxImages} 次` : "",
+    job.budget.maxUsd !== null ? `费用 ≤ $${job.budget.maxUsd}` : "",
+  ].filter(Boolean);
   emit(job, {
     type: "status",
-    text: `Agent 启动 · ${model} · 图像通道 ${provider.label}${continuing ? ` · 延续对话（第 ${history!.runs.length + 1} 轮）` : ""}`,
+    text: `Agent 启动 · ${model} · 图像通道 ${provider.label}${continuing ? ` · 延续对话（第 ${history!.runs.length + 1} 轮）` : ""}${limits.length ? ` · 预算 ${limits.join("，")}` : ""}`,
   });
   const persist = async () => {
     const runs = [...(history?.runs ?? []), { request: requestLabel(opts), at: new Date().toISOString() }];
@@ -73,6 +78,10 @@ export async function runAgent(job: Job, opts: RunOptions) {
   let jsonRetries = 0;
 
   for (let turn = 0; turn < config.maxTurns; turn++) {
+    if (pastHardStop(job.budget, job.usage)) {
+      emit(job, { type: "status", text: `估算费用 $${job.usage.cost.total.toFixed(3)} 已明显超过上限 $${job.budget.maxUsd}，强制结束本次运行` });
+      return;
+    }
     const stream = client.beta.messages.stream(
       {
         model,

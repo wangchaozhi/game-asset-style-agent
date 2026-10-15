@@ -22,7 +22,7 @@ async function projectWithRef() {
 }
 
 function fakeJob(projectId: string): Job {
-  return { id: "job_test", projectId, events: [], listeners: new Set(), finished: false, abort: new AbortController(), usage: newRunUsage("job_test", "", "agent") };
+  return { id: "job_test", projectId, events: [], listeners: new Set(), finished: false, abort: new AbortController(), usage: newRunUsage("job_test", "", "agent"), budget: { maxImages: null, maxUsd: null } };
 }
 
 const call = (name: string, input: unknown, id = "toolu_1") => ({ type: "tool_use", id, name, input }) as Anthropic.Beta.BetaToolUseBlock;

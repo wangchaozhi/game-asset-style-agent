@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { resolveBudget } from "../agent/budget.js";
 import { config } from "../config.js";
 import { ASSET_TYPES } from "../domain/assetTypes.js";
 import { SIZE_PRESETS } from "../image/sizes.js";
@@ -13,5 +14,6 @@ configRouter.get("/api/config", (_req, res) => {
     sizePresets: SIZE_PRESETS,
     demo: config.demo,
     auth: !!config.accessToken,
+    budget: resolveBudget(undefined),
   });
 });
