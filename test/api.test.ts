@@ -160,6 +160,14 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/assets/${asset.id}`, { method: "PATCH", body: { status: "great" } })).status, 400);
   });
 
+  it("renames an asset without touching its review", async () => {
+    const asset = (await json(`/api/projects/${id}`)).body.assets[0];
+    const r = await json(`/api/projects/${id}/assets/${asset.id}`, { method: "PATCH", body: { name: "  火焰剑 v2  " } });
+    assert.deepEqual([r.body.name, r.body.status], ["火焰剑 v2", asset.status]);
+    assert.equal((await json(`/api/projects/${id}/assets/${asset.id}`, { method: "PATCH", body: { name: "  " } })).status, 400);
+    assert.equal((await json(`/api/projects/${id}/assets/${asset.id}`, { method: "PATCH", body: {} })).status, 400);
+  });
+
   it("exports approved assets as a ZIP", async () => {
     const res = await fetch(`${base}/api/projects/${id}/export.zip`);
     assert.equal(res.status, 200);

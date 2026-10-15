@@ -56,17 +56,25 @@ assetsRouter.post("/api/projects/:id/trash/empty", async (req, res) => {
   res.json({ affected: purged.length, project });
 });
 
-/** Manual review: set status and optional notes. */
+/** Manual review and edits: any of status, notes, name. */
 assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
-  const status = req.body?.status;
-  if (!STATUSES.includes(status)) return void res.status(400).json({ error: "无效的状态" });
+  const { status, notes, name } = req.body ?? {};
+  if (status !== undefined && !STATUSES.includes(status)) return void res.status(400).json({ error: "无效的状态" });
+  if (name !== undefined && (typeof name !== "string" || !name.trim())) return void res.status(400).json({ error: "名称不能为空" });
+  if (status === undefined && name === undefined && typeof notes !== "string") return void res.status(400).json({ error: "没有要修改的内容" });
   let asset: Asset | undefined;
   await updateProject(pid(req), (p) => {
     asset = p.assets.find((a) => a.id === req.params.assetId);
     if (!asset) return;
-    asset.status = status;
-    asset.reviewer = "user";
-    if (typeof req.body?.notes === "string") asset.notes = req.body.notes.slice(0, 2000);
+    if (status !== undefined) {
+      asset.status = status;
+      asset.reviewer = "user";
+    }
+    if (typeof notes === "string") {
+      asset.notes = notes.slice(0, 2000);
+      asset.reviewer = "user";
+    }
+    if (typeof name === "string") asset.name = name.trim().slice(0, 80);
   });
   if (!asset) return void res.status(404).json({ error: "素材不存在" });
   res.json(asset);

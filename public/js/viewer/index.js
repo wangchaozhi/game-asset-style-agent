@@ -31,7 +31,7 @@ export function openViewer(id) {
   state.viewing = id;
   closeCompare();
   $("#viewerMeta").innerHTML = `
-    <h3 style="margin:0">${esc(a.name)}</h3>
+    <h3 class="viewer-title">${esc(a.name)} <button class="btn link rename" data-rename="${a.id}" title="改名" aria-label="改名">✎</button></h3>
     <div class="muted">${esc(state.config.assetTypes[a.assetType] ?? a.assetType)} · ${esc(a.provider)} · ${new Date(a.createdAt).toLocaleString()}</div>
     ${a.notes ? `<div><b>${a.reviewer === "user" ? "我的意见" : "Agent 审核"}：</b>${esc(a.notes)}${a.score && a.reviewer !== "user" ? `（一致性 ${a.score}/10）` : ""}</div>` : ""}
     ${versionLinks(a)}
@@ -92,6 +92,19 @@ function bindCore(root) {
   root.addEventListener("click", async (e) => {
     const ds = e.target.dataset ?? {};
     if (ds.open) return openViewer(ds.open);
+    if (ds.rename) {
+      const a = state.project.assets.find((x) => x.id === ds.rename);
+      const name = prompt("素材名称", a?.name ?? "");
+      if (!name?.trim() || name.trim() === a?.name) return;
+      try {
+        const asset = await api(`/api/projects/${state.project.id}/assets/${ds.rename}`, { method: "PATCH", body: { name } });
+        upsertAsset(asset);
+        openViewer(asset.id);
+      } catch (err) {
+        toast(err.message);
+      }
+      return;
+    }
     if (ds.compare) {
       const [beforeId, afterId] = ds.compare.split(":");
       return openCompare(beforeId, afterId);

@@ -90,3 +90,6 @@ kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5p
 .prompt-form { display: grid; gap: 6px; }
 .prompt-form textarea { font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
 .prompt-form .btn { justify-self: start; }
+.viewer-title { margin: 0; display: flex; align-items: baseline; gap: 6px; padding-right: 28px; }
+.viewer-title .rename { font-size: 14px; color: var(--muted); }
+.viewer-title .rename:hover { color: var(--accent); }

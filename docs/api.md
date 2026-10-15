@@ -176,7 +176,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ### `PATCH /api/projects/:id/assets/:assetId`
 
-人工审核：`{ "status": "approved" | "rejected" | "pending_review", "notes": "可选意见" }`。
+人工审核与编辑，字段任选：`{ "status": "approved" | "rejected" | "pending_review", "notes": "意见", "name": "新名称" }`。返回更新后的素材。
 
 ### `DELETE /api/projects/:id/assets/:assetId`
 
