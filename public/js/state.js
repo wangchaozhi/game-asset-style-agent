@@ -8,6 +8,10 @@ export const state = {
   job: null,
   source: null,
   textEntry: null,
+  /** asset library selection mode */
+  selecting: false,
+  selected: new Set(),
+  lastSelected: null,
 };
 
 export const fileUrl = (rel) => `/api/projects/${state.project.id}/files/${rel}`;

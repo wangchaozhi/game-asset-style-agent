@@ -12,6 +12,35 @@ export const assetsRouter = Router();
 
 const STATUSES = ["approved", "rejected", "pending_review"];
 
+const BATCH_ACTIONS = { approve: "approved", reject: "rejected", pending: "pending_review", delete: null } as const;
+
+/** Apply one action to many assets at once: approve / reject / pending / delete. */
+assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
+  const action = req.body?.action as keyof typeof BATCH_ACTIONS;
+  const ids: unknown = req.body?.ids;
+  if (!(action in BATCH_ACTIONS)) return void res.status(400).json({ error: "无效的批量操作" });
+  if (!Array.isArray(ids) || !ids.length || ids.length > 1000 || !ids.every((x) => typeof x === "string")) {
+    return void res.status(400).json({ error: "请提供要操作的素材 id 列表" });
+  }
+  const wanted = new Set(ids as string[]);
+  let affected = 0;
+  const project = await updateProject(pid(req), (p) => {
+    if (action === "delete") {
+      const before = p.assets.length;
+      p.assets = p.assets.filter((a) => !wanted.has(a.id));
+      affected = before - p.assets.length;
+      return;
+    }
+    for (const a of p.assets) {
+      if (!wanted.has(a.id)) continue;
+      a.status = BATCH_ACTIONS[action]!;
+      a.reviewer = "user";
+      affected++;
+    }
+  });
+  res.json({ affected, project });
+});
+
 /** Manual review: set status and optional notes. */
 assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
   const status = req.body?.status;

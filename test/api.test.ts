@@ -142,6 +142,29 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/export-atlas.zip?size=300`)).status, 400);
   });
 
+  it("batch-updates, exports by id, and batch-deletes", async () => {
+    const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
+    assert.ok(ids.length >= 3);
+    const rej = await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "reject", ids: [ids[0], ids[1], "ast_missing"] } });
+    assert.equal(rej.body.affected, 2);
+    const byId = Object.fromEntries(rej.body.project.assets.map((a: { id: string; status: string; reviewer: string }) => [a.id, a]));
+    assert.deepEqual([byId[ids[0]].status, byId[ids[0]].reviewer, byId[ids[1]].status], ["rejected", "user", "rejected"]);
+
+    // ids pick assets regardless of status
+    const zip = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?ids=${ids[0]}`)).arrayBuffer()));
+    const manifest = JSON.parse(zip["manifest.json"].data.toString());
+    assert.deepEqual(manifest.assets.map((a: { id: string }) => a.id), [ids[0]]);
+    assert.equal((await json(`/api/projects/${id}/export.zip?ids=ast_missing`)).status, 400);
+
+    const del = await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "delete", ids: [ids[0]] } });
+    assert.equal(del.body.affected, 1);
+    assert.ok(!del.body.project.assets.some((a: { id: string }) => a.id === ids[0]));
+
+    for (const bad of [{ action: "explode", ids }, { action: "approve", ids: [] }, { action: "approve", ids: [1, 2] }, { action: "approve" }]) {
+      assert.equal((await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: bad })).status, 400, JSON.stringify(bad));
+    }
+  });
+
   it("returns 404 for unknown projects and jobs", async () => {
     assert.equal((await json("/api/projects/prj_0000000000")).status, 404);
     assert.equal((await fetch(`${base}/api/jobs/job_nope/events`)).status, 404);

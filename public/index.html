@@ -85,7 +85,21 @@
           <button data-filter="all" class="on">全部</button>
           <button data-filter="approved">已通过</button>
           <button data-filter="rejected">已驳回</button>
+          <button data-filter="pending_review">待审核</button>
+          <button id="selectToggle" class="select-toggle" type="button">选择</button>
         </div>
+      </div>
+      <div class="batch-bar" id="batchBar" hidden>
+        <span class="batch-count"></span>
+        <button class="btn link" data-batch="all">全选</button>
+        <button class="btn link" data-batch="none">清空</button>
+        <span class="batch-actions">
+          <button class="btn ghost small" data-batch="approve">✓ 通过</button>
+          <button class="btn ghost small" data-batch="reject">✗ 驳回</button>
+          <button class="btn ghost small" data-batch="zip">导出 ZIP</button>
+          <button class="btn ghost small" data-batch="atlas">导出图集</button>
+          <button class="btn ghost small danger" data-batch="delete">删除</button>
+        </span>
       </div>
       <div id="assets" class="assets"></div>
     </section>

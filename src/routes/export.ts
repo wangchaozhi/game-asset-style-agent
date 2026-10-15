@@ -3,6 +3,10 @@ import { buildAtlasExport, buildExport } from "../export/bundle.js";
 import { loadProject } from "../store/index.js";
 import { attachment, pid } from "./util.js";
 
+/** ?ids=a,b,c selects specific assets. */
+const idsParam = (q: unknown) =>
+  typeof q === "string" && q ? q.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 1000) : undefined;
+
 export const exportRouter = Router();
 
 /** ?status=all includes unapproved assets; ?sizes=1 adds common game sizes. */
@@ -10,8 +14,9 @@ exportRouter.get("/api/projects/:id/export.zip", async (req, res) => {
   const project = await loadProject(pid(req));
   const all = req.query.status === "all";
   const godotRoot = typeof req.query.godot === "string" ? req.query.godot.slice(0, 200) : undefined;
-  const out = await buildExport(project, { all, sizes: !!req.query.sizes, godotRoot });
-  if (!out) return void res.status(400).json({ error: all ? "项目还没有素材" : "还没有已通过的素材" });
+  const ids = idsParam(req.query.ids);
+  const out = await buildExport(project, { all, ids, sizes: !!req.query.sizes, godotRoot });
+  if (!out) return void res.status(400).json({ error: ids ? "所选素材不存在" : all ? "项目还没有素材" : "还没有已通过的素材" });
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", attachment("assets.zip", out.filename));
   res.send(out.zip);
@@ -26,7 +31,7 @@ exportRouter.get("/api/projects/:id/export-atlas.zip", async (req, res) => {
   if (!Number.isInteger(maxSprite) || maxSprite < 16 || maxSprite > 1024) return void res.status(400).json({ error: "单个精灵尺寸需为 16-1024" });
   if (![512, 1024, 2048, 4096].includes(maxSize)) return void res.status(400).json({ error: "图集页尺寸需为 512/1024/2048/4096" });
   if (maxSprite + 4 > maxSize) return void res.status(400).json({ error: "单个精灵尺寸不能超过图集页尺寸" });
-  const out = await buildAtlasExport(project, { all, maxSprite, maxSize });
+  const out = await buildAtlasExport(project, { all, ids: idsParam(req.query.ids), maxSprite, maxSize });
   if (!out) return void res.status(400).json({ error: "没有可打包的素材（背景图不进图集）" });
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", attachment("atlas.zip", out.filename));

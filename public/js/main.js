@@ -5,7 +5,8 @@ import { bindProjects, loadProjects } from "./projects.js";
 import { bindRefs } from "./refs.js";
 import { bindStyleGuide } from "./styleGuide.js";
 import { bindAssets } from "./assets.js";
-import { bindViewer } from "./viewer.js";
+import { bindViewer, openViewer } from "./viewer.js";
+import { bindBatch } from "./batch.js";
 import { bindRun, resumeJob } from "./run.js";
 
 async function init() {
@@ -22,8 +23,9 @@ async function init() {
   bindProjects(resumeJob);
   bindRefs();
   bindStyleGuide();
-  bindAssets();
+  bindAssets({ onOpen: openViewer });
   bindViewer();
+  bindBatch();
   await loadProjects();
   resumeJob();
 }

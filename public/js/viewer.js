@@ -1,7 +1,7 @@
 // Asset viewer dialog: review, redraw, sprite slicing, tile seams, game sizes, background cut-out.
 import { $, api, esc, toast } from "./lib.js";
 import { fileUrl, state } from "./state.js";
-import { upsertAsset, renderAssets } from "./assets.js";
+import { renderAssets, upsertAsset } from "./assets.js";
 import { run } from "./run.js";
 
 export function openViewer(id) {
@@ -134,10 +134,6 @@ export function spriteSection(a) {
 
 
 export function bindViewer() {
-  $("#assets").addEventListener("click", (e) => {
-    const card = e.target.closest(".card");
-    if (card) openViewer(card.dataset.asset);
-  });
   $("#viewerMeta").addEventListener("change", (e) => {
     if (e.target.id === "pixelKernel") {
       state.pixelKernel = e.target.checked;

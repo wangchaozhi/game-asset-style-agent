@@ -8,6 +8,8 @@ import { type ZipEntry, createZip } from "./zip.js";
 export interface ExportOptions {
   /** include every asset, not only approved ones */
   all?: boolean;
+  /** export exactly these assets (any status); overrides `all` */
+  ids?: string[];
   /** add each asset's common game sizes */
   sizes?: boolean;
   /** folder under res:// where the bundle is unzipped in a Godot project (for .tres paths) */
@@ -28,12 +30,21 @@ export function uniqueNamer() {
   };
 }
 
+/** Explicit ids win; otherwise approved only, or everything with `all`. */
+export function selectAssets(project: Project, opts: { all?: boolean; ids?: string[] }) {
+  if (opts.ids?.length) {
+    const ids = new Set(opts.ids);
+    return project.assets.filter((a) => ids.has(a.id));
+  }
+  return project.assets.filter((a) => opts.all || a.status === "approved");
+}
+
 /**
  * Build the asset bundle ZIP: one folder per asset type, plus references,
  * style-guide.json and manifest.json. Returns null when there is nothing to export.
  */
 export async function buildExport(project: Project, opts: ExportOptions = {}): Promise<{ filename: string; zip: Buffer } | null> {
-  const assets = project.assets.filter((a) => opts.all || a.status === "approved");
+  const assets = selectAssets(project, opts);
   if (!assets.length) return null;
 
   const entries: ZipEntry[] = [];
@@ -92,6 +103,7 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
 
 export interface AtlasExportOptions {
   all?: boolean;
+  ids?: string[];
   /** longest side of each sprite in the atlas, px */
   maxSprite?: number;
   /** longest side of an atlas page, px */
@@ -114,7 +126,7 @@ With several pages, load each as atlas_0, atlas_1, … (texture keys match the p
  * animation frame and an entry in animations.json. Returns null when there is nothing to pack.
  */
 export async function buildAtlasExport(project: Project, opts: AtlasExportOptions = {}): Promise<{ filename: string; zip: Buffer } | null> {
-  const assets = project.assets.filter((a) => (opts.all || a.status === "approved") && a.assetType !== "background");
+  const assets = selectAssets(project, opts).filter((a) => a.assetType !== "background");
   if (!assets.length) return null;
   const pixel = isPixelArt(project.styleGuide);
   const maxSprite = opts.maxSprite ?? 256;
