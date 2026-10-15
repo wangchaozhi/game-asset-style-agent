@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import type { AddressInfo } from "node:net";
 import { after, before, describe, it } from "node:test";
-import { solidPng, useTempDataDir, validStyleGuide } from "./helpers.js";
+import { readZip, solidPng, useTempDataDir, validStyleGuide } from "./helpers.js";
 
 useTempDataDir();
 process.env.AGENT_MODE = "demo";
@@ -116,6 +116,30 @@ describe("HTTP API (demo mode)", () => {
     const zip = Buffer.from(await res.arrayBuffer());
     assert.equal(zip.readUInt32LE(0), 0x04034b50);
     assert.ok(zip.includes(Buffer.from("manifest.json")));
+  });
+
+  it("exports a texture atlas with Phaser animations, and Godot .tres for sprite sheets", async () => {
+    const run = await json(`/api/projects/${id}/run`, { method: "POST", body: { request: "走路", assetTypes: ["sprite_sheet", "background"], provider: "mock" } });
+    await events(run.body.jobId);
+    const atlasRes = await fetch(`${base}/api/projects/${id}/export-atlas.zip?max=64`);
+    assert.equal(atlasRes.status, 200);
+    const atlas = readZip(Buffer.from(await atlasRes.arrayBuffer()));
+    assert.ok(atlas["atlas.png"] && atlas["atlas.json"] && atlas["animations.json"] && atlas["README.txt"], Object.keys(atlas).join());
+    const frames = Object.keys(JSON.parse(atlas["atlas.json"].data.toString()).frames);
+    assert.ok(!frames.some((f) => f.startsWith("background/")), "backgrounds stay out of the atlas");
+    const anims = JSON.parse(atlas["animations.json"].data.toString()).anims;
+    assert.equal(anims.length, 1);
+    assert.equal(anims[0].frames.length, 4);
+    assert.ok(anims[0].frames.every((f: { key: string; frame: string }) => f.key === "atlas" && frames.includes(f.frame)));
+
+    const bundle = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?godot=game/art`)).arrayBuffer()));
+    const tres = Object.keys(bundle).find((n) => n.endsWith(".tres"))!;
+    assert.match(bundle[tres].data.toString(), /res:\/\/game\/art\/sprite_sheet\//);
+    const manifest = JSON.parse(bundle["manifest.json"].data.toString());
+    assert.ok(manifest.assets.some((a: { files: { godot?: string } }) => a.files.godot === tres));
+
+    assert.equal((await json(`/api/projects/${id}/export-atlas.zip?max=9999`)).status, 400);
+    assert.equal((await json(`/api/projects/${id}/export-atlas.zip?size=300`)).status, 400);
   });
 
   it("returns 404 for unknown projects and jobs", async () => {

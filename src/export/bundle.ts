@@ -1,6 +1,8 @@
 import { SIZE_PRESETS, isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { readProjectFile } from "../store/index.js";
 import type { Project } from "../store/types.js";
+import { buildAtlas, prepareSprite, scaleSprite } from "./atlas.js";
+import { spriteFramesTres } from "./godot.js";
 import { type ZipEntry, createZip } from "./zip.js";
 
 export interface ExportOptions {
@@ -8,6 +10,8 @@ export interface ExportOptions {
   all?: boolean;
   /** add each asset's common game sizes */
   sizes?: boolean;
+  /** folder under res:// where the bundle is unzipped in a Godot project (for .tres paths) */
+  godotRoot?: string;
 }
 
 /** Strip characters that are unsafe in archive paths. */
@@ -64,6 +68,10 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
         frames.push(name);
         entries.push({ name, data: await readProjectFile(project.id, f) });
       }
+      const root = (opts.godotRoot ?? "assets").replace(/^res:\/\//, "").replace(/^\/+|\/+$/g, "");
+      const tres = spriteFramesTres(frames.map((f) => `res://${root ? `${root}/` : ""}${f}`), { name: "default", fps: a.fps ?? 8 });
+      files.godot = `${base}.tres`;
+      entries.push({ name: `${base}.tres`, data: Buffer.from(tres) });
     }
     manifest.push({
       id: a.id, name: a.name, type: a.assetType, status: a.status, score: a.score ?? null,
@@ -80,4 +88,81 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
     data: json({ project: project.name, exportedAt: new Date().toISOString(), count: manifest.length, assets: manifest }),
   });
   return { filename: `${safeName(project.name)}_assets.zip`, zip: createZip(entries) };
+}
+
+export interface AtlasExportOptions {
+  all?: boolean;
+  /** longest side of each sprite in the atlas, px */
+  maxSprite?: number;
+  /** longest side of an atlas page, px */
+  maxSize?: number;
+}
+
+const ATLAS_README = `Texture atlas exported by Game Asset Agent
+
+atlas*.png + atlas*.json   TexturePacker "JSON Hash" format (Phaser, PixiJS, Cocos, …)
+animations.json            Phaser 3 animations for sprite sheets (this.anims.fromJSON)
+
+Phaser 3:
+  preload() { this.load.atlas("atlas", "atlas.png", "atlas.json"); this.load.json("anims", "animations.json"); }
+  create()  { this.anims.fromJSON(this.cache.json.get("anims")); this.add.sprite(100, 100, "atlas", "item_icon/sword"); }
+With several pages, load each as atlas_0, atlas_1, … (texture keys match the page file names).
+`;
+
+/**
+ * Pack approved sprites (backgrounds excluded) into atlas pages. Sprite sheets contribute one frame per
+ * animation frame and an entry in animations.json. Returns null when there is nothing to pack.
+ */
+export async function buildAtlasExport(project: Project, opts: AtlasExportOptions = {}): Promise<{ filename: string; zip: Buffer } | null> {
+  const assets = project.assets.filter((a) => (opts.all || a.status === "approved") && a.assetType !== "background");
+  if (!assets.length) return null;
+  const pixel = isPixelArt(project.styleGuide);
+  const maxSprite = opts.maxSprite ?? 256;
+  const unique = uniqueNamer();
+  const images: { name: string; data: Buffer }[] = [];
+  const animations: { key: string; frames: string[]; fps: number }[] = [];
+  for (const a of assets) {
+    const key = unique(`${a.assetType}/${safeName(a.name)}`);
+    if (a.frames?.length) {
+      const frames: string[] = [];
+      for (const [i, f] of a.frames.entries()) {
+        const name = `${key}/${String(i).padStart(2, "0")}`;
+        frames.push(name);
+        // Frames keep their full cell (no trim) so the animation doesn't jitter.
+        images.push({ name, data: await scaleSprite(await readProjectFile(project.id, f), maxSprite, pixel) });
+      }
+      animations.push({ key, frames, fps: a.fps ?? 8 });
+    } else {
+      images.push({ name: key, data: await prepareSprite(await readProjectFile(project.id, a.file), maxSprite, pixel) });
+    }
+  }
+  const atlas = await buildAtlas(images, { maxSize: opts.maxSize ?? 2048 });
+  const pageOf = new Map<string, string>();
+  for (const p of atlas.pages) for (const f of Object.keys((p.json as { frames: object }).frames)) pageOf.set(f, p.image.replace(/\.png$/, ""));
+
+  const entries: ZipEntry[] = [];
+  for (const p of atlas.pages) {
+    entries.push({ name: p.image, data: p.png });
+    entries.push({ name: p.image.replace(/\.png$/, ".json"), data: Buffer.from(JSON.stringify(p.json, null, 2)) });
+  }
+  entries.push({
+    name: "animations.json",
+    data: Buffer.from(
+      JSON.stringify(
+        {
+          anims: animations.map((an) => ({
+            key: an.key,
+            type: "frame",
+            frames: an.frames.map((frame) => ({ key: pageOf.get(frame), frame })),
+            frameRate: an.fps,
+            repeat: -1,
+          })),
+        },
+        null,
+        2,
+      ),
+    ),
+  });
+  entries.push({ name: "README.txt", data: Buffer.from(ATLAS_README) });
+  return { filename: `${safeName(project.name)}_atlas.zip`, zip: createZip(entries) };
 }

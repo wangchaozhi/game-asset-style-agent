@@ -39,6 +39,7 @@ export function renderAll() {
   $("#exportApproved").href = `/api/projects/${state.project.id}/export.zip`;
   $("#exportAll").href = `/api/projects/${state.project.id}/export.zip?status=all`;
   $("#exportSized").href = `/api/projects/${state.project.id}/export.zip?sizes=1`;
+  $("#exportAtlas").href = `/api/projects/${state.project.id}/export-atlas.zip`;
   state.pixelKernel = /pixel|像素|8-?bit|16-?bit/i.test(JSON.stringify(state.project.styleGuide ?? ""));
   renderRefs();
   renderStyle();
