@@ -6,7 +6,9 @@ import { fileURLToPath } from "node:url";
 import {
   createProject,
   deleteProject,
+  clearConversation,
   listProjects,
+  loadConversation,
   loadProject,
   newId,
   projectDir,
@@ -69,6 +71,16 @@ app.put("/api/projects/:id/style-guide", async (req, res) => {
     return void res.status(400).json({ error: `风格指南字段无效：${issue.path.join(".")} ${issue.message}` });
   }
   res.json(await updateProject(pid(req), (p) => void (p.styleGuide = parsed.data)));
+});
+
+app.get("/api/projects/:id/conversation", async (req, res) => {
+  const conv = await loadConversation(pid(req));
+  res.json({ runs: conv?.runs ?? [], bytes: conv ? JSON.stringify(conv.messages).length : 0 });
+});
+
+app.delete("/api/projects/:id/conversation", async (req, res) => {
+  await clearConversation(pid(req));
+  res.json({ ok: true });
 });
 
 app.delete("/api/projects/:id", async (req, res) => {
@@ -226,6 +238,7 @@ app.post("/api/projects/:id/run", async (req, res) => {
     request: String(req.body?.request ?? "").slice(0, 4000),
     assetTypes: Array.isArray(req.body?.assetTypes) ? req.body.assetTypes.map(String) : [],
     providerId: req.body?.provider ? String(req.body.provider) : undefined,
+    continueConversation: req.body?.continueConversation !== false,
     redraw: req.body?.redraw?.assetId
       ? { assetId: String(req.body.redraw.assetId), feedback: String(req.body.redraw.feedback ?? "").slice(0, 2000) }
       : undefined,

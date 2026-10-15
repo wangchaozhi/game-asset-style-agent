@@ -147,3 +147,36 @@ export async function writeProjectFile(projectId: string, rel: string, data: Buf
 export async function readProjectFile(projectId: string, rel: string): Promise<Buffer> {
   return fs.readFile(path.join(projectDir(projectId), rel));
 }
+
+// ---------------- agent conversation (append-only history per project) ----------------
+
+export interface Conversation {
+  /** Raw Messages API params, exactly as sent/received. Never edited, only appended to. */
+  messages: unknown[];
+  runs: { request: string; at: string }[];
+}
+
+const convFile = (id: string) => path.join(projectDir(id), "conversation.json");
+
+export async function loadConversation(id: string): Promise<Conversation | null> {
+  try {
+    return JSON.parse(await fs.readFile(convFile(id), "utf8")) as Conversation;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveConversation(id: string, conv: Conversation): Promise<number> {
+  const json = JSON.stringify(conv);
+  await fs.writeFile(convFile(id) + ".tmp", json);
+  await fs.rename(convFile(id) + ".tmp", convFile(id));
+  return json.length;
+}
+
+export async function clearConversation(id: string) {
+  await fs.rm(convFile(id), { force: true });
+}
+
+export async function conversationSize(id: string): Promise<number> {
+  return fs.stat(convFile(id)).then((s) => s.size, () => 0);
+}

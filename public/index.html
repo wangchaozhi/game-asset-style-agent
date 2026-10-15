@@ -50,9 +50,11 @@
         <label class="provider">图像模型
           <select id="providerSelect"></select>
         </label>
+        <label class="toggle" title="Agent 会记得本项目之前的需求与结果，可以说「把刚才的剑改成蓝色」"><input type="checkbox" id="continueConv" checked /> 延续对话</label>
         <button id="runBtn" class="btn primary">开始生成</button>
         <button id="stopBtn" class="btn ghost" hidden>停止</button>
       </div>
+      <div class="conv-bar" id="convBar" hidden></div>
       <div class="log-head">
         <h2>Agent 工作日志</h2>
         <label class="toggle"><input type="checkbox" id="showThinking" checked /> 显示思考</label>

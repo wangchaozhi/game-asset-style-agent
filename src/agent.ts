@@ -5,7 +5,9 @@ import {
   type Project,
   type StyleGuide,
   extFor,
+  loadConversation,
   loadProject,
+  saveConversation,
   newId,
   readProjectFile,
   updateProject,
@@ -18,6 +20,8 @@ import { isOpaque, removeBackground } from "./postprocess.js";
 const MODEL = process.env.CLAUDE_MODEL ?? "claude-opus-5-5";
 const EFFORT = (process.env.CLAUDE_EFFORT ?? "medium") as "low" | "medium" | "high" | "xhigh" | "max";
 const MAX_TURNS = Number(process.env.AGENT_MAX_TURNS ?? 40);
+/** Past this size a project starts a fresh conversation so requests stay well under the API's size limit. */
+const CONVERSATION_LIMIT_BYTES = Number(process.env.CONVERSATION_LIMIT_MB ?? 12) * 1024 * 1024;
 
 export const ASSET_TYPES = {
   character: "角色立绘 / 角色设定",
@@ -228,6 +232,8 @@ export interface RunOptions {
   providerId?: string;
   /** redraw one asset following the user's feedback */
   redraw?: { assetId: string; feedback: string };
+  /** append to the project's previous agent conversation instead of starting fresh */
+  continueConversation?: boolean;
 }
 
 export function startJob(opts: RunOptions): Job {
@@ -432,12 +438,22 @@ Generate exactly one new version with generate_image, passing replaces_asset_id=
     .filter(Boolean)
     .join("\n\n");
 
+  // History is append-only: earlier turns (including thinking blocks) are sent back byte-for-byte.
+  let history = opts.continueConversation ? await loadConversation(project.id) : null;
+  if (history && JSON.stringify(history.messages).length > CONVERSATION_LIMIT_BYTES) {
+    emit(job, { type: "status", text: "对话历史过长，本次开启新对话（风格指南与素材不受影响）" });
+    history = null;
+  }
+  const continuing = !!history?.messages.length;
   const messages: Anthropic.Beta.BetaMessageParam[] = [
+    ...((history?.messages ?? []) as Anthropic.Beta.BetaMessageParam[]),
     {
       role: "user",
       content: [
-        { type: "text", text: `Style reference images (${refs.length}):` },
-        ...refs.map(
+        ...(continuing
+          ? [{ type: "text" as const, text: "New request in the same project. The style guide below is current (the user may have edited it since)." }]
+          : [{ type: "text" as const, text: `Style reference images (${refs.length}):` }]),
+        ...(continuing ? [] : refs).map(
           (r): Anthropic.Beta.BetaImageBlockParam => ({
             type: "image",
             source: { type: "base64", media_type: "image/jpeg", data: r.data.toString("base64") },
@@ -457,7 +473,14 @@ Generate exactly one new version with generate_image, passing replaces_asset_id=
     },
   ];
 
-  emit(job, { type: "status", text: `Agent 启动 · ${MODEL} · 图像通道 ${provider.label}` });
+  emit(job, {
+    type: "status",
+    text: `Agent 启动 · ${MODEL} · 图像通道 ${provider.label}${continuing ? ` · 延续对话（第 ${history!.runs.length + 1} 轮）` : ""}`,
+  });
+  const persist = async () => {
+    const runs = [...(history?.runs ?? []), { request: opts.redraw ? `重画：${opts.redraw.feedback}` : opts.request, at: new Date().toISOString() }];
+    await saveConversation(project.id, { messages, runs });
+  };
   let jsonRetries = 0;
 
   for (let turn = 0; turn < MAX_TURNS; turn++) {
@@ -501,7 +524,12 @@ Generate exactly one new version with generate_image, passing replaces_asset_id=
     }
 
     const toolUses = message.content.filter((b): b is Anthropic.Beta.BetaToolUseBlock => b.type === "tool_use");
-    if (message.stop_reason === "end_turn" || toolUses.length === 0) return;
+    if (message.stop_reason === "end_turn" || toolUses.length === 0) {
+      // Only a cleanly finished run is saved, so the stored history never ends on an unanswered tool call.
+      messages.push({ role: "assistant", content: message.content });
+      await persist();
+      return;
+    }
     if (message.stop_reason === "max_tokens") throw new Error("输出超出 max_tokens，工具参数被截断");
 
     messages.push({ role: "assistant", content: message.content });
@@ -514,6 +542,16 @@ Generate exactly one new version with generate_image, passing replaces_asset_id=
 }
 
 // ---------------- demo mode: scripted run, no Claude call (for trying the UI without an API key) ----------------
+
+/** Demo runs keep a text-only transcript so the conversation UI can be exercised without Claude. */
+async function recordDemoTurn(projectId: string, opts: RunOptions, reply: string) {
+  const prev = opts.continueConversation ? await loadConversation(projectId) : null;
+  const request = opts.redraw ? `重画：${opts.redraw.feedback}` : opts.request;
+  await saveConversation(projectId, {
+    messages: [...(prev?.messages ?? []), { role: "user", content: request }, { role: "assistant", content: reply }],
+    runs: [...(prev?.runs ?? []), { request, at: new Date().toISOString() }],
+  });
+}
 
 async function runDemo(job: Job, opts: RunOptions) {
   const provider = getProvider(opts.providerId);
@@ -569,6 +607,7 @@ async function runDemo(job: Job, opts: RunOptions) {
     emit(job, { type: "tool", name: "generate_image", input });
     const { asset } = await generateAsset(job, provider, input);
     emit(job, { type: "asset", asset });
+    await recordDemoTurn(project.id, opts, `已重画 ${asset.id}`);
     return;
   }
 
@@ -597,5 +636,6 @@ async function runDemo(job: Job, opts: RunOptions) {
       emit(job, { type: "asset", asset });
     }),
   );
+  await recordDemoTurn(project.id, opts, `生成了 ${types.length} 个素材`);
   emit(job, { type: "text", delta: "演示完成。配置 ANTHROPIC_API_KEY 并去掉 AGENT_MODE=demo 即可启用真正的 Claude 美术总监。\n" });
 }

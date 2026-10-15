@@ -53,7 +53,18 @@ async function openProject(id) {
   renderAll();
 }
 
+async function loadConversationInfo() {
+  const info = await api(`/api/projects/${state.project.id}/conversation`);
+  const bar = $("#convBar");
+  bar.hidden = !info.runs.length;
+  if (!info.runs.length) return;
+  const recent = info.runs.slice(-3).map((r) => `<li>${esc(r.request || "（按所选类型生成）")}</li>`).join("");
+  bar.innerHTML = `<div class="conv-head"><span>对话已进行 <b>${info.runs.length}</b> 轮 · ${(info.bytes / 1048576).toFixed(1)} MB</span>
+    <button class="btn link" id="newConv">开启新对话</button></div><ol start="${Math.max(1, info.runs.length - 2)}">${recent}</ol>`;
+}
+
 function renderAll() {
+  loadConversationInfo();
   $("#exportApproved").href = `/api/projects/${state.project.id}/export.zip`;
   $("#exportAll").href = `/api/projects/${state.project.id}/export.zip?status=all`;
   renderRefs();
@@ -317,6 +328,7 @@ function finishJob() {
   $("#runBtn").disabled = false;
   $("#runBtn").textContent = "开始生成";
   $("#stopBtn").hidden = true;
+  if (state.project) loadConversationInfo();
   loadProjectsQuiet();
 }
 
@@ -336,7 +348,13 @@ async function run(extraRequest, redraw) {
   try {
     const { jobId } = await api(`/api/projects/${state.project.id}/run`, {
       method: "POST",
-      body: { request, assetTypes: redraw ? [] : [...state.selectedTypes], provider: $("#providerSelect").value, redraw },
+      body: {
+        request,
+        assetTypes: redraw ? [] : [...state.selectedTypes],
+        provider: $("#providerSelect").value,
+        redraw,
+        continueConversation: $("#continueConv").checked,
+      },
     });
     attachJob(jobId);
   } catch (e) {
@@ -422,6 +440,13 @@ async function init() {
   });
 
   $("#runBtn").addEventListener("click", () => run());
+  $("#convBar").addEventListener("click", async (e) => {
+    if (e.target.id !== "newConv") return;
+    if (!confirm("清空与 Agent 的对话记忆？风格指南和已生成的素材都会保留。")) return;
+    await api(`/api/projects/${state.project.id}/conversation`, { method: "DELETE" });
+    loadConversationInfo();
+    toast("已开启新对话");
+  });
   $("#stopBtn").addEventListener("click", () => state.job && api(`/api/jobs/${state.job}/stop`, { method: "POST" }));
   $("#request").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); });
   $("#showThinking").addEventListener("change", (e) => $("#log").classList.toggle("hide-thinking", !e.target.checked));
