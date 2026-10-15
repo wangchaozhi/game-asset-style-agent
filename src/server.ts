@@ -19,6 +19,7 @@ import {
 import { providers, toPng } from "./imageProviders.js";
 import { removeBackground } from "./postprocess.js";
 import { createZip, type ZipEntry } from "./zip.js";
+import { SIZE_PRESETS, isPixelArt, parseSize, resizeAsset } from "./sizes.js";
 import { ASSET_TYPES, type AgentEvent, StyleGuideInput, jobs, sliceAssetFrames, startJob } from "./agent.js";
 
 
@@ -39,6 +40,7 @@ app.get("/api/config", (_req, res) => {
   res.json({
     providers: providers.map((p) => ({ id: p.id, label: p.label, available: p.available() })),
     assetTypes: ASSET_TYPES,
+    sizePresets: SIZE_PRESETS,
     demo: process.env.AGENT_MODE === "demo",
   });
 });
@@ -165,6 +167,24 @@ app.post("/api/projects/:id/assets/:assetId/cutout", async (req, res) => {
   res.json(p.assets.find((a) => a.id === asset.id));
 });
 
+app.get("/api/projects/:id/assets/:assetId/sized.png", async (req, res) => {
+  const projectId = pid(req);
+  const project = await loadProject(projectId);
+  const asset = project.assets.find((a) => a.id === req.params.assetId);
+  if (!asset) return void res.status(404).json({ error: "素材不存在" });
+  const size = parseSize(String(req.query.size ?? ""));
+  if (!size) return void res.status(400).json({ error: "尺寸格式应为 32 或 1280x720（8–4096）" });
+  const pixel = req.query.kernel ? req.query.kernel === "nearest" : isPixelArt(project.styleGuide);
+  const png = await resizeAsset(await readProjectFile(projectId, asset.file), {
+    ...size, assetType: asset.assetType, pixel, frames: asset.frames?.length,
+  });
+  res.setHeader("Content-Type", "image/png");
+  if (req.query.download) {
+    res.setHeader("Content-Disposition", `attachment; filename="asset.png"; filename*=UTF-8''${encodeURIComponent(`${asset.name}@${req.query.size}.png`)}`);
+  }
+  res.send(png);
+});
+
 app.get("/api/projects/:id/export.zip", async (req, res) => {
   const projectId = pid(req);
   const project = await loadProject(projectId);
@@ -188,6 +208,20 @@ app.get("/api/projects/:id/export.zip", async (req, res) => {
     const ext = a.file.split(".").pop();
     const files: Record<string, string | string[]> = { image: `${base}.${ext}` };
     entries.push({ name: `${base}.${ext}`, data: await readProjectFile(projectId, a.file) });
+    if (req.query.sizes) {
+      files.sizes = [];
+      const original = await readProjectFile(projectId, a.file);
+      for (const spec of SIZE_PRESETS[a.assetType] ?? []) {
+        const n = `${base}@${spec}.png`;
+        files.sizes.push(n);
+        entries.push({
+          name: n,
+          data: await resizeAsset(original, {
+            ...parseSize(spec)!, assetType: a.assetType, pixel: isPixelArt(project.styleGuide), frames: a.frames?.length,
+          }),
+        });
+      }
+    }
     if (a.gif) {
       files.gif = `${base}.gif`;
       entries.push({ name: `${base}.gif`, data: await readProjectFile(projectId, a.gif) });

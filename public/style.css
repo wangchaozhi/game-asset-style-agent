@@ -183,3 +183,11 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .conv-head b { color: var(--ink); }
 .conv-bar ol { margin: 4px 0 0; padding-left: 20px; }
 .conv-bar li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sizes { display: flex; flex-direction: column; gap: 6px; }
+.sizes-head { display: flex; justify-content: space-between; align-items: center; }
+.size-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.size-chip { border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; font-size: 12px; color: var(--ink); text-decoration: none; background: var(--chip); }
+.size-chip:hover { border-color: var(--accent); color: var(--accent); }
+.size-custom { width: 130px; font: inherit; font-size: 12px; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
+.size-preview { display: flex; justify-content: center; align-items: center; padding: 10px; border-radius: 8px; min-height: 60px; }
+.size-preview img { image-rendering: pixelated; max-width: 100%; }

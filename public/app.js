@@ -67,6 +67,8 @@ function renderAll() {
   loadConversationInfo();
   $("#exportApproved").href = `/api/projects/${state.project.id}/export.zip`;
   $("#exportAll").href = `/api/projects/${state.project.id}/export.zip?status=all`;
+  $("#exportSized").href = `/api/projects/${state.project.id}/export.zip?sizes=1`;
+  state.pixelKernel = /pixel|像素|8-?bit|16-?bit/i.test(JSON.stringify(state.project.styleGuide ?? ""));
   renderRefs();
   renderStyle();
   renderAssets();
@@ -223,6 +225,7 @@ function openViewer(id) {
       <button class="btn primary" data-redraw="${a.id}">按意见重画</button>
     </div>
     ${a.assetType === "sprite_sheet" ? spriteSection(a) : ""}
+    ${sizeSection(a)}
     <form class="cutout-form" data-cutout="${a.id}">
       <label>去背景容差 <input name="tolerance" type="range" min="4" max="100" value="28" /><output>28</output></label>
       <button class="btn ghost" type="submit">${a.originalFile ? "重新抠图" : "去除背景"}</button>
@@ -235,6 +238,20 @@ function openViewer(id) {
       <button class="btn ghost danger" data-del-asset="${a.id}">删除</button>
     </div>`;
   $("#viewer").showModal();
+}
+
+function sizeSection(a) {
+  const presets = state.config.sizePresets[a.assetType] ?? [];
+  const base = `/api/projects/${state.project.id}/assets/${a.id}/sized.png`;
+  return `<div class="sizes">
+    <div class="sizes-head"><b>游戏尺寸</b>
+      <label class="toggle"><input type="checkbox" id="pixelKernel" ${state.pixelKernel ? "checked" : ""} /> 像素风（最近邻）</label></div>
+    <div class="size-row">${presets
+      .map((s) => `<a class="size-chip" data-size="${s}" href="${base}?size=${s}&kernel=${state.pixelKernel ? "nearest" : "smooth"}&download=1">${s}</a>`)
+      .join("")}
+      <input class="size-custom" placeholder="自定义 48 / 300x200" data-base="${base}" /></div>
+    <div class="size-preview checker" hidden><img alt="缩放预览" /></div>
+  </div>`;
 }
 
 function versionLinks(a) {
@@ -461,6 +478,30 @@ async function init() {
   $("#assets").addEventListener("click", (e) => {
     const card = e.target.closest(".card");
     if (card) openViewer(card.dataset.asset);
+  });
+  $("#viewerMeta").addEventListener("change", (e) => {
+    if (e.target.id === "pixelKernel") {
+      state.pixelKernel = e.target.checked;
+      const id = $("#viewerMeta").querySelector("[data-redraw]").dataset.redraw;
+      openViewer(id);
+    }
+  });
+  $("#viewerMeta").addEventListener("mouseover", (e) => {
+    const chip = e.target.closest(".size-chip");
+    if (!chip) return;
+    const box = $("#viewerMeta .size-preview");
+    box.hidden = false;
+    const img = box.querySelector("img");
+    // Show small sizes enlarged so pixel crispness can be judged.
+    img.onload = () => (img.style.width = `${Math.min(img.naturalWidth * (img.naturalWidth <= 64 ? 4 : 1), 280)}px`);
+    img.src = chip.href.replace("&download=1", "");
+  });
+  $("#viewerMeta").addEventListener("keydown", (e) => {
+    if (!e.target.classList.contains("size-custom") || e.key !== "Enter") return;
+    e.preventDefault();
+    const v = e.target.value.trim().toLowerCase().replace("×", "x");
+    if (!/^\d{1,4}(x\d{1,4})?$/.test(v)) return toast("格式：48 或 300x200");
+    location.href = `${e.target.dataset.base}?size=${v}&kernel=${state.pixelKernel ? "nearest" : "smooth"}&download=1`;
   });
   $("#viewerMeta").addEventListener("input", (e) => {
     if (e.target.name === "tolerance") e.target.nextElementSibling.value = e.target.value;
