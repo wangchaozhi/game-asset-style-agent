@@ -115,7 +115,7 @@ function bindCore(root) {
       const feedback = $("#feedback").value.trim();
       if (!feedback) return toast("请先写下修改意见");
       $("#viewer").close();
-      return run("", { assetId: ds.redraw, feedback });
+      return run("", [{ assetId: ds.redraw, feedback }]);
     }
     if (ds.delAsset) {
       state.project = await api(`/api/projects/${state.project.id}/assets/${ds.delAsset}`, { method: "DELETE" });

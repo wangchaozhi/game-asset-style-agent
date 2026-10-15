@@ -65,24 +65,29 @@ export async function runDemo(job: Job, opts: RunOptions) {
     emit(job, { type: "style", styleGuide: guide });
   }
 
-  if (opts.redraw) {
-    const old = project.assets.find((a) => a.id === opts.redraw!.assetId);
-    if (!old) throw new Error("要重画的素材不存在");
-    const input: GenerateInput = {
-      name: old.name,
-      asset_type: old.assetType as AssetType,
-      prompt: `${old.prompt} Revision: ${opts.redraw.feedback}`,
-      aspect: aspectFor(old.assetType),
-      transparent_background: !isOpaqueType(old.assetType),
-      consistency_asset_ids: [old.id],
-      replaces_asset_id: old.id,
-      frames: old.frames?.length,
-    };
-    emit(job, { type: "text", delta: `按意见重画「${old.name}」：${opts.redraw.feedback}\n` });
-    emit(job, { type: "tool", name: "generate_image", input });
-    const { asset } = await generateAsset(job, provider, input);
-    emit(job, { type: "asset", asset });
-    await recordDemoTurn(project.id, opts, `已重画 ${asset.id}`);
+  if (opts.redraws?.length) {
+    for (const r of opts.redraws) {
+      const old = project.assets.find((a) => a.id === r.assetId);
+      if (!old) throw new Error("要重画的素材不存在");
+      const input: GenerateInput = {
+        name: old.name,
+        asset_type: old.assetType as AssetType,
+        prompt: `${old.prompt} Revision: ${r.feedback}`,
+        aspect: aspectFor(old.assetType),
+        transparent_background: !isOpaqueType(old.assetType),
+        consistency_asset_ids: [old.id],
+        replaces_asset_id: old.id,
+        frames: old.frames?.length,
+      };
+      emit(job, { type: "text", delta: `按意见重画「${old.name}」：${r.feedback || "（未写意见）"}\n` });
+      emit(job, { type: "tool", name: "generate_image", input });
+      const made = await generateAsset(job, provider, input).catch((err) => {
+        if (err instanceof BudgetExceededError) return null;
+        throw err;
+      });
+      if (made) emit(job, { type: "asset", asset: made.asset });
+    }
+    await recordDemoTurn(project.id, opts, `已重画 ${opts.redraws.length} 个素材`);
     return;
   }
 

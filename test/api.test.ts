@@ -339,6 +339,16 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/assets/${tile.id}/tiled.png?n=9`)).status, 400);
   });
 
+  it("redraws several assets in one demo run and limits the count", async () => {
+    const ids = (await json(`/api/projects/${id}`)).body.assets.slice(0, 2).map((a: { id: string }) => a.id);
+    const r = await json(`/api/projects/${id}/run`, { method: "POST", body: { redraws: ids.map((assetId: string) => ({ assetId, feedback: "更亮" })), provider: "mock" } });
+    await events(r.body.jobId);
+    const made = (await json(`/api/projects/${id}`)).body.assets.slice(-2).map((a: { parentId: string }) => a.parentId);
+    assert.deepEqual(made.sort(), [...ids].sort());
+    const tooMany = Array.from({ length: 11 }, () => ({ assetId: ids[0], feedback: "x" }));
+    assert.equal((await json(`/api/projects/${id}/run`, { method: "POST", body: { redraws: tooMany } })).status, 400);
+  });
+
   it("redraws an asset in demo mode as a linked version", async () => {
     const asset = (await json(`/api/projects/${id}`)).body.assets[0];
     const r = await json(`/api/projects/${id}/run`, { method: "POST", body: { redraw: { assetId: asset.id, feedback: "更亮" }, provider: "mock" } });

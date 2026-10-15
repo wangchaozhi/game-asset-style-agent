@@ -23,14 +23,15 @@ Write your messages to the user in the same language they use (usually Chinese).
 
 export const styleGuideText = (sg: StyleGuide) => JSON.stringify(sg, null, 2);
 
-/** The text block that opens each run: project state plus the user's request (or a redraw task). */
+/** The text block that opens each run: project state plus the user's request (or redraw tasks). */
 export function buildIntro(opts: {
   project: Project;
   request: string;
   assetTypes: string[];
-  redraw?: { target: Asset; feedback: string };
+  redraws?: { target: Asset; feedback: string }[];
 }): string {
-  const { project, redraw } = opts;
+  const { project } = opts;
+  const redraws = opts.redraws ?? [];
   const existing = project.assets.filter((a) => a.status === "approved");
   const typeLabels = opts.assetTypes.filter(isAssetType).map((t) => `${t}（${ASSET_TYPES[t]}）`);
   const notes = project.refs.map((r, i) => (r.note ? `- Reference ${i + 1}: ${r.note}` : "")).filter(Boolean);
@@ -46,11 +47,17 @@ export function buildIntro(opts: {
       ? `Approved assets so far (usable in consistency_asset_ids):\n${existing.map((a) => `- ${a.id} ${a.name} [${a.assetType}]`).join("\n")}`
       : "",
     typeLabels.length ? `Asset categories the user selected: ${typeLabels.join(", ")}` : "",
-    redraw
-      ? `REDRAW TASK. The user reviewed asset ${redraw.target.id} "${redraw.target.name}" [${redraw.target.assetType}] (shown in the last image above) and wants it redrawn.
-Their feedback: ${redraw.feedback || "(none given: fix whatever drifts from the style)"}
-Previous prompt:\n${redraw.target.prompt}
-Generate exactly one new version with generate_image, passing replaces_asset_id="${redraw.target.id}" and consistency_asset_ids=["${redraw.target.id}"], keep the same name, asset_type and aspect, apply the feedback precisely, then review it. Do not create other assets.`
+    redraws.length
+      ? `REDRAW TASK${redraws.length > 1 ? `S (${redraws.length})` : ""}. The user reviewed ${redraws.length > 1 ? "these assets" : "this asset"} (shown above as "Asset to redraw") and wants ${redraws.length > 1 ? "them" : "it"} redrawn:
+${redraws
+  .map(
+    (r, i) => `${i + 1}. asset ${r.target.id} "${r.target.name}" [${r.target.assetType}]
+   Feedback: ${r.feedback || "(none given: fix whatever drifts from the style)"}
+   Previous prompt: ${r.target.prompt}
+   → generate_image with replaces_asset_id="${r.target.id}" and consistency_asset_ids=["${r.target.id}"]`,
+  )
+  .join("\n")}
+For each one generate exactly one new version (independent ones in parallel), keep the same name, asset_type and aspect, apply its feedback precisely, then review it. Do not create other assets.`
       : `User request:\n${opts.request || "按参考图风格生成一套基础素材。"}`,
   ]
     .filter(Boolean)

@@ -28,18 +28,16 @@ export async function runAgent(job: Job, opts: RunOptions) {
   const model = config.model;
 
   const refs = await Promise.all((await refImages(project)).map((r) => shrink(r, 1024)));
-  const redrawTarget = opts.redraw ? project.assets.find((a) => a.id === opts.redraw!.assetId) : undefined;
-  if (opts.redraw && !redrawTarget) throw new Error("要重画的素材不存在");
-  const redrawImage = redrawTarget
-    ? await shrink({ data: await readProjectFile(project.id, redrawTarget.file), mime: redrawTarget.mime }, 768)
-    : undefined;
-
-  const intro = buildIntro({
-    project,
-    request: opts.request,
-    assetTypes: opts.assetTypes,
-    redraw: redrawTarget ? { target: redrawTarget, feedback: opts.redraw!.feedback } : undefined,
+  const redraws = (opts.redraws ?? []).map((r) => {
+    const target = project.assets.find((a) => a.id === r.assetId);
+    if (!target) throw new Error("要重画的素材不存在");
+    return { target, feedback: r.feedback };
   });
+  const redrawImages = await Promise.all(
+    redraws.map(async (r) => shrink({ data: await readProjectFile(project.id, r.target.file), mime: r.target.mime }, 768)),
+  );
+
+  const intro = buildIntro({ project, request: opts.request, assetTypes: opts.assetTypes, redraws });
 
   // History is append-only: earlier turns (including thinking blocks) are sent back byte-for-byte.
   let history = opts.continueConversation ? await loadConversation(project.id) : null;
@@ -58,7 +56,7 @@ export async function runAgent(job: Job, opts: RunOptions) {
           : { type: "text", text: `Style reference images (${refs.length}):` },
         // Number the references so notes in the intro ("Reference 2: …") can point at them.
         ...(continuing ? [] : refs.flatMap((r, i) => [{ type: "text" as const, text: `Reference ${i + 1}:` }, jpegBlock(r.data)])),
-        ...(redrawImage ? [{ type: "text" as const, text: `Asset to redraw (${redrawTarget!.id}):` }, jpegBlock(redrawImage.data)] : []),
+        ...redraws.flatMap((r, i) => [{ type: "text" as const, text: `Asset to redraw (${r.target.id}):` }, jpegBlock(redrawImages[i].data)]),
         { type: "text", text: intro },
       ],
     },

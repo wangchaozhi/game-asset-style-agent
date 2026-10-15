@@ -305,6 +305,23 @@ describe("agent loop against a fake Messages API", () => {
     assert.match(job.usage.request, /^直接重生成：A wooden sword/);
   });
 
+  it("redraws several assets in one run, each with its own feedback", async () => {
+    const projectId = await newProject();
+    fake.script({ content: [gen("toolu_1", "一"), gen("toolu_2", "二")], stop_reason: "tool_use" }, say("ok"));
+    await run({ projectId });
+    const [a, b] = (await store.loadProject(projectId)).assets;
+    fake.reset();
+    fake.script(say("planned"));
+    const { job } = await run({ projectId, request: "", continueConversation: false, redraws: [{ assetId: a.id, feedback: "更亮" }, { assetId: b.id, feedback: "" }] });
+    const turn = fake.requests[0].body.messages[0].content as { type: string; text?: string }[];
+    assert.equal(turn.filter((x) => x.type === "image").length, 3, "reference + both assets");
+    const text = turn.at(-1)!.text!;
+    assert.match(text, /REDRAW TASKS \(2\)/);
+    assert.match(text, new RegExp(`1\\. asset ${a.id}[\\s\\S]*Feedback: 更亮[\\s\\S]*replaces_asset_id="${a.id}"`));
+    assert.match(text, new RegExp(`2\\. asset ${b.id}[\\s\\S]*none given`));
+    assert.equal(job.usage.request, "重画 2 个素材");
+  });
+
   it("a redraw sends the old image and asks for exactly one replacement", async () => {
     const projectId = await newProject();
     fake.script({ content: [gen("toolu_g", "木剑")], stop_reason: "tool_use" }, say("ok"));
@@ -312,7 +329,7 @@ describe("agent loop against a fake Messages API", () => {
     const old = (await store.loadProject(projectId)).assets[0];
     fake.reset();
     fake.script(say("redraw planned"));
-    await run({ projectId, request: "", redraw: { assetId: old.id, feedback: "剑身改成蓝色" }, continueConversation: false });
+    await run({ projectId, request: "", redraws: [{ assetId: old.id, feedback: "剑身改成蓝色" }], continueConversation: false });
     const turn = fake.requests[0].body.messages[0].content as { type: string; text?: string }[];
     assert.equal(turn.filter((b) => b.type === "image").length, 2, "reference + the asset to redraw");
     assert.match(turn.at(-1)!.text!, new RegExp(`REDRAW TASK[\\s\\S]*剑身改成蓝色[\\s\\S]*replaces_asset_id="${old.id}"`));

@@ -228,7 +228,7 @@ describe("buildIntro", () => {
       id: "ast_1", name: "剑", assetType: "item_icon", prompt: "old prompt", file: "assets/a.png", mime: "image/png",
       status: "approved", runId: "job", provider: "mock", createdAt: "",
     });
-    const text = buildIntro({ project, request: "", assetTypes: [], redraw: { target: project.assets[0], feedback: "改成蓝色" } });
+    const text = buildIntro({ project, request: "", assetTypes: [], redraws: [{ target: project.assets[0], feedback: "改成蓝色" }] });
     assert.match(text, /REDRAW TASK/);
     assert.match(text, /改成蓝色/);
     assert.match(text, /replaces_asset_id="ast_1"/);

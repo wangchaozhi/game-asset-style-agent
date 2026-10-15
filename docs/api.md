@@ -138,11 +138,11 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:5173/api/projects
   "provider": "openai",
   "continueConversation": true,
   "budget": { "maxImages": 12, "maxUsd": 2 },
-  "redraw": { "assetId": "ast_…", "feedback": "剑身改成蓝色" }
+  "redraws": [{ "assetId": "ast_…", "feedback": "剑身改成蓝色" }]
 }
 ```
 
-除 `request` 外都可省略。`budget` 中省略的字段用服务器默认值，`0` 表示不限。`redraw` 表示按意见重画某个素材。
+除 `request` 外都可省略。`budget` 中省略的字段用服务器默认值，`0` 表示不限。`redraws` 让 Agent 按各自的意见重画这些素材（一次最多 10 个），也接受旧的单个 `redraw` 字段。
 
 ### `GET /api/jobs/:id/events`
 

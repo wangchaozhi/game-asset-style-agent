@@ -1,9 +1,19 @@
 import { Router } from "express";
 import { type AgentEvent, jobs, runningJobFor, startJob } from "../agent/index.js";
+import { MAX_REDRAWS } from "../agent/events.js";
 import { loadProject } from "../store/index.js";
 import { pid } from "./util.js";
 
 export const jobsRouter = Router();
+
+/** `redraws: [{ assetId, feedback }]`, or the older single `redraw: { assetId, feedback }`. */
+function parseRedraws(body: { redraw?: unknown; redraws?: unknown } | undefined) {
+  const list = Array.isArray(body?.redraws) ? body.redraws : body?.redraw ? [body.redraw] : [];
+  const out = list
+    .filter((r): r is { assetId: unknown; feedback?: unknown } => !!r && typeof r === "object" && "assetId" in r)
+    .map((r) => ({ assetId: String(r.assetId), feedback: String(r.feedback ?? "").slice(0, 2000) }));
+  return out.length ? out : undefined;
+}
 
 /** Start a run (409 with the running job's id if one is already active for the project). */
 jobsRouter.post("/api/projects/:id/run", async (req, res) => {
@@ -11,6 +21,7 @@ jobsRouter.post("/api/projects/:id/run", async (req, res) => {
   await loadProject(projectId);
   const running = runningJobFor(projectId);
   if (running) return void res.status(409).json({ error: "该项目已有任务在运行", jobId: running.id });
+  if ((parseRedraws(req.body)?.length ?? 0) > MAX_REDRAWS) return void res.status(400).json({ error: `一次最多重画 ${MAX_REDRAWS} 个素材` });
   const job = startJob({
     projectId,
     request: String(req.body?.request ?? "").slice(0, 4000),
@@ -18,9 +29,7 @@ jobsRouter.post("/api/projects/:id/run", async (req, res) => {
     providerId: req.body?.provider ? String(req.body.provider) : undefined,
     continueConversation: req.body?.continueConversation !== false,
     budget: typeof req.body?.budget === "object" && req.body.budget ? req.body.budget : undefined,
-    redraw: req.body?.redraw?.assetId
-      ? { assetId: String(req.body.redraw.assetId), feedback: String(req.body.redraw.feedback ?? "").slice(0, 2000) }
-      : undefined,
+    redraws: parseRedraws(req.body),
   });
   res.json({ jobId: job.id });
 });

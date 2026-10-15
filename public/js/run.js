@@ -90,10 +90,11 @@ export function finishJob() {
 }
 
 
-export async function run(extraRequest, redraw) {
+/** Start a run; `redraws` = [{ assetId, feedback }] asks the agent to redraw those assets. */
+export async function run(extraRequest, redraws) {
   if (!state.project.refs.length) return toast("请先上传至少一张风格参考图");
   const request = extraRequest ?? $("#request").value.trim();
-  if (!redraw && !request && !state.selectedTypes.size) return toast("请选择素材类型或描述需求");
+  if (!redraws?.length && !request && !state.selectedTypes.size) return toast("请选择素材类型或描述需求");
   $("#log").innerHTML = "";
   renderLiveUsage(null);
   try {
@@ -101,9 +102,9 @@ export async function run(extraRequest, redraw) {
       method: "POST",
       body: {
         request,
-        assetTypes: redraw ? [] : [...state.selectedTypes],
+        assetTypes: redraws?.length ? [] : [...state.selectedTypes],
         provider: $("#providerSelect").value,
-        redraw,
+        redraws,
         continueConversation: $("#continueConv").checked,
         budget: readBudget(),
       },
