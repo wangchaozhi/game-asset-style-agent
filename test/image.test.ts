@@ -5,7 +5,7 @@ import { isOpaque, removeBackground } from "../src/image/background.js";
 import { shrink, toPng } from "../src/image/io.js";
 import { isPixelArt, parseSize, resizeAsset } from "../src/image/sizes.js";
 import { detectFrameCount, sliceSheet } from "../src/image/spriteSheet.js";
-import { analyzeSeams, tilePreview } from "../src/image/tiles.js";
+import { analyzeSeams, makeSeamless, tilePreview } from "../src/image/tiles.js";
 import { pixel, solidPng, validStyleGuide } from "./helpers.js";
 
 /** A red square centred on a flat background colour. */
@@ -104,6 +104,33 @@ describe("tile seams", () => {
     assert.equal(r.horizontalOk, false);
     assert.equal(r.verticalOk, true);
     assert.equal(r.seamless, false);
+  });
+
+  it("makeSeamless fixes both seams of a diagonal gradient and keeps the size", async () => {
+    const w = 96;
+    const h = 64;
+    const raw = Buffer.alloc(w * h * 3);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = (y * w + x) * 3;
+        raw[i] = Math.round((x / (w - 1)) * 255);
+        raw[i + 1] = Math.round((y / (h - 1)) * 255);
+        raw[i + 2] = 80;
+      }
+    }
+    const tile = await sharp(raw, { raw: { width: w, height: h, channels: 3 } }).png().toBuffer();
+    const before = await analyzeSeams(tile);
+    assert.deepEqual([before.horizontalOk, before.verticalOk], [false, false]);
+    const fixed = await makeSeamless(tile, { overlap: 0.2 });
+    const meta = await sharp(fixed).metadata();
+    assert.deepEqual([meta.width, meta.height], [w, h]);
+    const after = await analyzeSeams(fixed);
+    assert.equal(after.seamless, true, JSON.stringify(after));
+    assert.ok(after.horizontalDiff < before.horizontalDiff / 10);
+  });
+
+  it("makeSeamless refuses tiles too small to blend", async () => {
+    await assert.rejects(makeSeamless(await solidPng(2, 2, "#000000")), /太小/);
   });
 
   it("previews an n×n repeat", async () => {

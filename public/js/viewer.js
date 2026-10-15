@@ -79,6 +79,10 @@ export function tileSection(a) {
   return `<div class="tile-check">
     <div class="sizes-head"><b>无缝平铺检查</b><span class="seam-result muted">检测中…</span></div>
     <div class="tile-grid" style="background-image:url('${fileUrl(a.file)}?t=${Date.now()}')"></div>
+    <form class="seamless-form" data-seamless="${a.id}">
+      <label>边缘融合 <select name="overlap"><option value="0.1">10%</option><option value="0.15" selected>15%</option><option value="0.25">25%</option></select></label>
+      <button class="btn ghost" type="submit">一键无缝化（生成新版本）</button>
+    </form>
   </div>`;
 }
 
@@ -242,6 +246,22 @@ export function bindViewer() {
     if (!form) return;
     e.preventDefault();
     cutout(form.dataset.cutout, { tolerance: Number(new FormData(form).get("tolerance")) });
+  });
+  $("#viewerMeta").addEventListener("submit", async (e) => {
+    const form = e.target.closest("form[data-seamless]");
+    if (!form) return;
+    e.preventDefault();
+    try {
+      const asset = await api(`/api/projects/${state.project.id}/assets/${form.dataset.seamless}/make-seamless`, {
+        method: "POST",
+        body: { overlap: Number(new FormData(form).get("overlap")) },
+      });
+      upsertAsset(asset);
+      openViewer(asset.id);
+      toast("已生成无缝版本，可「对比上一版本」查看差异");
+    } catch (err) {
+      toast(err.message);
+    }
   });
   $("#viewerMeta").addEventListener("submit", async (e) => {
     const form = e.target.closest("form[data-slice]");

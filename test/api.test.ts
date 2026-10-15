@@ -101,6 +101,10 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/assets/${tile.id}/sized.png?size=1`)).status, 400);
     const seams = (await json(`/api/projects/${id}/assets/${tile.id}/seams`)).body;
     assert.equal(typeof seams.seamless, "boolean");
+    const fixed = await json(`/api/projects/${id}/assets/${tile.id}/make-seamless`, { method: "POST", body: { overlap: 0.2 } });
+    assert.deepEqual([fixed.body.parentId, fixed.body.status, fixed.body.provider], [tile.id, "pending_review", "postprocess"]);
+    assert.equal((await json(`/api/projects/${id}/assets/${fixed.body.id}/seams`)).body.seamless, true);
+    assert.equal((await json(`/api/projects/${id}/assets/${tile.id}/make-seamless`, { method: "POST", body: { overlap: 0.9 } })).status, 400);
     assert.equal((await json(`/api/projects/${id}/assets/ast_missing/seams`)).status, 404);
     const pal = (await json(`/api/projects/${id}/assets/${tile.id}/palette?threshold=25`)).body;
     assert.equal(pal.threshold, 25);

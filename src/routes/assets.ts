@@ -5,8 +5,8 @@ import { sliceAssetFrames } from "../agent/assets.js";
 import { removeBackground } from "../image/background.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
-import { analyzeSeams, tilePreview } from "../image/tiles.js";
-import { projectDir, readProjectFile, removeAssetFiles, updateProject, writeProjectFile } from "../store/index.js";
+import { analyzeSeams, makeSeamless, tilePreview } from "../image/tiles.js";
+import { newId, projectDir, readProjectFile, removeAssetFiles, updateProject, writeProjectFile } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { attachment, findAsset, pid } from "./util.js";
 
@@ -154,4 +154,34 @@ assetsRouter.get("/api/projects/:id/assets/:assetId/palette", async (req, res) =
   if (!palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
   const threshold = Math.max(2, Math.min(60, Number(req.query.threshold ?? 20)));
   res.json(await analyzePalette(await readProjectFile(found.project.id, found.asset.file), palette, { threshold }));
+});
+
+/** Make a tile seamless. The result is a new version (pending review) linked to the original. */
+assetsRouter.post("/api/projects/:id/assets/:assetId/make-seamless", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  const { project, asset } = found;
+  const overlap = Number(req.body?.overlap ?? 0.15);
+  if (!(overlap >= 0.04 && overlap <= 0.4)) return void res.status(400).json({ error: "融合比例需在 0.04-0.4 之间" });
+  const png = await makeSeamless(await readProjectFile(project.id, asset.file), { overlap, pixel: isPixelArt(project.styleGuide) });
+  const id = newId("ast");
+  const file = `assets/${id}.png`;
+  await writeProjectFile(project.id, file, png);
+  const created: Asset = {
+    id,
+    name: asset.name,
+    assetType: asset.assetType,
+    prompt: asset.prompt,
+    file,
+    mime: "image/png",
+    status: "pending_review",
+    notes: `由「${asset.name}」无缝化处理（边缘融合 ${Math.round(overlap * 100)}%）`,
+    reviewer: "user",
+    runId: asset.runId,
+    provider: "postprocess",
+    createdAt: new Date().toISOString(),
+    parentId: asset.id,
+  };
+  await updateProject(project.id, (p) => void p.assets.push(created));
+  res.json(created);
 });

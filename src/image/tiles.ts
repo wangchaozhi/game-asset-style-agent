@@ -85,3 +85,56 @@ export async function tilePreview(data: Buffer, n = 3): Promise<Buffer> {
     .png()
     .toBuffer();
 }
+
+/**
+ * Make a tile wrap seamlessly by cross-fading each edge band into the opposite one.
+ * With overlap m, the result keeps columns [0, W-m) where column x < m becomes a blend of
+ * x (weight x/m) and W-m+x (weight 1-x/m); its last and first columns are then neighbours in
+ * the source, so the wrap is continuous. Rows get the same treatment, and the tile is scaled
+ * back to its original size (nearest-neighbour for pixel art).
+ */
+export async function makeSeamless(data: Buffer, opts: { overlap?: number; pixel?: boolean } = {}): Promise<Buffer> {
+  const overlap = Math.min(0.4, Math.max(0.04, opts.overlap ?? 0.15));
+  const { data: src, info } = await sharp(data).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { width: w, height: h } = info;
+  const mx = Math.max(1, Math.round(w * overlap));
+  const my = Math.max(1, Math.round(h * overlap));
+  if (w - mx < 2 || h - my < 2) throw new Error("瓦片太小，无法无缝化");
+
+  // Horizontal pass: w×h → (w-mx)×h
+  const w2 = w - mx;
+  const hp = Buffer.alloc(w2 * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w2; x++) {
+      const o = (y * w2 + x) * 4;
+      const a = (y * w + x) * 4;
+      if (x >= mx) {
+        src.copy(hp, o, a, a + 4);
+        continue;
+      }
+      const b = (y * w + (w - mx + x)) * 4;
+      const t = x / mx;
+      for (let c = 0; c < 4; c++) hp[o + c] = Math.round(src[a + c] * t + src[b + c] * (1 - t));
+    }
+  }
+  // Vertical pass: (w-mx)×h → (w-mx)×(h-my)
+  const h2 = h - my;
+  const out = Buffer.alloc(w2 * h2 * 4);
+  for (let y = 0; y < h2; y++) {
+    for (let x = 0; x < w2; x++) {
+      const o = (y * w2 + x) * 4;
+      const a = (y * w2 + x) * 4;
+      if (y >= my) {
+        hp.copy(out, o, a, a + 4);
+        continue;
+      }
+      const b = ((h - my + y) * w2 + x) * 4;
+      const t = y / my;
+      for (let c = 0; c < 4; c++) out[o + c] = Math.round(hp[a + c] * t + hp[b + c] * (1 - t));
+    }
+  }
+  return sharp(out, { raw: { width: w2, height: h2, channels: 4 } })
+    .resize(w, h, { fit: "fill", kernel: opts.pixel ? sharp.kernel.nearest : sharp.kernel.lanczos3 })
+    .png()
+    .toBuffer();
+}
