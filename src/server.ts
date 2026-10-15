@@ -10,11 +10,13 @@ import {
   loadProject,
   newId,
   projectDir,
+  readProjectFile,
   updateProject,
   writeProjectFile,
 } from "./store.js";
 import { providers, toPng } from "./imageProviders.js";
-import { ASSET_TYPES, type AgentEvent, jobs, startJob } from "./agent.js";
+import { ASSET_TYPES, type AgentEvent, jobs, sliceAssetFrames, startJob } from "./agent.js";
+
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -83,6 +85,22 @@ app.delete("/api/projects/:id/refs/:refId", async (req, res) => {
 
 app.delete("/api/projects/:id/assets/:assetId", async (req, res) => {
   res.json(await updateProject(pid(req), (p) => void (p.assets = p.assets.filter((a) => a.id !== req.params.assetId))));
+});
+
+app.post("/api/projects/:id/assets/:assetId/slice", async (req, res) => {
+  const projectId = pid(req);
+  const project = await loadProject(projectId);
+  const asset = project.assets.find((a) => a.id === req.params.assetId);
+  if (!asset) return void res.status(404).json({ error: "素材不存在" });
+  const frames = req.body?.frames ? Number(req.body.frames) : undefined;
+  const fps = req.body?.fps ? Number(req.body.fps) : 8;
+  if (frames !== undefined && !(frames >= 1 && frames <= 32)) return void res.status(400).json({ error: "帧数需在 1-32 之间" });
+  const sliced = await sliceAssetFrames(projectId, asset, await readProjectFile(projectId, asset.file), frames, fps);
+  const p = await updateProject(projectId, (p) => {
+    const a = p.assets.find((x) => x.id === asset.id);
+    if (a) Object.assign(a, sliced);
+  });
+  res.json(p.assets.find((a) => a.id === asset.id));
 });
 
 app.get("/api/projects/:id/files/*rel", (req, res) => {

@@ -12,6 +12,7 @@ import {
   writeProjectFile,
 } from "./store.js";
 import { type ImageInput, type ImageProvider, getProvider, shrink } from "./imageProviders.js";
+import { detectFrameCount, sliceSheet } from "./spriteSheet.js";
 
 const MODEL = process.env.CLAUDE_MODEL ?? "claude-opus-5-5";
 const EFFORT = (process.env.CLAUDE_EFFORT ?? "medium") as "low" | "medium" | "high" | "xhigh" | "max";
@@ -83,6 +84,7 @@ const GenerateInput = z.object({
   aspect: z.enum(["square", "landscape", "portrait"]),
   transparent_background: z.boolean(),
   consistency_asset_ids: z.array(z.string()).max(4).optional(),
+  frames: z.number().int().min(2).max(16).optional(),
 });
 
 const ReviewInput = z.object({
@@ -150,6 +152,10 @@ const tools: Anthropic.Beta.BetaTool[] = [
           type: "array",
           items: { type: "string" },
           description: "Up to 4 previously generated asset ids to also attach as references, e.g. the approved character design when drawing its sprite sheet or portrait.",
+        },
+        frames: {
+          type: "integer",
+          description: "sprite_sheet only: number of animation frames in the single horizontal row (2-16). The sheet is sliced into frames and a GIF preview automatically.",
         },
       },
       required: ["name", "asset_type", "prompt", "aspect", "transparent_background"],
@@ -254,7 +260,13 @@ async function generateAsset(
       .map(async (a) => shrink({ data: await readProjectFile(project.id, a.file), mime: a.mime }, 1024)),
   );
   const img = await provider.generate(
-    { prompt: input.prompt, references: [...extra, ...refs], aspect: input.aspect, transparent: input.transparent_background },
+    {
+      prompt: input.prompt,
+      references: [...extra, ...refs],
+      aspect: input.aspect,
+      transparent: input.transparent_background,
+      frames: input.asset_type === "sprite_sheet" ? (input.frames ?? 4) : undefined,
+    },
     job.abort.signal,
   );
   const id = newId("ast");
@@ -272,11 +284,39 @@ async function generateAsset(
     provider: provider.id,
     createdAt: new Date().toISOString(),
   };
+  if (input.asset_type === "sprite_sheet") {
+    Object.assign(asset, await sliceAssetFrames(project.id, asset, img.data, input.frames).catch(() => ({})));
+  }
   await updateProject(project.id, (p) => {
     p.assets.push(asset);
   });
   emit(job, { type: "asset", asset });
   return { asset, image: img };
+}
+
+/**
+ * Slice a sprite sheet into frame PNGs + GIF and return the fields to merge into the asset.
+ * Frame count: explicit value, else detected from transparent gaps, else 4.
+ */
+export async function sliceAssetFrames(
+  projectId: string,
+  asset: Pick<Asset, "id">,
+  data: Buffer,
+  frameCount?: number,
+  fps = 8,
+): Promise<Pick<Asset, "frames" | "gif" | "fps">> {
+  const count = frameCount ?? (await detectFrameCount(data)) ?? 4;
+  const sheet = await sliceSheet(data, count, fps);
+  const frames = await Promise.all(
+    sheet.frames.map(async (buf, i) => {
+      const rel = `assets/${asset.id}_f${i}.png`;
+      await writeProjectFile(projectId, rel, buf);
+      return rel;
+    }),
+  );
+  const gif = `assets/${asset.id}.gif`;
+  await writeProjectFile(projectId, gif, sheet.gif);
+  return { frames, gif, fps };
 }
 
 async function runTool(

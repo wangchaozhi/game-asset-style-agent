@@ -126,7 +126,7 @@ function renderAssets(newId) {
     ? shown
         .map(
           (a) => `<div class="card ${a.status} ${a.id === newId ? "new" : ""}" data-asset="${a.id}">
-            <div class="checker"><img loading="lazy" src="${fileUrl(a.file)}" alt="${esc(a.name)}" /></div>
+            <div class="checker"><img loading="lazy" src="${fileUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /></div>
             <div class="meta"><span class="name">${esc(a.name)}</span>
               <span class="sub"><span>${esc(typeName(a.assetType))}</span><span class="badge ${a.status}">${label[a.status]}${a.score ? ` ${a.score}/10` : ""}</span></span>
             </div></div>`,
@@ -151,6 +151,7 @@ function openViewer(id) {
     <h3 style="margin:0">${esc(a.name)}</h3>
     <div class="muted">${esc(state.config.assetTypes[a.assetType] ?? a.assetType)} · ${esc(a.provider)} · ${new Date(a.createdAt).toLocaleString()}</div>
     ${a.notes ? `<div><b>审核：</b>${esc(a.notes)}${a.score ? `（一致性 ${a.score}/10）` : ""}</div>` : ""}
+    ${a.assetType === "sprite_sheet" ? spriteSection(a) : ""}
     <div><b>Prompt</b></div><pre>${esc(a.prompt)}</pre>
     <div class="actions">
       <a class="btn primary" href="${fileUrl(a.file)}" download="${esc(a.name)}.${a.file.split(".").pop()}">下载</a>
@@ -158,6 +159,20 @@ function openViewer(id) {
       <button class="btn ghost danger" data-del-asset="${a.id}">删除</button>
     </div>`;
   $("#viewer").showModal();
+}
+
+function spriteSection(a) {
+  const frames = a.frames ?? [];
+  return `<div class="sprite">
+      ${a.gif ? `<div class="checker sprite-gif"><img src="${fileUrl(a.gif)}?t=${Date.now()}" alt="动画预览" /></div>` : ""}
+      ${frames.length ? `<div class="frame-strip">${frames.map((f, i) => `<a class="checker" href="${fileUrl(f)}" download="${esc(a.name)}_${i}.png" title="下载第 ${i + 1} 帧"><img src="${fileUrl(f)}?t=${Date.now()}" alt="帧 ${i + 1}" /></a>`).join("")}</div>` : ""}
+      <form class="slice-form" data-slice="${a.id}">
+        <label>帧数 <input name="frames" type="number" min="1" max="32" value="${frames.length || 4}" /></label>
+        <label>FPS <input name="fps" type="number" min="1" max="30" value="${a.fps ?? 8}" /></label>
+        <button class="btn ghost" type="submit">${frames.length ? "重新切帧" : "切帧"}</button>
+        ${a.gif ? `<a class="btn ghost" href="${fileUrl(a.gif)}" download="${esc(a.name)}.gif">下载 GIF</a>` : ""}
+      </form>
+    </div>`;
 }
 
 // ---------------- run + log ----------------
@@ -331,6 +346,23 @@ async function init() {
   $("#assets").addEventListener("click", (e) => {
     const card = e.target.closest(".card");
     if (card) openViewer(card.dataset.asset);
+  });
+  $("#viewerMeta").addEventListener("submit", async (e) => {
+    const form = e.target.closest("form[data-slice]");
+    if (!form) return;
+    e.preventDefault();
+    const fd = new FormData(form);
+    try {
+      const asset = await api(`/api/projects/${state.project.id}/assets/${form.dataset.slice}/slice`, {
+        method: "POST",
+        body: { frames: Number(fd.get("frames")), fps: Number(fd.get("fps")) },
+      });
+      upsertAsset(asset);
+      openViewer(asset.id);
+      toast(`已切成 ${asset.frames.length} 帧`);
+    } catch (err) {
+      toast(err.message);
+    }
   });
   $("#viewerMeta").addEventListener("click", async (e) => {
     const del = e.target.dataset?.delAsset;

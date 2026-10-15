@@ -46,6 +46,10 @@ export interface Asset {
   runId: string;
   provider: string;
   createdAt: string;
+  /** sprite_sheet only: sliced frame files and GIF preview, relative to project dir */
+  frames?: string[];
+  gif?: string;
+  fps?: number;
 }
 
 export interface Project {

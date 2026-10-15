@@ -142,10 +142,20 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .close { position: absolute; top: 8px; right: 12px; border: 0; background: none; font-size: 26px; color: var(--muted); cursor: pointer; z-index: 1; }
 .viewer-body { display: grid; grid-template-columns: 1.4fr 1fr; }
 @media (max-width: 720px) { .viewer-body { grid-template-columns: 1fr; } }
-.viewer-body .checker { display: flex; align-items: center; justify-content: center; min-height: 320px; }
-.viewer-body img { max-width: 100%; max-height: 75vh; display: block; }
+.viewer-body > .checker { display: flex; align-items: center; justify-content: center; min-height: 320px; }
+.viewer-body > .checker img { max-width: 100%; max-height: 75vh; display: block; }
 .viewer-meta { padding: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; overflow-y: auto; max-height: 80vh; }
 .viewer-meta pre { white-space: pre-wrap; background: var(--bg); padding: 10px; border-radius: 8px; font-size: 12px; margin: 0; }
 .viewer-meta .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 13px; z-index: 10; max-width: 90vw; }
+
+.sprite { display: flex; flex-direction: column; gap: 8px; }
+.sprite-gif { display: flex; justify-content: center; border-radius: 8px; padding: 8px; }
+.sprite-gif img { max-height: 160px; image-rendering: pixelated; }
+.frame-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
+.frame-strip a { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--line); overflow: hidden; }
+.frame-strip img { max-width: 100%; max-height: 100%; }
+.slice-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.slice-form label { display: flex; gap: 4px; align-items: center; color: var(--muted); }
+.slice-form input { width: 56px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
