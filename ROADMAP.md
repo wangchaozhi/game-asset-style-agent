@@ -67,4 +67,4 @@
 - [x] 批量重画：已驳回的素材带着各自的意见一次交给 Agent 重画
 - [x] 任务完成提醒：标签页标题提示 + 可选浏览器通知
 - [x] 无障碍检查（axe-core）与修复
-- [ ] English README
+- [x] English README

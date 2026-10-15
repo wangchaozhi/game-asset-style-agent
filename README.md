@@ -1,5 +1,7 @@
 # Game Asset Agent
 
+[English](README.en.md) · 中文
+
 [![CI](https://github.com/wangchaozhi/game-asset-style-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/wangchaozhi/game-asset-style-agent/actions/workflows/ci.yml)
 
 上传几张风格参考图，由 Claude 担任「AI 美术总监」：先从参考图提炼可复用的**风格指南**（色板 hex、技法、线条、光影、视角、比例），再按你的需求规划素材清单、调用图像模型批量生成，**逐张看图审核**，风格跑偏就带着具体问题重画——最终得到一套看起来出自同一款游戏的素材。
@@ -22,7 +24,9 @@
 - 🧬 **跨素材一致性**：可把已通过的素材（如主角设定图）作为额外参考，画同一角色的动画帧 / 头像
 - 📦 **引擎可用的导出**：按类型分目录的 ZIP（含多尺寸、manifest、Godot 4 SpriteFrames `.tres`），以及图集 PNG + TexturePacker JSON（Phaser / PixiJS 可直接加载）和 Phaser 动画定义
 - 💰 **成本可控**：实时用量与费用估算；单次运行可设图像次数 / 费用上限，达到后 Agent 停止出图并收尾；图像接口限流自动退避重试
-- ⚡ 并行生成、SSE 实时日志（含思考摘要）、可随时停止、刷新页面自动续接任务
+- 🛠️ **素材工作台**：精灵表切帧与防抖对齐、瓦片一键无缝化、去背景、游戏尺寸缩放、版本对比（滑块 / 并排）、改 prompt 直接重生成（不经过 Agent）
+- 🗂️ **素材管理**：搜索与类型筛选、批量通过 / 驳回 / 按意见重画 / 导出、回收站（7 天可恢复）、风格指南历史与回滚、参考图备注、项目备份与恢复
+- ⚡ 并行生成、SSE 实时日志（含思考摘要）、可随时停止、刷新页面自动续接任务、后台完成提醒、查看器快捷键
 - 🔌 图像模型可插拔：OpenAI `gpt-image-1`（多图参考 edits）、Google Gemini Image、本地 Stable Diffusion WebUI（AUTOMATIC1111 / Forge，可选 IP-Adapter 参考图风格）、离线 Mock
 
 <img alt="素材查看器：审核与按意见重画、色板一致性、精灵帧抖动检测与对齐、游戏尺寸" src="docs/screenshots/viewer.png" />
@@ -61,7 +65,7 @@ docker build -t game-asset-agent .
 docker run -d -p 5173:5173 --env-file .env -v gaa-data:/data game-asset-agent
 ```
 
-镜像为多阶段构建：先把 TypeScript 编译到 `dist/`，运行层只装生产依赖，以非 root 的 `node` 用户运行，并带 `/api/config` 健康检查。
+镜像为多阶段构建：先把 TypeScript 编译到 `dist/`，运行层只装生产依赖，以非 root 的 `node` 用户运行，并带 `/healthz` 健康检查。
 
 ### 直接用 Node（≥ 22）
 
