@@ -78,3 +78,5 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .jitter.ok { color: var(--ok); }
 .jitter.warn { color: var(--pending); }
 .jitter.bad { color: var(--bad); }
+.shortcuts { font-size: 11px; margin: 0; }
+kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; background: var(--bg); color: var(--ink); }

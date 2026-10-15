@@ -1,13 +1,14 @@
 // Asset viewer dialog: review, redraw, sprite slicing, tile seams, game sizes, background cut-out.
 import { $, api, esc, toast } from "./lib.js";
 import { fileUrl, state } from "./state.js";
-import { renderAssets, upsertAsset } from "./assets.js";
+import { renderAssets, upsertAsset, visibleAssets } from "./assets.js";
 import { run } from "./run.js";
 
 export function openViewer(id) {
   const a = state.project.assets.find((x) => x.id === id);
   if (!a) return;
   $("#viewerImg").src = fileUrl(a.file);
+  state.viewing = id;
   closeCompare();
   $("#viewerMeta").innerHTML = `
     <h3 style="margin:0">${esc(a.name)}</h3>
@@ -36,7 +37,8 @@ export function openViewer(id) {
       <a class="btn primary" href="${fileUrl(a.file)}" download="${esc(a.name)}.${a.file.split(".").pop()}">下载</a>
       <button class="btn ghost" data-variant="${a.id}">基于此图继续生成</button>
       <button class="btn ghost danger" data-del-asset="${a.id}">删除</button>
-    </div>`;
+    </div>
+    <p class="muted shortcuts"><kbd>←</kbd> <kbd>→</kbd> 切换 · <kbd>A</kbd> 通过 · <kbd>R</kbd> 驳回 · <kbd>Esc</kbd> 关闭</p>`;
   $("#viewer").showModal();
   if (a.assetType === "tile") loadSeams(a.id);
   if (state.project.styleGuide) loadPalette(a.id);
@@ -221,14 +223,48 @@ export function spriteSection(a) {
 }
 
 
+/** Set a verdict for the asset in the viewer (keeps any feedback typed so far as the note). */
+async function setVerdict(id, verdict) {
+  const notes = $("#feedback")?.value.trim();
+  const asset = await api(`/api/projects/${state.project.id}/assets/${id}`, {
+    method: "PATCH",
+    body: notes ? { status: verdict, notes } : { status: verdict },
+  });
+  upsertAsset(asset);
+  openViewer(asset.id);
+  toast(verdict === "approved" ? "已标记为通过" : "已标记为驳回");
+}
+
+/** Step to the previous / next asset in the library's current order and filters. */
+function step(delta) {
+  const list = visibleAssets();
+  const i = list.findIndex((a) => a.id === state.viewing);
+  const next = list[i + delta];
+  if (next) openViewer(next.id);
+}
+
+function bindShortcuts() {
+  document.addEventListener("keydown", (e) => {
+    if (!$("#viewer").open || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+    const key = e.key.toLowerCase();
+    if (key === "arrowleft") step(-1);
+    else if (key === "arrowright") step(1);
+    else if (key === "a") setVerdict(state.viewing, "approved").catch((err) => toast(err.message));
+    else if (key === "r") setVerdict(state.viewing, "rejected").catch((err) => toast(err.message));
+    else return;
+    e.preventDefault();
+  });
+}
+
 export function bindViewer() {
+  bindShortcuts();
   bindCompare();
   $("#viewer").addEventListener("close", closeCompare);
   $("#viewerMeta").addEventListener("change", (e) => {
     if (e.target.id === "pixelKernel") {
       state.pixelKernel = e.target.checked;
-      const id = $("#viewerMeta").querySelector("[data-redraw]").dataset.redraw;
-      openViewer(id);
+      openViewer(state.viewing);
     }
   });
   $("#viewerMeta").addEventListener("mouseover", (e) => {
@@ -328,17 +364,7 @@ export function bindViewer() {
       const [beforeId, afterId] = ds.compare.split(":");
       return openCompare(beforeId, afterId);
     }
-    if (ds.verdict) {
-      const id = $("#viewerMeta").querySelector("[data-redraw]").dataset.redraw;
-      const notes = $("#feedback").value.trim();
-      const asset = await api(`/api/projects/${state.project.id}/assets/${id}`, {
-        method: "PATCH",
-        body: notes ? { status: ds.verdict, notes } : { status: ds.verdict },
-      });
-      upsertAsset(asset);
-      openViewer(asset.id);
-      return toast(ds.verdict === "approved" ? "已标记为通过" : "已标记为驳回");
-    }
+    if (ds.verdict) return setVerdict(state.viewing, ds.verdict);
     if (ds.redraw) {
       if (state.job) return toast("已有任务在运行，请稍候");
       const feedback = $("#feedback").value.trim();
