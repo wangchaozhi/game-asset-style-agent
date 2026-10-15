@@ -56,7 +56,8 @@ export async function runAgent(job: Job, opts: RunOptions) {
         continuing
           ? { type: "text", text: "New request in the same project. The style guide below is current (the user may have edited it since)." }
           : { type: "text", text: `Style reference images (${refs.length}):` },
-        ...(continuing ? [] : refs.map((r) => jpegBlock(r.data))),
+        // Number the references so notes in the intro ("Reference 2: …") can point at them.
+        ...(continuing ? [] : refs.flatMap((r, i) => [{ type: "text" as const, text: `Reference ${i + 1}:` }, jpegBlock(r.data)])),
         ...(redrawImage ? [{ type: "text" as const, text: `Asset to redraw (${redrawTarget!.id}):` }, jpegBlock(redrawImage.data)] : []),
         { type: "text", text: intro },
       ],

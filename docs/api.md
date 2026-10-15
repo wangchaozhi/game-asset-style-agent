@@ -117,6 +117,10 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:5173/api/projects
 
 `multipart/form-data`，字段 `images`（可多个，最多 8 张，png / jpg / webp / gif，单张 ≤ 20 MB）。返回更新后的项目。
 
+### `PATCH /api/projects/:id/refs/:refId`
+
+参考图备注：`{ "note": "只参考配色" }`（≤ 200 字，空字符串清除）。备注会按「Reference N」编号随每次运行发给 Claude。返回更新后的项目。
+
 ### `DELETE /api/projects/:id/refs/:refId`
 
 删除参考图及其文件，返回更新后的项目。

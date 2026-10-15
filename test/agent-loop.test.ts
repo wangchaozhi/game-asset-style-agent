@@ -88,6 +88,8 @@ describe("agent loop against a fake Messages API", () => {
     assert.deepEqual(first.body.thinking, { type: "adaptive", display: "summarized" });
     const opening = first.body.messages[0].content as { type: string; text?: string }[];
     assert.equal(opening.filter((b) => b.type === "image").length, 1, "the reference image is attached");
+    const imgAt = opening.findIndex((b) => b.type === "image");
+    assert.equal(opening[imgAt - 1].text, "Reference 1:", "each reference is numbered");
     assert.match(opening.at(-1)!.text!, /No style guide yet[\s\S]*做两个道具图标/);
 
     // the second request answers the style guide call; the third carries both generation results with images

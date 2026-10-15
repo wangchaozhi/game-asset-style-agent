@@ -63,6 +63,16 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(body.refs.length, 1);
   });
 
+  it("sets and clears reference notes", async () => {
+    const ref = (await json(`/api/projects/${id}`)).body.refs[0];
+    const set = await json(`/api/projects/${id}/refs/${ref.id}`, { method: "PATCH", body: { note: "  只参考配色  " } });
+    assert.equal(set.body.refs[0].note, "只参考配色");
+    const cleared = await json(`/api/projects/${id}/refs/${ref.id}`, { method: "PATCH", body: { note: "" } });
+    assert.equal("note" in cleared.body.refs[0], false);
+    assert.equal((await json(`/api/projects/${id}/refs/ref_nope`, { method: "PATCH", body: { note: "x" } })).status, 404);
+    assert.equal((await json(`/api/projects/${id}/refs/${ref.id}`, { method: "PATCH", body: { note: 5 } })).status, 400);
+  });
+
   it("validates style guide edits", async () => {
     const bad = await json(`/api/projects/${id}/style-guide`, { method: "PUT", body: { ...validStyleGuide(), palette: [] } });
     assert.equal(bad.status, 400);

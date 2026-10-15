@@ -6,7 +6,12 @@
 }
 .dropzone small { color: var(--muted); }
 .dropzone:hover, .dropzone.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
-.refs { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; margin: 12px 0 18px; }
+.refs { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 10px 8px; margin: 12px 0 18px; }
+.ref-item { margin: 0; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ref-num { position: absolute; left: 3px; bottom: 3px; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 999px; background: rgba(0, 0, 0, 0.6); color: #fff; }
+.ref-note { all: unset; cursor: pointer; font-size: 11px; line-height: 1.3; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
+.ref-note.has { color: var(--ink); }
+.ref-note:hover, .ref-note:focus-visible { color: var(--accent); }
 .ref { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
 .ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ref button { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; line-height: 1; opacity: 0; }

@@ -203,6 +203,14 @@ describe("post-processing tools", () => {
 });
 
 describe("buildIntro", () => {
+  it("passes the user's reference notes, numbered like the images", async () => {
+    const project = await projectWithRef();
+    project.refs.push({ id: "ref_2", file: "refs/r.png", mime: "image/png", originalName: "b", note: "只参考角色比例" });
+    const text = buildIntro({ project, request: "x", assetTypes: [] });
+    assert.match(text, /notes on what to take from each reference[\s\S]*- Reference 2: 只参考角色比例/);
+    assert.doesNotMatch(text, /- Reference 1:/);
+  });
+
   it("asks for a style guide when there is none and lists selected types", async () => {
     const project = await projectWithRef();
     const text = buildIntro({ project, request: "做几把剑", assetTypes: ["item_icon", "bogus"] });

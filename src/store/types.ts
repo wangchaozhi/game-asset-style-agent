@@ -22,6 +22,8 @@ export interface RefImage {
   file: string; // relative to project dir
   mime: string;
   originalName: string;
+  /** what the user wants taken from this reference, e.g. "colours only" */
+  note?: string;
 }
 
 export type AssetStatus = "pending_review" | "approved" | "rejected";

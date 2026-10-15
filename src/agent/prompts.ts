@@ -33,8 +33,12 @@ export function buildIntro(opts: {
   const { project, redraw } = opts;
   const existing = project.assets.filter((a) => a.status === "approved");
   const typeLabels = opts.assetTypes.filter(isAssetType).map((t) => `${t}（${ASSET_TYPES[t]}）`);
+  const notes = project.refs.map((r, i) => (r.note ? `- Reference ${i + 1}: ${r.note}` : "")).filter(Boolean);
   return [
     `Project: ${project.name}`,
+    notes.length
+      ? `The user's notes on what to take from each reference image (follow them when building or applying the style guide):\n${notes.join("\n")}`
+      : "",
     project.styleGuide
       ? `This project already has a style guide. Reuse it as-is:\n${styleGuideText(project.styleGuide)}`
       : "No style guide yet: create one first from the reference images above.",

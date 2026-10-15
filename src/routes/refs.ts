@@ -32,3 +32,19 @@ refsRouter.delete("/api/projects/:id/refs/:refId", async (req, res) => {
   await removeRefFile(project.id, refId);
   res.json(project);
 });
+
+/** Set or clear a reference's note (what to take from it); ≤ 200 characters. */
+refsRouter.patch("/api/projects/:id/refs/:refId", async (req, res) => {
+  if (typeof req.body?.note !== "string") return void res.status(400).json({ error: "note 需为字符串" });
+  const note = req.body.note.trim().slice(0, 200);
+  let found = false;
+  const project = await updateProject(pid(req), (p) => {
+    const r = p.refs.find((x) => x.id === req.params.refId);
+    if (!r) return;
+    found = true;
+    if (note) r.note = note;
+    else delete r.note;
+  });
+  if (!found) return void res.status(404).json({ error: "参考图不存在" });
+  res.json(project);
+});
