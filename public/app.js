@@ -1,5 +1,5 @@
-const $ = (s) => document.querySelector(s);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+import { $, api, esc, toast } from "./lib.js";
+import { openUsageDialog, renderLiveUsage } from "./usage.js";
 
 const state = {
   config: null,
@@ -10,25 +10,6 @@ const state = {
   source: null,
   textEntry: null,
 };
-
-async function api(path, opts = {}) {
-  const res = await fetch(path, {
-    ...opts,
-    headers: opts.body && !(opts.body instanceof FormData) ? { "Content-Type": "application/json" } : undefined,
-    body: opts.body && !(opts.body instanceof FormData) ? JSON.stringify(opts.body) : opts.body,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { data });
-  return data;
-}
-
-function toast(msg) {
-  const t = $("#toast");
-  t.textContent = msg;
-  t.hidden = false;
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => (t.hidden = true), 3500);
-}
 
 const fileUrl = (rel) => `/api/projects/${state.project.id}/files/${rel}`;
 
@@ -338,6 +319,7 @@ function handleEvent(e) {
     case "style": state.project.styleGuide = e.styleGuide; renderStyle(); break;
     case "asset": upsertAsset(e.asset); break;
     case "error": logEntry("error", esc(e.message)); break;
+    case "usage": renderLiveUsage(e.usage); break;
     case "done": finishJob(); break;
   }
 }
@@ -386,6 +368,7 @@ async function run(extraRequest, redraw) {
   const request = extraRequest ?? $("#request").value.trim();
   if (!redraw && !request && !state.selectedTypes.size) return toast("请选择素材类型或描述需求");
   $("#log").innerHTML = "";
+  renderLiveUsage(null);
   try {
     const { jobId } = await api(`/api/projects/${state.project.id}/run`, {
       method: "POST",
@@ -488,6 +471,8 @@ async function init() {
     loadConversationInfo();
     toast("已开启新对话");
   });
+  $("#usageBar").addEventListener("click", (e) => e.target.closest("[data-usage-open]") && openUsageDialog(state.project.id));
+  $("#usageBtn").addEventListener("click", () => openUsageDialog(state.project.id));
   $("#stopBtn").addEventListener("click", () => state.job && api(`/api/jobs/${state.job}/stop`, { method: "POST" }));
   $("#request").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); });
   $("#showThinking").addEventListener("change", (e) => $("#log").classList.toggle("hide-thinking", !e.target.checked));

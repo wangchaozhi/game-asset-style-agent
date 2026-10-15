@@ -17,6 +17,7 @@
     </div>
     <div class="project-bar">
       <select id="projectSelect" aria-label="选择项目"></select>
+      <button id="usageBtn" class="btn ghost" title="Claude tokens 与图像调用统计">用量</button>
       <button id="newProject" class="btn ghost">新建项目</button>
       <button id="deleteProject" class="btn ghost danger" title="删除当前项目">删除</button>
     </div>
@@ -54,6 +55,7 @@
         <button id="runBtn" class="btn primary">开始生成</button>
         <button id="stopBtn" class="btn ghost" hidden>停止</button>
       </div>
+      <div class="usage-bar" id="usageBar" hidden></div>
       <div class="conv-bar" id="convBar" hidden></div>
       <div class="log-head">
         <h2>Agent 工作日志</h2>
@@ -86,6 +88,11 @@
       <div class="checker"><img id="viewerImg" alt="" /></div>
       <div class="viewer-meta" id="viewerMeta"></div>
     </div>
+  </dialog>
+
+  <dialog id="usageDialog" class="usage-dialog">
+    <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
+    <div class="usage-body"><h3>成本与用量</h3><div id="usageBody"></div></div>
   </dialog>
 
   <div id="toast" class="toast" hidden></div>

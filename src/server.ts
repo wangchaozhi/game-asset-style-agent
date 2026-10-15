@@ -22,6 +22,7 @@ import { analyzeSeams, tilePreview } from "./tiles.js";
 import { createZip, type ZipEntry } from "./zip.js";
 import { SIZE_PRESETS, isPixelArt, parseSize, resizeAsset } from "./sizes.js";
 import { ASSET_TYPES, type AgentEvent, StyleGuideInput, jobs, sliceAssetFrames, startJob } from "./agent.js";
+import { usageRouter } from "./routes/usage.js";
 
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -36,6 +37,8 @@ app.use(express.json({ limit: "1mb" }));
 app.use(express.static(path.join(here, "..", "public")));
 
 const pid = (req: Request) => String(req.params.id);
+
+app.use(usageRouter);
 
 app.get("/api/config", (_req, res) => {
   res.json({

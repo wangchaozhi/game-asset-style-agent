@@ -16,6 +16,7 @@ import {
 import { type ImageInput, type ImageProvider, getProvider, shrink } from "./imageProviders.js";
 import { detectFrameCount, sliceSheet } from "./spriteSheet.js";
 import { isOpaque, removeBackground } from "./postprocess.js";
+import { type RunUsage, addImageCall, addTokens, newRunUsage, saveRunUsage } from "./usage.js";
 
 const MODEL = process.env.CLAUDE_MODEL ?? "claude-opus-5-5";
 const EFFORT = (process.env.CLAUDE_EFFORT ?? "medium") as "low" | "medium" | "high" | "xhigh" | "max";
@@ -48,6 +49,7 @@ export type AgentEvent =
   | { type: "style"; styleGuide: StyleGuide }
   | { type: "asset"; asset: Asset }
   | { type: "error"; message: string }
+  | { type: "usage"; usage: RunUsage }
   | { type: "done"; summary?: string };
 
 export interface Job {
@@ -57,13 +59,25 @@ export interface Job {
   listeners: Set<(e: AgentEvent) => void>;
   finished: boolean;
   abort: AbortController;
+  usage: RunUsage;
 }
 
 export const jobs = new Map<string, Job>();
 
 function emit(job: Job, e: AgentEvent) {
+  // Only the latest usage snapshot is worth replaying to late subscribers.
+  if (e.type === "usage") {
+    const i = job.events.findIndex((x) => x.type === "usage");
+    if (i >= 0) job.events.splice(i, 1);
+  }
   job.events.push(e);
   for (const l of job.listeners) l(e);
+}
+
+/** Broadcast the job's running usage and persist it to the project's usage log. */
+function reportUsage(job: Job) {
+  emit(job, { type: "usage", usage: structuredClone(job.usage) });
+  saveRunUsage(job.projectId, job.usage).catch(() => undefined);
 }
 
 // ---------------- tools ----------------
@@ -237,22 +251,31 @@ export interface RunOptions {
 }
 
 export function startJob(opts: RunOptions): Job {
+  const id = newId("job");
+  const demo = process.env.AGENT_MODE === "demo";
   const job: Job = {
-    id: newId("job"),
+    id,
     projectId: opts.projectId,
     events: [],
     listeners: new Set(),
     finished: false,
     abort: new AbortController(),
+    usage: newRunUsage(id, opts.redraw ? `重画：${opts.redraw.feedback}` : opts.request, demo ? "demo" : "agent"),
   };
   jobs.set(job.id, job);
-  const runner = process.env.AGENT_MODE === "demo" ? runDemo : runAgent;
+  const runner = demo ? runDemo : runAgent;
   runner(job, opts)
+    .then(() => {
+      job.usage.status = "ok";
+    })
     .catch((err: unknown) => {
+      job.usage.status = job.abort.signal.aborted ? "stopped" : "error";
       if (job.abort.signal.aborted) emit(job, { type: "status", text: "已停止" });
       else emit(job, { type: "error", message: err instanceof Error ? err.message : String(err) });
     })
     .finally(() => {
+      job.usage.finishedAt = new Date().toISOString();
+      reportUsage(job);
       job.finished = true;
       emit(job, { type: "done" });
       setTimeout(() => jobs.delete(job.id), 30 * 60_000);
@@ -273,16 +296,25 @@ async function generateAsset(
       .filter((a): a is Asset => !!a)
       .map(async (a) => shrink({ data: await readProjectFile(project.id, a.file), mime: a.mime }, 1024)),
   );
-  let img = await provider.generate(
-    {
-      prompt: input.prompt,
-      references: [...extra, ...refs],
-      aspect: input.aspect,
-      transparent: input.transparent_background,
-      frames: input.asset_type === "sprite_sheet" ? (input.frames ?? 4) : undefined,
-    },
-    job.abort.signal,
-  );
+  let img: ImageInput;
+  try {
+    img = await provider.generate(
+      {
+        prompt: input.prompt,
+        references: [...extra, ...refs],
+        aspect: input.aspect,
+        transparent: input.transparent_background,
+        frames: input.asset_type === "sprite_sheet" ? (input.frames ?? 4) : undefined,
+      },
+      job.abort.signal,
+    );
+  } catch (err) {
+    addImageCall(job.usage, provider.id, false);
+    reportUsage(job);
+    throw err;
+  }
+  addImageCall(job.usage, provider.id, true);
+  reportUsage(job);
   const id = newId("ast");
   let originalFile: string | undefined;
   // Many image models can't output alpha; cut the flat backdrop out ourselves.
@@ -506,10 +538,19 @@ Generate exactly one new version with generate_image, passing replaces_asset_id=
       message = await stream.finalMessage();
       jsonRetries = 0;
     } catch (err) {
+      // A failed stream may still have billed tokens; record what the SDK saw.
+      const partial = stream.currentMessage;
+      if (partial?.usage) {
+        addTokens(job.usage, partial.model ?? MODEL, partial.usage);
+        reportUsage(job);
+      }
       if (err instanceof Anthropic.APIError || job.abort.signal.aborted || jsonRetries++ >= 2) throw err;
       emit(job, { type: "status", text: "工具参数解析失败，重试本轮" });
       continue;
     }
+
+    addTokens(job.usage, message.model ?? MODEL, message.usage);
+    reportUsage(job);
 
     for (const b of message.content) {
       if (b.type === "thinking" && b.thinking) emit(job, { type: "thinking", text: b.thinking });

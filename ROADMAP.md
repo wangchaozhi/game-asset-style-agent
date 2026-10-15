@@ -10,7 +10,7 @@
 - [x] 多轮对话：同一项目内保留 Agent 对话上下文，支持追加指令（"把剑改成蓝色"）
 - [x] 尺寸规格：按素材类型输出常用游戏尺寸（16/32/64 像素图标、像素风最近邻缩放）
 - [x] 瓦片无缝检测与平铺预览（3×3 平铺查看接缝）
-- [ ] 成本与用量面板：记录每次运行的 Claude tokens 与图像调用次数
+- [x] 成本与用量面板：记录每次运行的 Claude tokens 与图像调用次数
 - [ ] 单元测试：store / 工具输入校验 / mock provider（node:test）
 - [ ] GitHub Actions：typecheck + 测试
 - [ ] Dockerfile 与一键部署说明
