@@ -54,6 +54,8 @@ async function openProject(id) {
 }
 
 function renderAll() {
+  $("#exportApproved").href = `/api/projects/${state.project.id}/export.zip`;
+  $("#exportAll").href = `/api/projects/${state.project.id}/export.zip?status=all`;
   renderRefs();
   renderStyle();
   renderAssets();

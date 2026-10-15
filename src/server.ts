@@ -16,6 +16,7 @@ import {
 } from "./store.js";
 import { providers, toPng } from "./imageProviders.js";
 import { removeBackground } from "./postprocess.js";
+import { createZip, type ZipEntry } from "./zip.js";
 import { ASSET_TYPES, type AgentEvent, jobs, sliceAssetFrames, startJob } from "./agent.js";
 
 
@@ -126,6 +127,63 @@ app.post("/api/projects/:id/assets/:assetId/cutout", async (req, res) => {
     if (a) Object.assign(a, { originalFile, file, mime: restore ? asset.mime : "image/png" }, sliced);
   });
   res.json(p.assets.find((a) => a.id === asset.id));
+});
+
+app.get("/api/projects/:id/export.zip", async (req, res) => {
+  const projectId = pid(req);
+  const project = await loadProject(projectId);
+  const all = req.query.status === "all";
+  const assets = project.assets.filter((a) => all || a.status === "approved");
+  if (!assets.length) return void res.status(400).json({ error: all ? "项目还没有素材" : "还没有已通过的素材" });
+
+  const entries: ZipEntry[] = [];
+  const used = new Set<string>();
+  const safe = (s: string) => s.replace(/[\\/:*?"<>|\s]+/g, "_").replace(/^_+|_+$/g, "") || "asset";
+  const unique = (base: string) => {
+    let name = base;
+    for (let i = 2; used.has(name); i++) name = `${base}_${i}`;
+    used.add(name);
+    return name;
+  };
+  const manifest = [];
+  for (const a of assets) {
+    const dir = a.assetType;
+    const base = unique(`${dir}/${safe(a.name)}`);
+    const ext = a.file.split(".").pop();
+    const files: Record<string, string | string[]> = { image: `${base}.${ext}` };
+    entries.push({ name: `${base}.${ext}`, data: await readProjectFile(projectId, a.file) });
+    if (a.gif) {
+      files.gif = `${base}.gif`;
+      entries.push({ name: `${base}.gif`, data: await readProjectFile(projectId, a.gif) });
+    }
+    if (a.frames?.length) {
+      files.frames = [];
+      for (const [i, f] of a.frames.entries()) {
+        const n = `${base}_frames/${String(i).padStart(2, "0")}.png`;
+        files.frames.push(n);
+        entries.push({ name: n, data: await readProjectFile(projectId, f) });
+      }
+    }
+    manifest.push({
+      id: a.id, name: a.name, type: a.assetType, status: a.status, score: a.score ?? null,
+      notes: a.notes ?? null, prompt: a.prompt, provider: a.provider, createdAt: a.createdAt, fps: a.fps ?? null, files,
+    });
+  }
+  for (const [i, r] of project.refs.entries()) {
+    entries.push({ name: `_references/ref_${i + 1}.png`, data: await readProjectFile(projectId, r.file) });
+  }
+  const json = (v: unknown) => Buffer.from(JSON.stringify(v, null, 2));
+  entries.push({ name: "style-guide.json", data: json(project.styleGuide) });
+  entries.push({
+    name: "manifest.json",
+    data: json({ project: project.name, exportedAt: new Date().toISOString(), count: manifest.length, assets: manifest }),
+  });
+
+  const zip = createZip(entries);
+  const filename = `${safe(project.name)}_assets.zip`;
+  res.setHeader("Content-Type", "application/zip");
+  res.setHeader("Content-Disposition", `attachment; filename="assets.zip"; filename*=UTF-8''${encodeURIComponent(filename)}`);
+  res.send(zip);
 });
 
 app.get("/api/projects/:id/files/*rel", (req, res) => {
