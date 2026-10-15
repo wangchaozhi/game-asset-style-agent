@@ -5,7 +5,7 @@ import { bindProjects, loadProjects } from "./projects.js";
 import { bindRefs } from "./refs.js";
 import { bindStyleGuide } from "./styleGuide.js";
 import { bindAssets } from "./assets.js";
-import { bindViewer, openViewer } from "./viewer.js";
+import { bindViewer, openViewer } from "./viewer/index.js";
 import { bindBatch } from "./batch.js";
 import { bindRun, resumeJob } from "./run.js";
 

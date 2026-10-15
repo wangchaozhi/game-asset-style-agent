@@ -95,7 +95,9 @@ npm run check       # 以上全部
 public/
   index.html             单页界面（原生 ES modules，无构建步骤）
   js/                    main（入口）· state · lib（DOM/HTTP 工具）· projects · refs · styleGuide
-                         · assets（素材网格）· viewer（查看器）· run（运行与 SSE 日志）· usage（用量）
+                         · assets（素材网格）· batch（批量）· run（运行与 SSE 日志）· usage（用量）· login
+  js/viewer/             查看器：index（审核、版本、快捷键）· compare · sprite · tile · palette · sizes
+                         · cutout · prompt —— 每个区块导出 html / load / bind
   css/                   base · layout · style-panel · run · assets · viewer · usage
 src/
   server.ts              入口：读取 .env 并监听端口
@@ -103,13 +105,15 @@ src/
   config.ts              环境变量配置
   domain/assetTypes.ts   素材类型定义
   routes/                config · projects · refs · assets · export · jobs（运行/SSE）· usage
+  ops/assetOps.ts        后处理（抠图、无缝化、帧对齐、切帧），HTTP 接口与 Agent 工具共用
   agent/                 Claude 智能体
     tools.ts / schemas.ts  工具定义与 zod 输入校验
     prompts.ts             系统提示词与每轮开场
     loop.ts                手写 tool-use 循环（Anthropic TypeScript SDK）
     runTool.ts / assets.ts 工具执行、生成素材入库、精灵表切帧
     events.ts / jobs.ts    任务注册、事件广播、启动与收尾
-    demo.ts                无 key 演示模式
+    demo.ts / manual.ts    无 key 演示模式 / 改 prompt 直接重生成
+    budget.ts              单次运行预算
   providers/             图像通道：openai · gemini · mock
   image/                 sharp 图像处理：io · background（抠图）· spriteSheet · tiles · sizes
   export/                ZIP 写入与素材包组装
