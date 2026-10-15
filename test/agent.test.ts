@@ -30,7 +30,9 @@ const types = (events: AgentEvent[]) => events.map((e) => e.type);
 
 describe("tool definitions", () => {
   it("every tool has a schema whose required fields are declared", () => {
-    assert.deepEqual(tools.map((t) => t.name), ["save_style_guide", "generate_image", "review_asset"]);
+    assert.deepEqual(tools.map((t) => t.name), [
+      "save_style_guide", "generate_image", "review_asset", "fix_tile_seams", "align_sprite_frames", "remove_background",
+    ]);
     for (const t of tools) {
       const props = Object.keys(t.input_schema.properties ?? {});
       for (const r of t.input_schema.required ?? []) assert.ok(props.includes(r), `${t.name}.${r}`);
@@ -128,6 +130,75 @@ describe("runTool", () => {
     assert.deepEqual([a.status, a.score, a.notes, a.reviewer], ["rejected", 4, "颜色偏了", "agent"]);
     const bad = await runTool(fakeJob(projectId), mock, call("review_asset", { asset_id: "ast_nope", verdict: "approved", consistency_score: 9, notes: "" }));
     assert.equal(bad.is_error, true);
+  });
+});
+
+describe("post-processing tools", () => {
+  let projectId: string;
+  before(async () => {
+    projectId = (await projectWithRef()).id;
+    await runTool(fakeJob(projectId), mock, call("generate_image", {
+      name: "盾", asset_type: "item_icon", prompt: "A round wooden shield icon, centred", aspect: "square", transparent_background: true,
+    }));
+  });
+  const textOf = (r: Anthropic.Beta.BetaToolResultBlockParam) => ((r.content as { type: string; text?: string }[])[0].text ?? String(r.content));
+
+  /** A tile with an obvious left/right seam. */
+  async function addSeamyTile() {
+    const w = 64;
+    const raw = Buffer.alloc(w * w * 3);
+    for (let i = 0; i < w * w; i++) raw.fill(Math.round(((i % w) / (w - 1)) * 255), i * 3, i * 3 + 3);
+    const { default: sharp } = await import("sharp");
+    const png = await sharp(raw, { raw: { width: w, height: w, channels: 3 } }).png().toBuffer();
+    await store.writeProjectFile(projectId, "assets/ast_tile0001.png", png);
+    await store.updateProject(projectId, (p) => void p.assets.push({
+      id: "ast_tile0001", name: "草地", assetType: "tile", prompt: "grass", file: "assets/ast_tile0001.png", mime: "image/png",
+      status: "pending_review", runId: "job_x", provider: "mock", createdAt: "",
+    }));
+    return "ast_tile0001";
+  }
+
+  it("generate_image reports seam and jitter checks for tiles and sprite sheets", async () => {
+    const job = fakeJob(projectId);
+    const tile = await runTool(job, mock, call("generate_image", { name: "地面", asset_type: "tile", prompt: "Flat ground tile, seamless, top-down", aspect: "square", transparent_background: false }));
+    assert.match(textOf(tile), /Seam check:/);
+    const sheet = await runTool(job, mock, call("generate_image", { name: "走路", asset_type: "sprite_sheet", prompt: "Walk cycle in one row, 4 frames", aspect: "landscape", transparent_background: true, frames: 4 }));
+    assert.match(textOf(sheet), /Frame jitter check: the character drifts \d+(\.\d+)?px horizontally and \d+(\.\d+)?px vertically/);
+  });
+
+  it("fix_tile_seams makes a seamless new version owned by the run", async () => {
+    const id = await addSeamyTile();
+    const job = fakeJob(projectId);
+    const r = await runTool(job, mock, call("fix_tile_seams", { asset_id: id, overlap: 0.2 }));
+    assert.notEqual(r.is_error, true);
+    assert.match(textOf(r), /Before: Seam check: FAILS[\s\S]*After: Seam check: tiles seamlessly/);
+    const created = (await store.loadProject(projectId)).assets.at(-1)!;
+    assert.deepEqual([created.parentId, created.reviewer, created.runId, created.status], [id, "agent", "job_test", "pending_review"]);
+    assert.ok(job.events.some((e) => e.type === "asset"));
+  });
+
+  it("align_sprite_frames removes the mock walk cycle's bobbing", async () => {
+    const sheet = (await store.loadProject(projectId)).assets.find((a) => a.assetType === "sprite_sheet")!;
+    const r = await runTool(fakeJob(projectId), mock, call("align_sprite_frames", { asset_id: sheet.id }));
+    assert.match(textOf(r), /after: 0px \/ 0px/);
+    assert.equal((await store.loadProject(projectId)).assets.at(-1)!.frames?.length, 4);
+  });
+
+  it("remove_background re-cuts in place and keeps the original", async () => {
+    const icon = (await store.loadProject(projectId)).assets.find((a) => a.assetType === "item_icon")!;
+    const r = await runTool(fakeJob(projectId), mock, call("remove_background", { asset_id: icon.id, tolerance: 60 }));
+    assert.notEqual(r.is_error, true);
+    const after = (await store.loadProject(projectId)).assets.find((a) => a.id === icon.id)!;
+    assert.notEqual(after.file, icon.file);
+    assert.ok(after.originalFile);
+  });
+
+  it("refuses the wrong asset type or an unknown id", async () => {
+    const icon = (await store.loadProject(projectId)).assets.find((a) => a.assetType === "item_icon")!;
+    assert.equal((await runTool(fakeJob(projectId), mock, call("fix_tile_seams", { asset_id: icon.id }))).is_error, true);
+    assert.equal((await runTool(fakeJob(projectId), mock, call("align_sprite_frames", { asset_id: icon.id }))).is_error, true);
+    assert.equal((await runTool(fakeJob(projectId), mock, call("remove_background", { asset_id: "ast_none" }))).is_error, true);
+    assert.match(String((await runTool(fakeJob(projectId), mock, call("fix_tile_seams", { asset_id: icon.id, overlap: 2 }))).content), /INVALID_JSON/);
   });
 });
 

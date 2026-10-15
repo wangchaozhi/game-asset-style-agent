@@ -1,10 +1,10 @@
 import { shrink } from "../image/io.js";
 import { isOpaque, removeBackground } from "../image/background.js";
 import { analyzePalette } from "../image/palette.js";
-import { detectFrameCount, sliceSheet } from "../image/spriteSheet.js";
 import type { ImageInput, ImageProvider } from "../providers/types.js";
 import { extFor, loadProject, newId, readProjectFile, updateProject, writeProjectFile } from "../store/index.js";
 import type { Asset, Project } from "../store/types.js";
+import { sliceAssetFrames } from "../ops/assetOps.js";
 import { addImageCall } from "../usage/record.js";
 import { BudgetExceededError, budgetBlock } from "./budget.js";
 import { type Job, emit, reportUsage } from "./events.js";
@@ -102,29 +102,4 @@ async function generateReserved(job: Job, provider: ImageProvider, input: Genera
   });
   emit(job, { type: "asset", asset });
   return { asset, image: img };
-}
-
-/**
- * Slice a sprite sheet into frame PNGs + GIF and return the fields to merge into the asset.
- * Frame count: explicit value, else detected from transparent gaps, else 4.
- */
-export async function sliceAssetFrames(
-  projectId: string,
-  asset: Pick<Asset, "id">,
-  data: Buffer,
-  frameCount?: number,
-  fps = 8,
-): Promise<Pick<Asset, "frames" | "gif" | "fps">> {
-  const count = frameCount ?? (await detectFrameCount(data)) ?? 4;
-  const sheet = await sliceSheet(data, count, fps);
-  const frames = await Promise.all(
-    sheet.frames.map(async (buf, i) => {
-      const rel = `assets/${asset.id}_f${i}.png`;
-      await writeProjectFile(projectId, rel, buf);
-      return rel;
-    }),
-  );
-  const gif = `assets/${asset.id}.gif`;
-  await writeProjectFile(projectId, gif, sheet.gif);
-  return { frames, gif, fps };
 }

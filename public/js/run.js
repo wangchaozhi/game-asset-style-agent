@@ -17,13 +17,24 @@ export function logEntry(cls, html) {
   return el;
 }
 
-const TOOL_LABEL = { save_style_guide: "提炼风格指南", generate_image: "生成", review_asset: "审核" };
+const TOOL_LABEL = {
+  save_style_guide: "提炼风格指南",
+  generate_image: "生成",
+  review_asset: "审核",
+  fix_tile_seams: "瓦片无缝化",
+  align_sprite_frames: "对齐帧",
+  remove_background: "重新去背景",
+};
 
 export function describeTool(name, input) {
   if (name === "generate_image") return `<b>${TOOL_LABEL[name]}</b> ${esc(input.name)} <span class="muted">[${esc(input.asset_type)}]</span>`;
   if (name === "review_asset") {
     const a = state.project.assets.find((x) => x.id === input.asset_id);
     return `<b>${TOOL_LABEL[name]}</b> ${esc(a?.name ?? input.asset_id)} → ${input.verdict === "approved" ? "通过" : "驳回"} ${input.consistency_score}/10 <span class="muted">${esc(input.notes)}</span>`;
+  }
+  if (input?.asset_id) {
+    const a = state.project.assets.find((x) => x.id === input.asset_id);
+    return `<b>${TOOL_LABEL[name] ?? esc(name)}</b> ${esc(a?.name ?? input.asset_id)} <span class="muted">（后处理，不调用图像模型）</span>`;
   }
   return `<b>${TOOL_LABEL[name] ?? esc(name)}</b>`;
 }

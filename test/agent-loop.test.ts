@@ -82,7 +82,9 @@ describe("agent loop against a fake Messages API", () => {
     assert.match(String(first.headers["anthropic-beta"]), /server-side-fallback/);
     assert.equal(first.body.model, "claude-opus-5-5");
     assert.equal(first.body.stream, true);
-    assert.deepEqual((first.body.tools as { name: string }[]).map((t) => t.name), ["save_style_guide", "generate_image", "review_asset"]);
+    assert.deepEqual((first.body.tools as { name: string }[]).map((t) => t.name), [
+      "save_style_guide", "generate_image", "review_asset", "fix_tile_seams", "align_sprite_frames", "remove_background",
+    ]);
     assert.deepEqual(first.body.thinking, { type: "adaptive", display: "summarized" });
     const opening = first.body.messages[0].content as { type: string; text?: string }[];
     assert.equal(opening.filter((b) => b.type === "image").length, 1, "the reference image is attached");
@@ -249,6 +251,41 @@ describe("agent loop against a fake Messages API", () => {
     assert.equal(job.usage.status, "ok");
     assert.ok(events.some((e) => e.type === "status" && /强制结束本次运行/.test((e as { text: string }).text)));
     assert.equal(await store.loadConversation(projectId), null, "an unfinished conversation is not saved");
+  });
+
+  it("fixes jitter with align_sprite_frames instead of regenerating", async () => {
+    const projectId = await newProject();
+    fake.script(
+      {
+        content: [{
+          type: "tool_use", id: "toolu_walk", name: "generate_image",
+          input: { name: "走路", asset_type: "sprite_sheet", prompt: "Fox walk cycle, 4 frames in one row", aspect: "landscape", transparent_background: true, frames: 4 },
+        }],
+        stop_reason: "tool_use",
+      },
+      (req) => {
+        const [sheet] = assetIdsFromLastToolResults(req);
+        const text = JSON.stringify(req.body.messages.at(-1)!.content);
+        assert.match(text, /Frame jitter check: the character drifts/);
+        return { content: [{ type: "tool_use", id: "toolu_align", name: "align_sprite_frames", input: { asset_id: sheet } }], stop_reason: "tool_use" };
+      },
+      (req) => {
+        const text = JSON.stringify(req.body.messages.at(-1)!.content);
+        const fixed = /New version asset_id=(ast_[0-9a-f]+)/.exec(text)![1];
+        return {
+          content: [{ type: "tool_use", id: "toolu_rev", name: "review_asset", input: { asset_id: fixed, verdict: "approved", consistency_score: 8, notes: "抖动已消除" } }],
+          stop_reason: "tool_use",
+        };
+      },
+      say("完成。"),
+    );
+    const { job, events } = await run({ projectId });
+    assert.deepEqual(errorsOf(events), []);
+    assert.equal(job.usage.images.calls, 1, "the fix cost no image call");
+    const assets = (await store.loadProject(projectId)).assets;
+    assert.equal(assets.length, 2);
+    const fixed = assets.find((a) => a.parentId)!;
+    assert.deepEqual([fixed.status, fixed.provider, fixed.reviewer], ["approved", "postprocess", "agent"]);
   });
 
   it("a redraw sends the old image and asks for exactly one replacement", async () => {

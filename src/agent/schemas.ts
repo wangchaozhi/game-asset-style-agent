@@ -35,3 +35,18 @@ export const ReviewInput = z.object({
   consistency_score: z.number().int().min(1).max(10),
   notes: z.string(),
 });
+
+export const FixSeamsInput = z.object({
+  asset_id: z.string(),
+  overlap: z.number().min(0.04).max(0.4).optional(),
+});
+
+export const AlignFramesInput = z.object({
+  asset_id: z.string(),
+  mode: z.enum(["bottom", "center"]).optional(),
+});
+
+export const RemoveBackgroundInput = z.object({
+  asset_id: z.string(),
+  tolerance: z.number().int().min(4).max(100).optional(),
+});

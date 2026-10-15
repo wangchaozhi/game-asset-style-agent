@@ -89,4 +89,43 @@ export const tools: Anthropic.Beta.BetaTool[] = [
       required: ["asset_id", "verdict", "consistency_score", "notes"],
     },
   },
+  {
+    name: "fix_tile_seams",
+    description:
+      "Make a tile wrap seamlessly by cross-fading its edges (no image-model call, no cost). Use it when a tile's seam check fails instead of regenerating. Creates a new version of the asset (pending review) and returns its asset_id, the seam check before/after and the image; review the new version.",
+    input_schema: {
+      type: "object",
+      properties: {
+        asset_id: { type: "string" },
+        overlap: { type: "number", description: "Share of each edge to blend, 0.04-0.4 (default 0.15). Larger hides stronger seams but softens more of the tile." },
+      },
+      required: ["asset_id"],
+    },
+  },
+  {
+    name: "align_sprite_frames",
+    description:
+      "Remove jitter from a sprite sheet by shifting every frame so the character sits on the same anchor (no image-model call, no cost). Use it when a sprite sheet's jitter check shows more than ~3px. Creates a new version (pending review) with re-sliced frames and GIF; review the new version.",
+    input_schema: {
+      type: "object",
+      properties: {
+        asset_id: { type: "string" },
+        mode: { type: "string", enum: ["bottom", "center"], description: "bottom: feet on one baseline (characters, enemies). center: floating things (VFX, projectiles)." },
+      },
+      required: ["asset_id"],
+    },
+  },
+  {
+    name: "remove_background",
+    description:
+      "Re-cut the flat background of an asset that should be transparent, in place (no image-model call). Use it when leftover background or a halo remains, or when too much of the subject was cut away; the untouched model output is always kept, so you can retry with another tolerance.",
+    input_schema: {
+      type: "object",
+      properties: {
+        asset_id: { type: "string" },
+        tolerance: { type: "integer", description: "Colour distance treated as background, 4-100 (default 28). Raise it for leftover halo, lower it if the subject loses pixels." },
+      },
+      required: ["asset_id"],
+    },
+  },
 ];

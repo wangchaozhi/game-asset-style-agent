@@ -1,15 +1,11 @@
 import { Router } from "express";
-import fs from "node:fs/promises";
-import path from "node:path";
-import { sliceAssetFrames } from "../agent/assets.js";
-import { removeBackground } from "../image/background.js";
+import {
+  alignedVersion, cutoutAsset, jitterOf, parseAlignMode, seamlessVersion, seamsOf, sliceAssetFrames,
+} from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
-import { analyzeSeams, makeSeamless, tilePreview } from "../image/tiles.js";
-import { type AlignMode, alignFrames, joinFrames, measureJitter, sliceSheet } from "../image/spriteSheet.js";
-import {
-  moveToTrash, newId, projectDir, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject, writeProjectFile,
-} from "../store/index.js";
+import { tilePreview } from "../image/tiles.js";
+import { moveToTrash, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { attachment, findAsset, pid } from "./util.js";
 
@@ -108,34 +104,13 @@ assetsRouter.post("/api/projects/:id/assets/:assetId/slice", async (req, res) =>
 assetsRouter.post("/api/projects/:id/assets/:assetId/cutout", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
-  const { project, asset } = found;
-  const tolerance = Math.max(1, Math.min(120, Number(req.body?.tolerance ?? 28)));
-  const restore = !!req.body?.restore;
-  const originalFile = asset.originalFile ?? `assets/${asset.id}_orig.${asset.file.split(".").pop()}`;
-  if (!asset.originalFile) await writeProjectFile(project.id, originalFile, await readProjectFile(project.id, asset.file));
-  let file = originalFile;
-  if (!restore) {
-    file = `assets/${asset.id}_cut${Date.now().toString(36)}.png`;
-    await writeProjectFile(project.id, file, await removeBackground(await readProjectFile(project.id, originalFile), tolerance));
-  }
-  const sliced = asset.frames?.length
-    ? await sliceAssetFrames(project.id, asset, await readProjectFile(project.id, file), asset.frames.length, asset.fps)
-    : {};
-  const p = await updateProject(project.id, (p) => {
-    const a = p.assets.find((x) => x.id === asset.id);
-    if (a) Object.assign(a, { originalFile, file, mime: restore ? asset.mime : "image/png" }, sliced);
-  });
-  // The previous cut-out is superseded; never touch the original model output.
-  if (asset.file !== originalFile && asset.file !== file && /_cut[0-9a-z]+\.png$/.test(asset.file)) {
-    await fs.rm(path.join(projectDir(project.id), asset.file), { force: true });
-  }
-  res.json(p.assets.find((a) => a.id === asset.id));
+  res.json(await cutoutAsset(found.project, found.asset, { tolerance: req.body?.tolerance, restore: !!req.body?.restore }));
 });
 
 assetsRouter.get("/api/projects/:id/assets/:assetId/seams", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
-  res.json(await analyzeSeams(await readProjectFile(found.project.id, found.asset.file)));
+  res.json(await seamsOf(found.project, found.asset));
 });
 
 assetsRouter.get("/api/projects/:id/assets/:assetId/tiled.png", async (req, res) => {
@@ -176,78 +151,23 @@ assetsRouter.get("/api/projects/:id/assets/:assetId/palette", async (req, res) =
 assetsRouter.post("/api/projects/:id/assets/:assetId/make-seamless", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
-  const { project, asset } = found;
   const overlap = Number(req.body?.overlap ?? 0.15);
   if (!(overlap >= 0.04 && overlap <= 0.4)) return void res.status(400).json({ error: "融合比例需在 0.04-0.4 之间" });
-  const png = await makeSeamless(await readProjectFile(project.id, asset.file), { overlap, pixel: isPixelArt(project.styleGuide) });
-  const id = newId("ast");
-  const file = `assets/${id}.png`;
-  await writeProjectFile(project.id, file, png);
-  const created: Asset = {
-    id,
-    name: asset.name,
-    assetType: asset.assetType,
-    prompt: asset.prompt,
-    file,
-    mime: "image/png",
-    status: "pending_review",
-    notes: `由「${asset.name}」无缝化处理（边缘融合 ${Math.round(overlap * 100)}%）`,
-    reviewer: "user",
-    runId: asset.runId,
-    provider: "postprocess",
-    createdAt: new Date().toISOString(),
-    parentId: asset.id,
-  };
-  await updateProject(project.id, (p) => void p.assets.push(created));
-  res.json(created);
+  res.json((await seamlessVersion(found.project, found.asset, overlap, { by: "user" })).asset);
 });
-
-/** Frames of a sprite sheet: the sliced files if present, else an equal split (default 4). */
-async function sheetFrames(projectId: string, asset: Asset): Promise<Buffer[]> {
-  if (asset.frames?.length) return Promise.all(asset.frames.map((f) => readProjectFile(projectId, f)));
-  return (await sliceSheet(await readProjectFile(projectId, asset.file), 4)).frames;
-}
-
-const alignMode = (v: unknown): AlignMode => (v === "center" ? "center" : "bottom");
 
 /** How much the content wanders between frames (px). */
 assetsRouter.get("/api/projects/:id/assets/:assetId/jitter", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
   if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以检测帧抖动" });
-  res.json(await measureJitter(await sheetFrames(found.project.id, found.asset), alignMode(req.query.mode)));
+  res.json(await jitterOf(found.project, found.asset, parseAlignMode(req.query.mode)));
 });
 
 /** Align frames on a shared anchor; the result is a new version linked to the original. */
 assetsRouter.post("/api/projects/:id/assets/:assetId/align-frames", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
-  const { project, asset } = found;
-  if (asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以对齐帧" });
-  const mode = alignMode(req.body?.mode);
-  const frames = await sheetFrames(project.id, asset);
-  const before = await measureJitter(frames, mode);
-  const aligned = await alignFrames(frames, mode);
-  const after = await measureJitter(aligned, mode);
-  const id = newId("ast");
-  const file = `assets/${id}.png`;
-  await writeProjectFile(project.id, file, await joinFrames(aligned));
-  const created: Asset = {
-    id,
-    name: asset.name,
-    assetType: asset.assetType,
-    prompt: asset.prompt,
-    file,
-    mime: "image/png",
-    status: "pending_review",
-    notes: `由「${asset.name}」对齐帧（${mode === "bottom" ? "底边居中" : "中心"}）：水平抖动 ${before.horizontal}→${after.horizontal}px，${mode === "bottom" ? "底边" : "垂直"} ${before.vertical}→${after.vertical}px`,
-    reviewer: "user",
-    runId: asset.runId,
-    provider: "postprocess",
-    createdAt: new Date().toISOString(),
-    parentId: asset.id,
-  };
-  Object.assign(created, await sliceAssetFrames(project.id, created, await readProjectFile(project.id, file), aligned.length, asset.fps ?? 8));
-  await updateProject(project.id, (p) => void p.assets.push(created));
-  res.json({ asset: created, before, after });
+  if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以对齐帧" });
+  res.json(await alignedVersion(found.project, found.asset, parseAlignMode(req.body?.mode), { by: "user" }));
 });
