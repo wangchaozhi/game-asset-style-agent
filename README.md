@@ -32,11 +32,29 @@ AGENT_MODE=demo npm start
 ## 架构
 
 ```
-public/            原生 HTML/CSS/JS 前端（无构建步骤）
-src/server.ts      Express API + SSE 事件流
-src/agent.ts       Claude 智能体循环（Anthropic TypeScript SDK，手写 tool-use loop）
-src/imageProviders.ts  OpenAI / Gemini / Mock 图像通道 + sharp 图像处理
-src/store.ts       基于文件系统的项目存储（data/projects/<id>/）
+public/
+  index.html             单页界面（原生 ES modules，无构建步骤）
+  js/                    main（入口）· state · lib（DOM/HTTP 工具）· projects · refs · styleGuide
+                         · assets（素材网格）· viewer（查看器）· run（运行与 SSE 日志）· usage（用量）
+  css/                   base · layout · style-panel · run · assets · viewer · usage
+src/
+  server.ts              入口：读取 .env 并监听端口
+  app.ts                 createApp()：组装中间件与路由（测试可直接挂载）
+  config.ts              环境变量配置
+  domain/assetTypes.ts   素材类型定义
+  routes/                config · projects · refs · assets · export · jobs（运行/SSE）· usage
+  agent/                 Claude 智能体
+    tools.ts / schemas.ts  工具定义与 zod 输入校验
+    prompts.ts             系统提示词与每轮开场
+    loop.ts                手写 tool-use 循环（Anthropic TypeScript SDK）
+    runTool.ts / assets.ts 工具执行、生成素材入库、精灵表切帧
+    events.ts / jobs.ts    任务注册、事件广播、启动与收尾
+    demo.ts                无 key 演示模式
+  providers/             图像通道：openai · gemini · mock
+  image/                 sharp 图像处理：io · background（抠图）· spriteSheet · tiles · sizes
+  export/                ZIP 写入与素材包组装
+  usage/                 tokens / 图像调用统计与费用估算
+  store/                 文件系统存储（data/projects/<id>/）：projects · conversation · usage
 ```
 
 Agent 工具：

@@ -11,6 +11,7 @@
 - [x] 尺寸规格：按素材类型输出常用游戏尺寸（16/32/64 像素图标、像素风最近邻缩放）
 - [x] 瓦片无缝检测与平铺预览（3×3 平铺查看接缝）
 - [x] 成本与用量面板：记录每次运行的 Claude tokens 与图像调用次数
+- [x] 工程模块化：后端按 agent / routes / providers / image / export / usage / store 分目录，前端拆为 ES modules 与分区样式
 - [ ] 单元测试：store / 工具输入校验 / mock provider（node:test）
 - [ ] GitHub Actions：typecheck + 测试
 - [ ] Dockerfile 与一键部署说明

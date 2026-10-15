@@ -1,0 +1,30 @@
+/* ① Style references and the style guide (view + editor). */
+
+.dropzone {
+  display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; text-align: center;
+  border: 1.5px dashed var(--line); border-radius: 10px; padding: 22px 12px; cursor: pointer; transition: 0.15s;
+}
+.dropzone small { color: var(--muted); }
+.dropzone:hover, .dropzone.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.refs { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; margin: 12px 0 18px; }
+.ref { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+.ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ref button { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; line-height: 1; opacity: 0; }
+.ref:hover button { opacity: 1; }
+.style-guide { font-size: 13px; }
+.style-guide.empty { color: var(--muted); }
+.style-guide .summary { font-weight: 600; margin-bottom: 10px; }
+.palette { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.swatch { display: flex; flex-direction: column; align-items: center; width: 52px; font-size: 10px; color: var(--muted); }
+.swatch i { width: 40px; height: 40px; border-radius: 8px; border: 1px solid var(--line); display: block; margin-bottom: 2px; }
+.style-guide dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; }
+.style-guide dt { color: var(--muted); white-space: nowrap; }
+.style-guide dd { margin: 0; }
+.style-actions { display: flex; gap: 12px; }
+.style-guide.editing form { display: flex; flex-direction: column; gap: 8px; }
+.style-guide.editing label, .field-label { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 12px; }
+.style-guide.editing textarea { font-size: 13px; }
+.pal-row { display: grid; grid-template-columns: 34px 84px 1fr auto; gap: 6px; align-items: center; margin-bottom: 4px; }
+.pal-row input[type="color"] { width: 34px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
+.pal-row input[type="text"] { font: inherit; font-size: 12px; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; min-width: 0; }
+.form-actions { display: flex; gap: 8px; margin-top: 4px; }

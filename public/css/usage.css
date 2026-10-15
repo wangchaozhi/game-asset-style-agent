@@ -1,0 +1,23 @@
+/* Cost & usage bar and dialog. */
+
+.usage-bar { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 6px 10px; margin: -8px 0 14px; font-variant-numeric: tabular-nums; }
+.usage-label { color: var(--ink); font-weight: 600; }
+.usage-cost { color: var(--ink); font-weight: 600; }
+.usage-bar .btn.link { margin-left: auto; font-size: 12px; }
+.usage-dialog { max-width: min(860px, 94vw); }
+.usage-body { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.usage-body h3 { margin: 0; }
+.usage-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+.usage-tiles .tile { background: var(--bg); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.usage-tiles span { font-size: 12px; color: var(--muted); }
+.usage-tiles b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.usage-foot { font-size: 12px; }
+.usage-table-wrap { overflow-x: auto; max-height: 50vh; }
+.usage-table { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
+.usage-table th, .usage-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.usage-table th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--panel); }
+.usage-table .req { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+.run-status.ok { color: var(--ok); }
+.run-status.error, .bad { color: var(--bad); }
+.run-status.stopped { color: var(--muted); }
+.run-status.running { color: var(--pending); }

@@ -1,0 +1,29 @@
+/* ③ Asset grid, cards and the transparency checkerboard. */
+
+.count { color: var(--ink); background: var(--chip); border-radius: 999px; padding: 0 8px; margin-left: 4px; font-size: 12px; }
+.filters { display: flex; gap: 4px; margin-bottom: 10px; }
+.filters button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: none; color: var(--muted); border-radius: 6px; padding: 2px 8px; cursor: pointer; }
+.filters button.on { color: var(--ink); border-color: var(--ink); }
+.assets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.assets .empty { grid-column: 1 / -1; color: var(--muted); padding: 30px 0; text-align: center; }
+.card { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); cursor: zoom-in; display: flex; flex-direction: column; }
+.card.rejected { opacity: 0.55; }
+.checker {
+  background-color: var(--check-b);
+  background-image: linear-gradient(45deg, var(--check-a) 25%, transparent 25%), linear-gradient(-45deg, var(--check-a) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--check-a) 75%), linear-gradient(-45deg, transparent 75%, var(--check-a) 75%);
+  background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+.card .checker { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.card img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.card .meta { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.card .name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card .sub { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.card.new { animation: pop 0.4s ease-out; }
+@keyframes pop { from { transform: scale(0.94); opacity: 0; } to { transform: none; opacity: 1; } }
+.btn.small { padding: 3px 10px; font-size: 12px; text-decoration: none; }
+.export { display: flex; gap: 6px; margin-bottom: 10px; }
+.badge { font-size: 11px; font-weight: 600; }
+.badge.approved { color: var(--ok); }
+.badge.rejected { color: var(--bad); }
+.badge.pending_review { color: var(--pending); }

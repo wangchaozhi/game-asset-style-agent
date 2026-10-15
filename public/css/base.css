@@ -1,0 +1,53 @@
+/* Theme tokens, reset, form controls and buttons. */
+
+:root {
+  --bg: #f4f2ee;
+  --panel: #ffffff;
+  --ink: #1d1b19;
+  --muted: #77716a;
+  --line: #e4dfd7;
+  --accent: #e2562b;
+  --accent-ink: #ffffff;
+  --ok: #2f8f5b;
+  --bad: #c0392b;
+  --pending: #b7871b;
+  --chip: #f0ebe3;
+  --check-a: #ece8e1;
+  --check-b: #f8f6f2;
+  --radius: 12px;
+  font-family: "Inter", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #151412;
+    --panel: #1e1c1a;
+    --ink: #f1ece4;
+    --muted: #9b948a;
+    --line: #2f2c28;
+    --chip: #2a2724;
+    --check-a: #25221f;
+    --check-b: #2d2a26;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-size: 14px; line-height: 1.5; }
+h1 { font-size: 18px; margin: 0; letter-spacing: 0.2px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+select, textarea, input[type="text"] {
+  font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+}
+textarea { width: 100%; resize: vertical; }
+select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.btn { font: inherit; border-radius: 8px; padding: 7px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.btn.primary:disabled { opacity: 0.5; cursor: progress; }
+.btn.ghost { background: transparent; }
+.btn.danger:hover { color: var(--bad); border-color: var(--bad); }
+.btn.link { border: 0; background: none; color: var(--accent); padding: 0; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 13px; z-index: 10; max-width: 90vw; }
+[hidden] { display: none !important; }

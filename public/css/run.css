@@ -1,0 +1,21 @@
+/* ② Request, run controls, agent log and conversation bar. */
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chip { border: 1px solid var(--line); background: var(--chip); color: var(--ink); border-radius: 999px; padding: 4px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.run-row { display: flex; gap: 8px; align-items: center; margin: 10px 0 18px; flex-wrap: wrap; }
+.provider { display: flex; gap: 6px; align-items: center; color: var(--muted); margin-right: auto; }
+.toggle { color: var(--muted); font-size: 12px; display: flex; gap: 4px; align-items: center; }
+.log { max-height: 560px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.log .entry { padding: 8px 10px; border-radius: 8px; background: var(--bg); white-space: pre-wrap; word-break: break-word; }
+.log .entry.status { background: transparent; color: var(--muted); padding: 2px 0; font-size: 12px; }
+.log .entry.thinking { color: var(--muted); font-style: italic; border-left: 3px solid var(--line); background: transparent; }
+.log .entry.tool { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; border-left: 3px solid var(--accent); }
+.log .entry.tool b { color: var(--accent); }
+.log .entry.error { color: var(--bad); border-left: 3px solid var(--bad); }
+.log.hide-thinking .thinking { display: none; }
+.conv-bar { font-size: 12px; color: var(--muted); background: var(--bg); border-radius: 8px; padding: 8px 10px; margin: -8px 0 14px; }
+.conv-head { display: flex; justify-content: space-between; gap: 8px; }
+.conv-head b { color: var(--ink); }
+.conv-bar ol { margin: 4px 0 0; padding-left: 20px; }
+.conv-bar li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

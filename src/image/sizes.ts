@@ -1,5 +1,5 @@
 import sharp from "sharp";
-import type { StyleGuide } from "./store.js";
+import type { StyleGuide } from "../store/types.js";
 
 /** Common in-game sizes per asset type. Square entries are "N"; others "WxH". */
 export const SIZE_PRESETS: Record<string, string[]> = {

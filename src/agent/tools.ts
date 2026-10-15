@@ -1,0 +1,92 @@
+import type Anthropic from "@anthropic-ai/sdk";
+import { ASSET_TYPE_KEYS } from "../domain/assetTypes.js";
+
+/** Tool definitions sent to Claude. Inputs are validated with ./schemas.ts before running. */
+export const tools: Anthropic.Beta.BetaTool[] = [
+  {
+    name: "save_style_guide",
+    description:
+      "Persist the project's style bible, distilled from the reference images. Every later generation prompt is built on it, so be concrete and visual (e.g. '2px dark-purple outline, cel shading with exactly 2 tones, 3/4 top-down camera, 1:2.5 head-to-body chibi proportions') rather than vague ('nice, colorful'). Call again only if the user asks to change the style.",
+    eager_input_streaming: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        summary: { type: "string", description: "One or two sentences naming the overall style, in the user's language." },
+        palette: {
+          type: "array",
+          description: "5-10 dominant colours sampled from the references.",
+          items: {
+            type: "object",
+            properties: { hex: { type: "string", description: "#RRGGBB" }, role: { type: "string" } },
+            required: ["hex", "role"],
+          },
+        },
+        rendering: { type: "string", description: "Medium / technique: pixel art (state the pixel density), vector flat, hand-painted, 3D render, etc." },
+        line_and_edges: { type: "string" },
+        lighting_and_shading: { type: "string" },
+        perspective: { type: "string", description: "Camera angle and projection, e.g. side-view, isometric 2:1, top-down 3/4." },
+        proportions: { type: "string" },
+        texture_and_detail: { type: "string" },
+        mood: { type: "string" },
+        avoid: { type: "array", items: { type: "string" }, description: "Things that would break the style." },
+        prompt_prefix: {
+          type: "string",
+          description: "An English style paragraph (60-120 words) to prepend to every image prompt. Must include the palette hex codes.",
+        },
+      },
+      required: [
+        "summary", "palette", "rendering", "line_and_edges", "lighting_and_shading", "perspective",
+        "proportions", "texture_and_detail", "mood", "avoid", "prompt_prefix",
+      ],
+    },
+  },
+  {
+    name: "generate_image",
+    description:
+      "Generate one game asset with the image model. The project's style reference images are attached automatically; you write the full English prompt. Returns the asset id and the rendered image so you can inspect it. Several calls in one turn run in parallel.",
+    eager_input_streaming: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Short display name in the user's language, e.g. '火焰剑'." },
+        asset_type: { type: "string", enum: ASSET_TYPE_KEYS },
+        prompt: {
+          type: "string",
+          description: "Complete English prompt: style prefix + subject + composition rules for this asset type + what to avoid.",
+        },
+        aspect: { type: "string", enum: ["square", "landscape", "portrait"] },
+        transparent_background: { type: "boolean", description: "true for icons, sprites, props, UI, VFX; false for backgrounds and tiles." },
+        consistency_asset_ids: {
+          type: "array",
+          items: { type: "string" },
+          description: "Up to 4 previously generated asset ids to also attach as references, e.g. the approved character design when drawing its sprite sheet or portrait.",
+        },
+        replaces_asset_id: {
+          type: "string",
+          description: "When this is a redraw of an existing asset, its id (links the versions).",
+        },
+        frames: {
+          type: "integer",
+          description: "sprite_sheet only: number of animation frames in the single horizontal row (2-16). The sheet is sliced into frames and a GIF preview automatically.",
+        },
+      },
+      required: ["name", "asset_type", "prompt", "aspect", "transparent_background"],
+    },
+  },
+  {
+    name: "review_asset",
+    description:
+      "Record your verdict on a generated asset after comparing it to the reference images and style guide. Reject when palette, rendering technique, line work, perspective or proportions drift, or when the asset is unusable for its type (cropped, text artefacts, wrong background, inconsistent character).",
+    eager_input_streaming: true,
+    input_schema: {
+      type: "object",
+      properties: {
+        asset_id: { type: "string" },
+        verdict: { type: "string", enum: ["approved", "rejected"] },
+        consistency_score: { type: "integer", description: "1-10 style consistency with the references." },
+        notes: { type: "string", description: "Short reason in the user's language." },
+      },
+      required: ["asset_id", "verdict", "consistency_score", "notes"],
+    },
+  },
+];

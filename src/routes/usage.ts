@@ -1,13 +1,14 @@
 import { Router } from "express";
-import { loadProject } from "../store.js";
-import { jobs } from "../agent.js";
-import { loadUsage, summarize } from "../usage.js";
+import { jobs } from "../agent/index.js";
+import { loadProject, loadUsage } from "../store/index.js";
+import { summarize } from "../usage/index.js";
+import { pid } from "./util.js";
 
 export const usageRouter = Router();
 
 /** Run-by-run Claude token and image-call usage for one project, newest first, plus totals. */
 usageRouter.get("/api/projects/:id/usage", async (req, res) => {
-  const projectId = String(req.params.id);
+  const projectId = pid(req);
   await loadProject(projectId);
   const stored = await loadUsage(projectId);
   // A running job's latest numbers live in memory; prefer them over the last persisted snapshot.
