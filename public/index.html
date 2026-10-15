@@ -78,7 +78,10 @@
       <div class="conv-bar" id="convBar" hidden></div>
       <div class="log-head">
         <h2>Agent 工作日志</h2>
-        <label class="toggle"><input type="checkbox" id="showThinking" checked /> 显示思考</label>
+        <span class="log-toggles">
+          <label class="toggle" title="页面不在前台时，运行结束后弹出系统通知"><input type="checkbox" id="notifyToggle" /> 完成时通知</label>
+          <label class="toggle"><input type="checkbox" id="showThinking" checked /> 显示思考</label>
+        </span>
       </div>
       <div id="log" class="log"><p class="muted">运行后，这里会实时显示 Agent 的分析、计划、生成与审核过程。</p></div>
     </section>

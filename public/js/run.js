@@ -5,6 +5,7 @@ import { upsertAsset } from "./assets.js";
 import { renderStyle } from "./styleGuide.js";
 import { loadConversationInfo, loadProjectsQuiet } from "./projects.js";
 import { bindUsageDialog, openUsageDialog, renderLiveUsage } from "./usage.js";
+import { bindNotify, jobFinished, jobProgress, jobStarted } from "./notify.js";
 
 export function logEntry(cls, html) {
   const log = $("#log");
@@ -51,8 +52,17 @@ export function handleEvent(e) {
     case "thinking": logEntry("thinking", esc(e.text)); break;
     case "tool": logEntry("tool", describeTool(e.name, e.input)); break;
     case "style": state.project.styleGuide = e.styleGuide; renderStyle(); break;
-    case "asset": upsertAsset(e.asset); break;
-    case "error": logEntry("error", esc(e.message)); break;
+    case "asset":
+      if (state.run && !state.run.known.has(e.asset.id)) {
+        state.run.known.add(e.asset.id);
+        jobProgress(++state.run.made);
+      }
+      upsertAsset(e.asset);
+      break;
+    case "error":
+      if (state.run) state.run.error = e.message;
+      logEntry("error", esc(e.message));
+      break;
     case "usage": renderLiveUsage(e.usage); break;
     case "done": finishJob(); break;
   }
@@ -60,6 +70,9 @@ export function handleEvent(e) {
 
 export function attachJob(jobId) {
   state.job = jobId;
+  // Assets already in the library don't count as new when the event log is replayed.
+  state.run = { known: new Set(state.project.assets.map((a) => a.id)), made: 0, error: null };
+  jobStarted();
   try { localStorage.setItem(`gaa.job.${state.project.id}`, jobId); } catch {}
   $("#runBtn").disabled = true;
   $("#runBtn").textContent = "生成中…";
@@ -77,6 +90,8 @@ export function attachJob(jobId) {
 }
 
 export function finishJob() {
+  if (state.run) jobFinished({ ok: !state.run.error, made: state.run.made, message: state.run.error });
+  state.run = null;
   state.source?.close();
   state.source = null;
   state.job = null;
@@ -161,6 +176,7 @@ function bindBudget() {
 /** Asset-type chips, provider picker and run controls. */
 export function bindRun() {
   bindBudget();
+  bindNotify();
   const chips = $("#typeChips");
   chips.innerHTML = Object.entries(state.config.assetTypes)
     .map(([k, v]) => `<button class="chip" data-type="${k}">${esc(v)}</button>`)
