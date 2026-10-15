@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import type { AddressInfo } from "node:net";
+import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import { readZip, solidPng, useTempDataDir, validStyleGuide } from "./helpers.js";
 
-useTempDataDir();
+const dataDir = useTempDataDir();
 process.env.AGENT_MODE = "demo";
+const assetFiles = (projectId: string, assetId: string) =>
+  fs.readdirSync(path.join(dataDir, "projects", projectId, "assets")).filter((f) => f.startsWith(`${assetId}.`) || f.startsWith(`${assetId}_`));
 const { createApp } = await import("../src/app.js");
 
 let base = "";
@@ -156,13 +160,40 @@ describe("HTTP API (demo mode)", () => {
     assert.deepEqual(manifest.assets.map((a: { id: string }) => a.id), [ids[0]]);
     assert.equal((await json(`/api/projects/${id}/export.zip?ids=ast_missing`)).status, 400);
 
+    assert.ok(assetFiles(id, ids[0]).length > 0);
     const del = await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "delete", ids: [ids[0]] } });
     assert.equal(del.body.affected, 1);
+    assert.deepEqual(assetFiles(id, ids[0]), [], "the deleted asset's files are gone");
     assert.ok(!del.body.project.assets.some((a: { id: string }) => a.id === ids[0]));
 
     for (const bad of [{ action: "explode", ids }, { action: "approve", ids: [] }, { action: "approve", ids: [1, 2] }, { action: "approve" }]) {
       assert.equal((await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: bad })).status, 400, JSON.stringify(bad));
     }
+  });
+
+  it("re-cutting keeps only the latest cut-out; deleting removes all files; cleanup sweeps strays", async () => {
+    const asset = (await json(`/api/projects/${id}`)).body.assets.find((a: { assetType: string }) => a.assetType !== "background");
+    await json(`/api/projects/${id}/assets/${asset.id}/cutout`, { method: "POST", body: { tolerance: 20 } });
+    await json(`/api/projects/${id}/assets/${asset.id}/cutout`, { method: "POST", body: { tolerance: 40 } });
+    assert.equal(assetFiles(id, asset.id).filter((f) => f.includes("_cut")).length, 1);
+    assert.ok(assetFiles(id, asset.id).some((f) => f.includes("_orig")));
+
+    const before = (await json(`/api/projects/${id}/storage`)).body.bytes;
+    fs.writeFileSync(path.join(dataDir, "projects", id, "assets", "leftover.png"), Buffer.alloc(1000));
+    assert.equal((await json(`/api/projects/${id}/storage`)).body.bytes, before + 1000);
+    const swept = (await json(`/api/projects/${id}/cleanup`, { method: "POST" })).body;
+    assert.deepEqual([swept.removed, swept.bytes], [1, 1000]);
+
+    await json(`/api/projects/${id}/assets/${asset.id}`, { method: "DELETE" });
+    assert.deepEqual(assetFiles(id, asset.id), []);
+  });
+
+  it("deleting a reference removes its file", async () => {
+    const project = (await json(`/api/projects/${id}`)).body;
+    const ref = project.refs[0];
+    assert.ok(fs.existsSync(path.join(dataDir, "projects", id, ref.file)));
+    await json(`/api/projects/${id}/refs/${ref.id}`, { method: "DELETE" });
+    assert.ok(!fs.existsSync(path.join(dataDir, "projects", id, ref.file)));
   });
 
   it("returns 404 for unknown projects and jobs", async () => {

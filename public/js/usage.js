@@ -1,5 +1,5 @@
 // Cost & usage: live numbers for the running job and a per-project history dialog.
-import { $, api, esc } from "./lib.js";
+import { $, api, esc, toast } from "./lib.js";
 
 const fmtTokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
 
@@ -44,6 +44,32 @@ export function renderLiveUsage(usage) {
 
 const STATUS = { running: "进行中", ok: "完成", error: "出错", stopped: "已停止", interrupted: "已中断" };
 
+const fmtBytes = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+async function loadStorage(projectId) {
+  const el = $("#storageBytes");
+  try {
+    const { bytes } = await api(`/api/projects/${projectId}/storage`);
+    if (el?.isConnected) el.textContent = fmtBytes(bytes);
+  } catch {
+    if (el?.isConnected) el.textContent = "—";
+  }
+}
+
+export function bindUsageDialog(getProjectId) {
+  $("#usageBody").addEventListener("click", async (e) => {
+    if (!e.target.closest("[data-cleanup]")) return;
+    const projectId = getProjectId();
+    try {
+      const r = await api(`/api/projects/${projectId}/cleanup`, { method: "POST" });
+      toast(r.removed ? `已清理 ${r.removed} 个文件，释放 ${fmtBytes(r.bytes)}` : "没有需要清理的文件");
+      loadStorage(projectId);
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+}
+
 export async function openUsageDialog(projectId) {
   const dlg = $("#usageDialog");
   const body = $("#usageBody");
@@ -84,7 +110,10 @@ export async function openUsageDialog(projectId) {
           .join("")}</tbody></table></div>`
           : `<p class="muted">还没有运行记录。</p>`
       }
-      <p class="muted usage-foot">费用按 Claude 官方单价估算；图像单价通过环境变量 IMAGE_PRICE_OPENAI / IMAGE_PRICE_GEMINI（美元/张）配置。</p>`;
+      <p class="muted usage-foot">费用按 Claude 官方单价估算；图像单价通过环境变量 IMAGE_PRICE_OPENAI / IMAGE_PRICE_GEMINI（美元/张）配置。</p>
+      <div class="usage-storage muted"><span>磁盘占用 <b id="storageBytes">…</b></span>
+        <button class="btn link" data-cleanup title="删除不属于任何素材或参考图的文件">清理无主文件</button></div>`;
+    loadStorage(projectId);
   } catch (e) {
     body.innerHTML = `<p class="bad">${esc(e.message)}</p>`;
   }

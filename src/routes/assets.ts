@@ -1,10 +1,12 @@
 import { Router } from "express";
+import fs from "node:fs/promises";
+import path from "node:path";
 import { sliceAssetFrames } from "../agent/assets.js";
 import { removeBackground } from "../image/background.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { analyzeSeams, tilePreview } from "../image/tiles.js";
-import { readProjectFile, updateProject, writeProjectFile } from "../store/index.js";
+import { projectDir, readProjectFile, removeAssetFiles, updateProject, writeProjectFile } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { attachment, findAsset, pid } from "./util.js";
 
@@ -24,11 +26,12 @@ assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
   }
   const wanted = new Set(ids as string[]);
   let affected = 0;
+  let deleted: string[] = [];
   const project = await updateProject(pid(req), (p) => {
     if (action === "delete") {
-      const before = p.assets.length;
+      deleted = p.assets.filter((a) => wanted.has(a.id)).map((a) => a.id);
       p.assets = p.assets.filter((a) => !wanted.has(a.id));
-      affected = before - p.assets.length;
+      affected = deleted.length;
       return;
     }
     for (const a of p.assets) {
@@ -38,6 +41,7 @@ assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
       affected++;
     }
   });
+  if (deleted.length) await removeAssetFiles(project.id, deleted);
   res.json({ affected, project });
 });
 
@@ -58,7 +62,14 @@ assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
 });
 
 assetsRouter.delete("/api/projects/:id/assets/:assetId", async (req, res) => {
-  res.json(await updateProject(pid(req), (p) => void (p.assets = p.assets.filter((a) => a.id !== req.params.assetId))));
+  const assetId = String(req.params.assetId);
+  let existed = false;
+  const project = await updateProject(pid(req), (p) => {
+    existed = p.assets.some((a) => a.id === assetId);
+    p.assets = p.assets.filter((a) => a.id !== assetId);
+  });
+  if (existed) await removeAssetFiles(project.id, [assetId]);
+  res.json(project);
 });
 
 /** Re-slice a sprite sheet with a given frame count / fps. */
@@ -98,6 +109,10 @@ assetsRouter.post("/api/projects/:id/assets/:assetId/cutout", async (req, res) =
     const a = p.assets.find((x) => x.id === asset.id);
     if (a) Object.assign(a, { originalFile, file, mime: restore ? asset.mime : "image/png" }, sliced);
   });
+  // The previous cut-out is superseded; never touch the original model output.
+  if (asset.file !== originalFile && asset.file !== file && /_cut[0-9a-z]+\.png$/.test(asset.file)) {
+    await fs.rm(path.join(projectDir(project.id), asset.file), { force: true });
+  }
   res.json(p.assets.find((a) => a.id === asset.id));
 });
 

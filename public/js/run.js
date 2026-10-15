@@ -4,7 +4,7 @@ import { state } from "./state.js";
 import { upsertAsset } from "./assets.js";
 import { renderStyle } from "./styleGuide.js";
 import { loadConversationInfo, loadProjectsQuiet } from "./projects.js";
-import { openUsageDialog, renderLiveUsage } from "./usage.js";
+import { bindUsageDialog, openUsageDialog, renderLiveUsage } from "./usage.js";
 
 export function logEntry(cls, html) {
   const log = $("#log");
@@ -135,6 +135,7 @@ export function bindRun() {
   $("#runBtn").addEventListener("click", () => run());
   $("#usageBar").addEventListener("click", (e) => e.target.closest("[data-usage-open]") && openUsageDialog(state.project.id));
   $("#usageBtn").addEventListener("click", () => openUsageDialog(state.project.id));
+  bindUsageDialog(() => state.project.id);
   $("#stopBtn").addEventListener("click", () => state.job && api(`/api/jobs/${state.job}/stop`, { method: "POST" }));
   $("#request").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) run(); });
   $("#showThinking").addEventListener("change", (e) => $("#log").classList.toggle("hide-thinking", !e.target.checked));

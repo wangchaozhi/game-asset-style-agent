@@ -1,8 +1,10 @@
 import { Router } from "express";
 import path from "node:path";
+import { runningJobFor } from "../agent/index.js";
 import { StyleGuideInput } from "../agent/schemas.js";
 import {
-  clearConversation, createProject, deleteProject, listProjects, loadConversation, loadProject, projectDir, updateProject,
+  clearConversation, createProject, deleteProject, listProjects, loadConversation, loadProject, projectDir,
+  projectDiskUsage, removeOrphanFiles, updateProject,
 } from "../store/index.js";
 import { pid } from "./util.js";
 
@@ -58,4 +60,17 @@ projectsRouter.get("/api/projects/:id/files/*rel", (req, res) => {
   const rel = ([] as string[]).concat(req.params.rel as string | string[]).join("/");
   if (!/^(refs|assets)\/[\w.-]+$/.test(rel)) return void res.status(400).end();
   res.sendFile(path.join(projectDir(pid(req)), rel));
+});
+
+/** Disk space used by the project folder. */
+projectsRouter.get("/api/projects/:id/storage", async (req, res) => {
+  await loadProject(pid(req));
+  res.json({ bytes: await projectDiskUsage(pid(req)) });
+});
+
+/** Delete files no asset or reference owns. Refused while a job may be writing new files. */
+projectsRouter.post("/api/projects/:id/cleanup", async (req, res) => {
+  const project = await loadProject(pid(req));
+  if (runningJobFor(project.id)) return void res.status(409).json({ error: "该项目有任务在运行，请稍后再清理" });
+  res.json(await removeOrphanFiles(project));
 });

@@ -1,11 +1,22 @@
 import type { Server } from "node:http";
 import { jobs } from "./agent/index.js";
-import { flushUsageWrites, listProjects, markInterruptedRuns } from "./store/index.js";
+import { flushUsageWrites, listProjects, markInterruptedRuns, removeOrphanFiles } from "./store/index.js";
 
 /** On startup: runs left "running" by a previous process can never finish, so mark them interrupted. */
 export async function recoverInterruptedRuns(): Promise<number> {
   let total = 0;
   for (const p of await listProjects()) total += await markInterruptedRuns(p.id);
+  return total;
+}
+
+/** On startup (no job can be writing yet): drop files left behind by deletes or crashes. */
+export async function cleanOrphanFiles(): Promise<{ removed: number; bytes: number }> {
+  const total = { removed: 0, bytes: 0 };
+  for (const p of await listProjects()) {
+    const r = await removeOrphanFiles(p);
+    total.removed += r.removed;
+    total.bytes += r.bytes;
+  }
   return total;
 }
 

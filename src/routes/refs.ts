@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { toPng } from "../image/io.js";
-import { newId, updateProject, writeProjectFile } from "../store/index.js";
+import { newId, removeRefFile, updateProject, writeProjectFile } from "../store/index.js";
 import { pid } from "./util.js";
 
 export const refsRouter = Router();
@@ -27,5 +27,8 @@ refsRouter.post("/api/projects/:id/refs", upload.array("images", 8), async (req,
 });
 
 refsRouter.delete("/api/projects/:id/refs/:refId", async (req, res) => {
-  res.json(await updateProject(pid(req), (p) => void (p.refs = p.refs.filter((r) => r.id !== req.params.refId))));
+  const refId = String(req.params.refId);
+  const project = await updateProject(pid(req), (p) => void (p.refs = p.refs.filter((r) => r.id !== refId)));
+  await removeRefFile(project.id, refId);
+  res.json(project);
 });

@@ -21,3 +21,5 @@
 .run-status.error, .bad { color: var(--bad); }
 .run-status.stopped, .run-status.interrupted { color: var(--muted); }
 .run-status.running { color: var(--pending); }
+.usage-storage { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.usage-storage b { color: var(--ink); font-variant-numeric: tabular-nums; }
