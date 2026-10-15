@@ -24,4 +24,4 @@
 - [x] 图集导出：已通过素材打包成 atlas PNG + JSON（Phaser / TexturePacker 格式），精灵表额外导出 Godot SpriteFrames
 - [x] 批量操作：素材库多选，批量通过 / 驳回 / 删除 / 导出
 - [x] 图像通道请求单测：mock fetch 校验 OpenAI / Gemini 请求格式与错误处理
-- [ ] ESLint + CI lint
+- [x] ESLint + CI lint（前端 JS 用 ESLint；TypeScript 7 已无 typescript-eslint 所需的编译器 API，TS 由 tsc 严格模式与 noUnused* 检查）

@@ -69,9 +69,10 @@ NODE_ENV=production npm run start:prod
 ## 开发
 
 ```bash
-npm run typecheck   # tsc（含 test/）
-npm test            # node:test + tsx，覆盖存储、工具校验、Mock 通道、图像处理、ZIP、计费与 HTTP API
-npm run check       # 以上两项
+npm run typecheck   # tsc（strict + 未使用变量/参数检查，含 test/）
+npm run lint        # ESLint，检查无类型检查的前端模块 public/js
+npm test            # node:test + tsx：存储、工具校验、图像通道、图像处理、图集、ZIP、计费、鉴权与 HTTP API
+npm run check       # 以上全部
 ```
 
 测试使用临时 `DATA_DIR`，API 测试以演示模式在随机端口启动应用，不需要任何 API key。
