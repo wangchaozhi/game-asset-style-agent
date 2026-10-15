@@ -82,6 +82,7 @@ export function renderStyle() {
 
 
 export function bindStyleGuide() {
+  bindStyleHistory();
   $("#editStyle").addEventListener("click", renderStyleEditor);
   const sgBox = $("#styleGuide");
   sgBox.addEventListener("submit", (e) => {
@@ -105,4 +106,53 @@ export function bindStyleGuide() {
     renderStyle();
   });
 
+}
+
+// ---------------- history ----------------
+
+const SOURCE = { agent: "Agent 提炼", user: "手动编辑", restore: "恢复", import: "早期版本" };
+const FIELD = Object.fromEntries([["summary", "概述"], ["palette", "色板"], ["avoid", "避免"], ["prompt_prefix", "Prompt 前缀"], ...STYLE_FIELDS]);
+
+export async function openStyleHistory() {
+  const dlg = $("#historyDialog");
+  const body = $("#historyBody");
+  body.innerHTML = `<p class="muted">加载中…</p>`;
+  dlg.showModal();
+  try {
+    const list = await api(`/api/projects/${state.project.id}/style-history`);
+    body.innerHTML = list.length
+      ? `<ol class="history">${list
+          .map((v) => {
+            const same = !v.changed.length;
+            return `<li class="${same ? "current" : ""}">
+              <div class="history-head">
+                <span><b>${esc(SOURCE[v.source] ?? v.source)}</b> <span class="muted">${v.source === "import" ? "" : new Date(v.at).toLocaleString()}</span></span>
+                ${same ? `<span class="muted">当前使用中</span>` : `<button class="btn ghost small" data-restore-style="${v.index}">恢复此版本</button>`}
+              </div>
+              <p class="history-summary">${esc(v.styleGuide.summary)}</p>
+              <div class="history-palette">${v.styleGuide.palette.map((c) => `<i title="${esc(c.hex)} ${esc(c.role)}" style="background:${esc(c.hex)}"></i>`).join("")}</div>
+              ${same ? "" : `<p class="muted history-diff">与当前不同：${v.changed.map((k) => esc(FIELD[k] ?? k)).join("、")}</p>`}
+            </li>`;
+          })
+          .join("")}</ol>`
+      : `<p class="muted">还没有历史版本。Agent 提炼或手动保存风格指南后会记录在这里。</p>`;
+  } catch (e) {
+    body.innerHTML = `<p class="bad">${esc(e.message)}</p>`;
+  }
+}
+
+export function bindStyleHistory() {
+  $("#styleHistory").addEventListener("click", openStyleHistory);
+  $("#historyBody").addEventListener("click", async (e) => {
+    const index = e.target.closest("[data-restore-style]")?.dataset.restoreStyle;
+    if (index === undefined) return;
+    try {
+      state.project = await api(`/api/projects/${state.project.id}/style-history/${index}/restore`, { method: "POST" });
+      renderStyle();
+      toast("已恢复该版本的风格指南");
+      openStyleHistory();
+    } catch (err) {
+      toast(err.message);
+    }
+  });
 }

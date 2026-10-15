@@ -61,6 +61,7 @@ describe("runTool", () => {
     assert.notEqual(r.is_error, true);
     assert.deepEqual((await store.loadProject(projectId)).styleGuide, validStyleGuide());
     assert.deepEqual(types(job.events), ["style"]);
+    assert.deepEqual((await store.loadStyleHistory(projectId)).map((v) => v.source), ["agent"]);
   });
 
   it("generate_image stores a cut-out asset, counts the call, and shows Claude the image", async () => {

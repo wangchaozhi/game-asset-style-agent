@@ -70,6 +70,23 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(ok.body.styleGuide.summary, "Cozy pixel art");
   });
 
+  it("keeps a style guide history that can be restored", async () => {
+    await json(`/api/projects/${id}/style-guide`, { method: "PUT", body: { ...validStyleGuide(), mood: "grim" } });
+    let hist = (await json(`/api/projects/${id}/style-history`)).body;
+    assert.deepEqual(hist.map((v: { source: string; changed: string[] }) => [v.source, v.changed]), [["user", []], ["user", ["mood"]]]);
+    const restored = await json(`/api/projects/${id}/style-history/${hist[1].index}/restore`, { method: "POST" });
+    assert.equal(restored.body.styleGuide.mood, validStyleGuide().mood);
+    hist = (await json(`/api/projects/${id}/style-history`)).body;
+    assert.equal(hist[0].source, "restore");
+    assert.equal((await json(`/api/projects/${id}/style-history/99/restore`, { method: "POST" })).status, 404);
+    // clearing keeps the guide restorable
+    await json(`/api/projects/${id}`, { method: "PATCH", body: { resetStyle: true } });
+    hist = (await json(`/api/projects/${id}/style-history`)).body;
+    assert.ok(hist.length >= 3);
+    await json(`/api/projects/${id}/style-history/${hist[0].index}/restore`, { method: "POST" });
+    assert.ok((await json(`/api/projects/${id}`)).body.styleGuide);
+  });
+
   it("runs a demo job end to end and records usage", async () => {
     const run = await json(`/api/projects/${id}/run`, { method: "POST", body: { request: "道具", assetTypes: ["item_icon", "tile"], provider: "mock" } });
     assert.equal(run.status, 200);

@@ -28,3 +28,11 @@
 .pal-row input[type="color"] { width: 34px; height: 30px; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: none; }
 .pal-row input[type="text"] { font: inherit; font-size: 12px; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 6px; min-width: 0; }
 .form-actions { display: flex; gap: 8px; margin-top: 4px; }
+.history { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; max-height: 60vh; overflow-y: auto; }
+.history li { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; font-size: 13px; }
+.history li.current { border-color: var(--accent); }
+.history-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.history-summary { margin: 0; }
+.history-palette { display: flex; gap: 4px; flex-wrap: wrap; }
+.history-palette i { width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--line); display: block; }
+.history-diff { margin: 0; font-size: 12px; }

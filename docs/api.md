@@ -71,6 +71,14 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:5173/api/projects
 
 整体替换风格指南。字段：`summary`、`palette`（至少 3 个 `{ hex: "#RRGGBB", role }`）、`rendering`、`line_and_edges`、`lighting_and_shading`、`perspective`、`proportions`、`texture_and_detail`、`mood`、`avoid`（字符串数组）、`prompt_prefix`（≥ 20 字符）。
 
+### `GET /api/projects/:id/style-history`
+
+风格指南的历史版本（最多 50 个，新的在前）：`[{ index, at, source, styleGuide, changed }]`。`source` 为 `agent`、`user`、`restore`、`import`（启用历史前就存在的版本）；`changed` 列出与当前风格指南不同的字段，空数组表示与当前相同。
+
+### `POST /api/projects/:id/style-history/:index/restore`
+
+把某个历史版本设为当前风格指南（记为一个新的 `restore` 版本），返回更新后的项目。
+
 ### `GET /api/projects/:id/conversation`
 
 与 Agent 的对话概况：`{ runs: [{ request, at }], bytes }`。

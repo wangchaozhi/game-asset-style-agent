@@ -5,3 +5,4 @@ export * from "./conversation.js";
 export * from "./usage.js";
 export * from "./files.js";
 export * from "./backup.js";
+export * from "./styleHistory.js";

@@ -1,7 +1,7 @@
 import sharp from "sharp";
 import { ASSET_TYPES, type AssetType, isAssetType, isOpaqueType } from "../domain/assetTypes.js";
 import { getProvider } from "../providers/index.js";
-import { loadConversation, loadProject, readProjectFile, saveConversation, updateProject } from "../store/index.js";
+import { loadConversation, loadProject, readProjectFile, recordStyleVersion, saveConversation, updateProject } from "../store/index.js";
 import type { StyleGuide } from "../store/types.js";
 import { generateAsset } from "./assets.js";
 import { BudgetExceededError } from "./budget.js";
@@ -61,6 +61,7 @@ export async function runDemo(job: Job, opts: RunOptions) {
     await updateProject(project.id, (p) => {
       p.styleGuide = guide;
     });
+    await recordStyleVersion(project.id, guide, "agent");
     emit(job, { type: "style", styleGuide: guide });
   }
 

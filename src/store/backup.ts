@@ -9,7 +9,7 @@ import type { Asset, Project, RefImage } from "./types.js";
 
 export const BACKUP_FORMAT = "game-asset-agent/project-backup";
 const FILE_NAME = /^(refs|assets)\/[\w.-]+$/;
-const DATA_FILES = ["conversation.json", "usage.json"] as const;
+const DATA_FILES = ["conversation.json", "usage.json", "style-history.json"] as const;
 
 /** Everything needed to recreate the project elsewhere: metadata, history, usage and all files. */
 export async function buildBackup(projectId: string): Promise<{ filename: string; zip: Buffer }> {

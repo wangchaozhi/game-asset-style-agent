@@ -48,6 +48,7 @@
         <span class="style-actions">
           <button id="editStyle" class="btn link">编辑</button>
           <button id="resetStyle" class="btn link" hidden>重新提炼</button>
+          <button id="styleHistory" class="btn link" title="查看与恢复以前的风格指南">历史</button>
         </span>
       </div>
       <div id="styleGuide" class="style-guide empty">还没有风格指南，第一次运行时 Agent 会根据参考图自动生成。</div>
@@ -133,6 +134,11 @@
   <dialog id="usageDialog" class="usage-dialog">
     <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
     <div class="usage-body"><h3>成本与用量</h3><div id="usageBody"></div></div>
+  </dialog>
+
+  <dialog id="historyDialog" class="usage-dialog">
+    <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
+    <div class="usage-body"><h3>风格指南历史</h3><div id="historyBody"></div></div>
   </dialog>
 
   <div id="toast" class="toast" hidden></div>

@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { shrink } from "../image/io.js";
 import { describePalette } from "../image/palette.js";
 import type { ImageProvider } from "../providers/types.js";
-import { updateProject } from "../store/index.js";
+import { recordStyleVersion, updateProject } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { generateAsset } from "./assets.js";
 import { BudgetExceededError } from "./budget.js";
@@ -25,9 +25,12 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
     case "save_style_guide": {
       const parsed = StyleGuideInput.safeParse(block.input);
       if (!parsed.success) return invalid();
+      let previous = null as typeof parsed.data | null;
       await updateProject(job.projectId, (p) => {
+        previous = p.styleGuide;
         p.styleGuide = parsed.data;
       });
+      await recordStyleVersion(job.projectId, parsed.data, "agent", previous);
       emit(job, { type: "style", styleGuide: parsed.data });
       return { type: "tool_result", tool_use_id: block.id, content: "Style guide saved." };
     }

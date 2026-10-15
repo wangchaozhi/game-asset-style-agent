@@ -54,6 +54,7 @@ describe("project backup", () => {
     });
     await store.saveConversation(p.id, { messages: [{ role: "user", content: "hi" }], runs: [{ request: "hi", at: "" }] });
     await store.saveRunUsage(p.id, newRunUsage("job_1", "hi", "agent"));
+    await store.recordStyleVersion(p.id, validStyleGuide(), "agent");
 
     const { zip, filename } = await store.buildBackup(p.id);
     assert.equal(filename, "原项目_backup.zip");
@@ -66,6 +67,7 @@ describe("project backup", () => {
     const dir = path.join(dataDir, "projects", project.id);
     assert.deepEqual(fs.readdirSync(path.join(dir, "assets")).sort(), ["ast_1.png", "ast_1_orig.png"]);
     assert.deepEqual((await store.loadConversation(project.id))!.runs.length, 1);
+    assert.equal((await store.loadStyleHistory(project.id)).length, 1);
     assert.equal((await store.loadUsage(project.id))[0].status, "interrupted", "a run that was in progress cannot resume");
     assert.deepEqual(await store.loadProject(project.id), project);
   });

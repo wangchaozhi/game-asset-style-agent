@@ -5,10 +5,12 @@ import { runningJobFor } from "../agent/index.js";
 import { StyleGuideInput } from "../agent/schemas.js";
 import {
   clearConversation, createProject, deleteProject, listProjects, loadConversation, loadProject, projectDir,
-  buildBackup, importBackup, projectDiskUsage, removeOrphanFiles, updateProject,
+  buildBackup, importBackup, loadStyleHistory, projectDiskUsage, recordStyleVersion, removeOrphanFiles, styleDiff,
+  updateProject,
 } from "../store/index.js";
 import { THUMB_WIDTHS, getThumb } from "../image/thumbs.js";
 import { isPixelArt } from "../image/sizes.js";
+import type { Project } from "../store/types.js";
 import { attachment, pid } from "./util.js";
 
 export const projectsRouter = Router();
@@ -27,10 +29,16 @@ projectsRouter.get("/api/projects/:id", async (req, res) => {
 });
 
 projectsRouter.patch("/api/projects/:id", async (req, res) => {
+  let cleared = null as Project["styleGuide"];
   const p = await updateProject(pid(req), (p) => {
     if (typeof req.body?.name === "string") p.name = req.body.name.slice(0, 80);
-    if (req.body?.resetStyle) p.styleGuide = null;
+    if (req.body?.resetStyle) {
+      cleared = p.styleGuide;
+      p.styleGuide = null;
+    }
   });
+  // Clearing keeps the old guide restorable from the history.
+  if (cleared) await recordStyleVersion(p.id, cleared, "import", cleared);
   res.json(p);
 });
 
@@ -45,7 +53,34 @@ projectsRouter.put("/api/projects/:id/style-guide", async (req, res) => {
     const issue = parsed.error.issues[0];
     return void res.status(400).json({ error: `风格指南字段无效：${issue.path.join(".")} ${issue.message}` });
   }
-  res.json(await updateProject(pid(req), (p) => void (p.styleGuide = parsed.data)));
+  let previous = null as typeof parsed.data | null;
+  const project = await updateProject(pid(req), (p) => {
+    previous = p.styleGuide;
+    p.styleGuide = parsed.data;
+  });
+  await recordStyleVersion(project.id, parsed.data, "user", previous);
+  res.json(project);
+});
+
+/** Saved style guide versions, newest first, with the fields that differ from the current guide. */
+projectsRouter.get("/api/projects/:id/style-history", async (req, res) => {
+  const project = await loadProject(pid(req));
+  const list = await loadStyleHistory(project.id);
+  res.json(
+    list
+      .map((v, index) => ({ index, ...v, changed: styleDiff(v.styleGuide, project.styleGuide) }))
+      .reverse(),
+  );
+});
+
+/** Make an earlier version current again (recorded as a new version). */
+projectsRouter.post("/api/projects/:id/style-history/:index/restore", async (req, res) => {
+  const list = await loadStyleHistory(pid(req));
+  const v = list[Number(req.params.index)];
+  if (!v || !/^\d+$/.test(String(req.params.index))) return void res.status(404).json({ error: "没有这个历史版本" });
+  const project = await updateProject(pid(req), (p) => void (p.styleGuide = v.styleGuide));
+  await recordStyleVersion(project.id, v.styleGuide, "restore");
+  res.json(project);
 });
 
 projectsRouter.get("/api/projects/:id/conversation", async (req, res) => {
