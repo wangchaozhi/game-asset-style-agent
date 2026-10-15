@@ -23,3 +23,8 @@
 .run-status.running { color: var(--pending); }
 .usage-storage { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
 .usage-storage b { color: var(--ink); font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  .usage-body { padding: 16px; }
+  .usage-tiles { grid-template-columns: repeat(2, 1fr); }
+  .usage-tiles b { font-size: 17px; }
+}

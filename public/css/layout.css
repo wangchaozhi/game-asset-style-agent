@@ -7,12 +7,20 @@
 .brand { display: flex; gap: 12px; align-items: center; }
 .brand p { color: var(--muted); font-size: 13px; }
 .logo { font-size: 26px; color: var(--accent); }
-.project-bar { display: flex; gap: 8px; align-items: center; }
+.project-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; min-width: 0; }
+.project-bar select { min-width: 0; max-width: 100%; }
 .layout {
   display: grid; grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.3fr) minmax(320px, 1.5fr);
   gap: 16px; padding: 16px 20px; align-items: start;
 }
 @media (max-width: 1100px) { .layout { grid-template-columns: 1fr 1fr; } #assetPanel { grid-column: 1 / -1; } }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; min-width: 0; }
-@media (max-width: 720px) { .layout { grid-template-columns: 1fr; padding: 12px 16px; } .topbar { padding: 12px 16px; } }
+@media (max-width: 720px) {
+  .layout { grid-template-columns: 1fr; padding: 12px 16px; }
+  .topbar { padding: 12px 16px; }
+  .brand p { display: none; }
+  .project-bar { width: 100%; }
+  .project-bar select { flex: 1 1 100%; }
+  .project-bar .btn { padding: 6px 10px; font-size: 13px; }
+}
 .style-head, .log-head, .asset-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }

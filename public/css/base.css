@@ -44,6 +44,7 @@ textarea { width: 100%; resize: vertical; }
 select:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .btn { font: inherit; border-radius: 8px; padding: 7px 14px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
 .btn:hover { border-color: var(--muted); }
+a.btn, label.btn { text-decoration: none; display: inline-flex; align-items: center; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .btn.primary:disabled { opacity: 0.5; cursor: progress; }
 .btn.ghost { background: transparent; }
