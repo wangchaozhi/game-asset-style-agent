@@ -64,7 +64,7 @@ function emit(job: Job, e: AgentEvent) {
 
 // ---------------- tools ----------------
 
-const StyleGuideInput = z.object({
+export const StyleGuideInput = z.object({
   summary: z.string().min(1),
   palette: z.array(z.object({ hex: z.string().regex(/^#[0-9a-fA-F]{6}$/), role: z.string() })).min(3),
   rendering: z.string(),

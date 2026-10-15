@@ -17,7 +17,7 @@ import {
 import { providers, toPng } from "./imageProviders.js";
 import { removeBackground } from "./postprocess.js";
 import { createZip, type ZipEntry } from "./zip.js";
-import { ASSET_TYPES, type AgentEvent, jobs, sliceAssetFrames, startJob } from "./agent.js";
+import { ASSET_TYPES, type AgentEvent, StyleGuideInput, jobs, sliceAssetFrames, startJob } from "./agent.js";
 
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -60,6 +60,15 @@ app.patch("/api/projects/:id", async (req, res) => {
     if (req.body?.resetStyle) p.styleGuide = null;
   });
   res.json(p);
+});
+
+app.put("/api/projects/:id/style-guide", async (req, res) => {
+  const parsed = StyleGuideInput.safeParse(req.body);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0];
+    return void res.status(400).json({ error: `风格指南字段无效：${issue.path.join(".")} ${issue.message}` });
+  }
+  res.json(await updateProject(pid(req), (p) => void (p.styleGuide = parsed.data)));
 });
 
 app.delete("/api/projects/:id", async (req, res) => {
