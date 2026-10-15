@@ -13,6 +13,8 @@ export async function api(path, opts = {}) {
     body: json ? JSON.stringify(opts.body) : opts.body,
   });
   const data = await res.json().catch(() => ({}));
+  // Session expired or token changed on the server: back to the login page.
+  if (res.status === 401 && data.login) location.href = "/login.html";
   if (!res.ok) throw Object.assign(new Error(data.error || `HTTP ${res.status}`), { data });
   return data;
 }

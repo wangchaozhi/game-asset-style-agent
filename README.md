@@ -60,7 +60,7 @@ NODE_ENV=production npm run start:prod
 
 ### 上线前注意
 
-- 应用本身**没有登录鉴权**，任何能访问端口的人都能用你的 API 额度。公网部署请放在带认证的反向代理（如 Nginx basic auth、Cloudflare Access）之后。
+- 公网部署务必设置 `ACCESS_TOKEN`：开启后打开页面需先输入令牌登录（会话保存在 HttpOnly Cookie，30 天），脚本可用 `Authorization: Bearer <令牌>` 调 API；`/healthz` 始终开放供健康检查。不设置时任何能访问端口的人都能用你的 API 额度。
 - 生成任务记录在内存里，同一份数据目录只运行**一个实例**；重启会中断进行中的任务（已生成的素材不受影响）。
 - SSE 实时日志需要反向代理关闭缓冲（Nginx：`proxy_buffering off;`）。
 

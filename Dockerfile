@@ -22,5 +22,5 @@ USER node
 VOLUME ["/data"]
 EXPOSE 5173
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||5173)+'/api/config').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||5173)+'/healthz').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 CMD ["node", "dist/server.js"]

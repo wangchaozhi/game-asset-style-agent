@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>登录 · Game Asset Agent</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 1l7 7-7 7-7-7z' fill='%23e2562b'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/css/base.css" />
+  <link rel="stylesheet" href="/css/login.css" />
+</head>
+<body>
+  <main class="login">
+    <form id="loginForm" class="login-card">
+      <div class="login-brand"><span class="logo">◆</span><h1>Game Asset Agent</h1></div>
+      <p class="muted">此实例已开启访问保护，请输入访问令牌（ACCESS_TOKEN）。</p>
+      <input type="password" name="token" id="token" placeholder="访问令牌" autocomplete="current-password" required autofocus />
+      <p class="login-error" id="loginError" hidden></p>
+      <button class="btn primary" type="submit">进入</button>
+    </form>
+  </main>
+  <script type="module" src="/js/login.js"></script>
+</body>
+</html>

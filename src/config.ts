@@ -21,6 +21,10 @@ export const config = {
   get dataDir() {
     return path.resolve(process.env.DATA_DIR ?? "data");
   },
+  /** When set, every page and API call requires logging in with this token. */
+  get accessToken() {
+    return process.env.ACCESS_TOKEN?.trim() || null;
+  },
   get port() {
     return Number(process.env.PORT ?? 5173);
   },

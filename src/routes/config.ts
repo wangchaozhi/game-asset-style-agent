@@ -12,5 +12,6 @@ configRouter.get("/api/config", (_req, res) => {
     assetTypes: ASSET_TYPES,
     sizePresets: SIZE_PRESETS,
     demo: config.demo,
+    auth: !!config.accessToken,
   });
 });

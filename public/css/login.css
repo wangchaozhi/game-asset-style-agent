@@ -1,0 +1,9 @@
+/* Access-token login page. */
+
+.login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.login-card { width: min(360px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; display: flex; flex-direction: column; gap: 12px; }
+.login-brand { display: flex; align-items: center; gap: 10px; }
+.login-brand .logo { font-size: 24px; color: var(--accent); }
+.login-card input { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; }
+.login-card input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.login-error { color: var(--bad); font-size: 13px; }

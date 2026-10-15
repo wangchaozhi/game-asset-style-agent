@@ -10,6 +10,14 @@ import { bindRun, resumeJob } from "./run.js";
 
 async function init() {
   state.config = await api("/api/config");
+  if (state.config.auth) {
+    const out = document.querySelector("#logout");
+    out.hidden = false;
+    out.addEventListener("click", async () => {
+      await api("/api/logout", { method: "POST" });
+      location.href = "/login.html";
+    });
+  }
   bindRun();
   bindProjects(resumeJob);
   bindRefs();
