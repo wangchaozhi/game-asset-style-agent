@@ -12,6 +12,7 @@
 .ref-note { all: unset; cursor: pointer; font-size: 11px; line-height: 1.3; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-all; }
 .ref-note.has { color: var(--ink); }
 .ref-note:hover, .ref-note:focus-visible { color: var(--accent); }
+.ref-note:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 .ref { position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
 .ref img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .ref button { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%; border: 0; background: rgba(0,0,0,.6); color: #fff; cursor: pointer; line-height: 1; opacity: 0; }

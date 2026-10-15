@@ -4,13 +4,14 @@
   --bg: #f4f2ee;
   --panel: #ffffff;
   --ink: #1d1b19;
-  --muted: #77716a;
+  /* Text colours below reach WCAG AA (4.5:1) on --bg, --panel and --chip. */
+  --muted: #6b655e;
   --line: #e4dfd7;
-  --accent: #e2562b;
+  --accent: #b9431f;
   --accent-ink: #ffffff;
-  --ok: #2f8f5b;
+  --ok: #24734a;
   --bad: #c0392b;
-  --pending: #b7871b;
+  --pending: #8a6410;
   --chip: #f0ebe3;
   --check-a: #ece8e1;
   --check-b: #f8f6f2;
@@ -26,6 +27,11 @@
     --muted: #9b948a;
     --line: #2f2c28;
     --chip: #2a2724;
+    --accent: #ef6a3f;
+    --accent-ink: #1d1b19;
+    --ok: #3fae73;
+    --bad: #ef7067;
+    --pending: #d6a332;
     --check-a: #25221f;
     --check-b: #2d2a26;
     color-scheme: dark;

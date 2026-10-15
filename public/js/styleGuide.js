@@ -20,10 +20,10 @@ const EMPTY_STYLE = {
 
 export function paletteRow(c) {
   return `<div class="pal-row">
-    <input type="color" value="${esc(c.hex)}" data-pal="pick" />
-    <input type="text" value="${esc(c.hex)}" data-pal="hex" maxlength="7" />
-    <input type="text" value="${esc(c.role)}" data-pal="role" placeholder="用途" />
-    <button type="button" class="btn link" data-pal="del" title="删除">×</button>
+    <input type="color" value="${esc(c.hex)}" data-pal="pick" aria-label="选择颜色" />
+    <input type="text" value="${esc(c.hex)}" data-pal="hex" maxlength="7" aria-label="颜色值（#RRGGBB）" />
+    <input type="text" value="${esc(c.role)}" data-pal="role" placeholder="用途" aria-label="颜色用途" />
+    <button type="button" class="btn link" data-pal="del" title="删除" aria-label="删除这个颜色">×</button>
   </div>`;
 }
 

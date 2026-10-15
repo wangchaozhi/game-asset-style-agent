@@ -5,7 +5,7 @@ import { attachJob } from "../run.js";
 
 export const html = (a) => `<form class="prompt-form" data-regen="${a.id}">
       <div class="sizes-head"><b>Prompt</b><span class="muted">可直接修改后重生成</span></div>
-      <textarea name="prompt" rows="5" spellcheck="false">${esc(a.prompt)}</textarea>
+      <textarea name="prompt" rows="5" spellcheck="false" aria-label="Prompt">${esc(a.prompt)}</textarea>
       <button class="btn ghost" type="submit" title="用编辑后的 prompt 直接调用图像模型生成新版本，不经过 Claude">直接重生成（不经过 Agent）</button>
     </form>`;
 

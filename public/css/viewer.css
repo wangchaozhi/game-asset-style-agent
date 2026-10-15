@@ -45,8 +45,8 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .size-preview img { image-rendering: pixelated; max-width: 100%; }
 .tile-check { display: grid; gap: 8px; }
 .tile-grid { --n: 3; width: 100%; aspect-ratio: 1; border-radius: 8px; border: 1px solid var(--line); background-size: calc(100% / 3) calc(100% / 3); background-repeat: repeat; image-rendering: pixelated; }
-.seam-result.ok { color: #2e9e5b; }
-.seam-result.bad { color: #d64545; }
+.seam-result.ok { color: var(--ok); }
+.seam-result.bad { color: var(--bad); }
 .palette-check { display: grid; gap: 6px; }
 .pal-result.ok { color: var(--ok); }
 .pal-result.warn { color: var(--pending); }
