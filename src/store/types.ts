@@ -48,6 +48,8 @@ export interface Asset {
   /** previous version this asset was redrawn from */
   parentId?: string;
   reviewer?: "agent" | "user";
+  /** palette consistency, measured against the style guide when the asset was made */
+  palette?: { coverage: number; meanDeltaE: number; offPalette: { hex: string; share: number }[] };
 }
 
 export interface Project {

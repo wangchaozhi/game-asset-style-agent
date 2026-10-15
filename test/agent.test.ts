@@ -71,10 +71,12 @@ describe("runTool", () => {
     assert.notEqual(r.is_error, true);
     const content = r.content as Anthropic.Beta.BetaToolResultBlockParam["content"] & unknown[];
     assert.equal((content[1] as { type: string }).type, "image");
+    assert.match((content[0] as { text: string }).text, /Palette check: \d+% of opaque pixels/);
     const asset = (await store.loadProject(projectId)).assets.at(-1)!;
     assert.equal(asset.name, "铁盾");
     assert.equal(asset.status, "pending_review");
     assert.ok(asset.originalFile, "mock's white backdrop was cut out");
+    assert.ok(asset.palette && asset.palette.coverage > 0.5, JSON.stringify(asset.palette));
     assert.equal(job.usage.images.calls, 1);
     assert.ok(types(job.events).includes("asset"));
     assert.ok(types(job.events).includes("usage"));

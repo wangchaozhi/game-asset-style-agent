@@ -1,5 +1,6 @@
 import { shrink } from "../image/io.js";
 import { isOpaque, removeBackground } from "../image/background.js";
+import { analyzePalette } from "../image/palette.js";
 import { detectFrameCount, sliceSheet } from "../image/spriteSheet.js";
 import type { ImageInput, ImageProvider } from "../providers/types.js";
 import { extFor, loadProject, newId, readProjectFile, updateProject, writeProjectFile } from "../store/index.js";
@@ -72,6 +73,10 @@ export async function generateAsset(
   };
   if (input.asset_type === "sprite_sheet") {
     Object.assign(asset, await sliceAssetFrames(project.id, asset, img.data, input.frames).catch(() => ({})));
+  }
+  if (project.styleGuide?.palette.length) {
+    const r = await analyzePalette(img.data, project.styleGuide.palette.map((p) => p.hex)).catch(() => null);
+    if (r) asset.palette = { coverage: r.coverage, meanDeltaE: r.meanDeltaE, offPalette: r.offPalette };
   }
   await updateProject(project.id, (p) => {
     p.assets.push(asset);

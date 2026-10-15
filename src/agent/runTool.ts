@@ -1,5 +1,6 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { shrink } from "../image/io.js";
+import { describePalette } from "../image/palette.js";
 import type { ImageProvider } from "../providers/types.js";
 import { updateProject } from "../store/index.js";
 import type { Asset } from "../store/types.js";
@@ -39,7 +40,13 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
           type: "tool_result",
           tool_use_id: block.id,
           content: [
-            { type: "text", text: `asset_id=${asset.id} name=${asset.name}. Review it against the references now.` },
+            {
+              type: "text",
+              text: [
+                `asset_id=${asset.id} name=${asset.name}. Review it against the references now.`,
+                asset.palette ? describePalette(asset.palette) : "",
+              ].filter(Boolean).join("\n"),
+            },
             {
               type: "image",
               source: { type: "base64", media_type: preview.mime as "image/jpeg", data: preview.data.toString("base64") },

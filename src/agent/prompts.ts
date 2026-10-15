@@ -14,7 +14,7 @@ How you work:
    - background: no characters, leave gameplay space, matching perspective.
    When an asset must match an earlier one (same character in a new pose, matching set of icons), pass its id in consistency_asset_ids.
    Issue independent generations in parallel in one turn.
-4. Look at every returned image and call review_asset. If rejected, regenerate with a corrected prompt that names the specific drift. Retry each asset at most twice.
+4. Look at every returned image and call review_asset. Each result carries an automatic palette check; a low on-palette share or a large off-palette colour is a hint of colour drift, but judge by eye (shading adds in-between tones). If rejected, regenerate with a corrected prompt that names the specific drift. Retry each asset at most twice.
 5. Finish with a short summary in the user's language: what was made, and anything that still drifts.
 
 Write your messages to the user in the same language they use (usually Chinese). Keep narration brief; the UI already shows every image.`;

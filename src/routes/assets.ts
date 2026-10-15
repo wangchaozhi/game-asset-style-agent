@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { sliceAssetFrames } from "../agent/assets.js";
 import { removeBackground } from "../image/background.js";
+import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { analyzeSeams, tilePreview } from "../image/tiles.js";
 import { readProjectFile, updateProject, writeProjectFile } from "../store/index.js";
@@ -99,4 +100,14 @@ assetsRouter.get("/api/projects/:id/assets/:assetId/sized.png", async (req, res)
   res.setHeader("Content-Type", "image/png");
   if (req.query.download) res.setHeader("Content-Disposition", attachment("asset.png", `${asset.name}@${req.query.size}.png`));
   res.send(png);
+});
+
+/** Fresh palette check against the current style guide (it may have been edited since generation). */
+assetsRouter.get("/api/projects/:id/assets/:assetId/palette", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  const palette = found.project.styleGuide?.palette.map((p) => p.hex) ?? [];
+  if (!palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  const threshold = Math.max(2, Math.min(60, Number(req.query.threshold ?? 20)));
+  res.json(await analyzePalette(await readProjectFile(found.project.id, found.asset.file), palette, { threshold }));
 });

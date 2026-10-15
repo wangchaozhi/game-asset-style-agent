@@ -97,6 +97,9 @@ describe("HTTP API (demo mode)", () => {
     const seams = (await json(`/api/projects/${id}/assets/${tile.id}/seams`)).body;
     assert.equal(typeof seams.seamless, "boolean");
     assert.equal((await json(`/api/projects/${id}/assets/ast_missing/seams`)).status, 404);
+    const pal = (await json(`/api/projects/${id}/assets/${tile.id}/palette?threshold=25`)).body;
+    assert.equal(pal.threshold, 25);
+    assert.equal(pal.usage.length, 3);
   });
 
   it("manual review updates status and rejects bad values", async () => {

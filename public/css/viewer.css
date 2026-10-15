@@ -39,3 +39,12 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .tile-grid { --n: 3; width: 100%; aspect-ratio: 1; border-radius: 8px; border: 1px solid var(--line); background-size: calc(100% / 3) calc(100% / 3); background-repeat: repeat; image-rendering: pixelated; }
 .seam-result.ok { color: #2e9e5b; }
 .seam-result.bad { color: #d64545; }
+.palette-check { display: grid; gap: 6px; }
+.pal-result.ok { color: var(--ok); }
+.pal-result.warn { color: var(--pending); }
+.pal-result.bad { color: var(--bad); }
+.pal-bar { display: flex; height: 14px; border-radius: 4px; overflow: hidden; border: 1px solid var(--line); }
+.pal-bar i { display: block; min-width: 2px; }
+.pal-off { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; font-size: 12px; }
+.pal-chip { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.pal-chip i { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
