@@ -18,7 +18,9 @@
 .card img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .card .meta { padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
 .card .name { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card .sub { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); }
+.card .sub { display: flex; justify-content: space-between; gap: 6px; font-size: 11px; color: var(--muted); }
+.card .sub > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.card .sub .badge { white-space: nowrap; flex-shrink: 0; }
 .card.new { animation: pop 0.4s ease-out; }
 @keyframes pop { from { transform: scale(0.94); opacity: 0; } to { transform: none; opacity: 1; } }
 .btn.small { padding: 3px 10px; font-size: 12px; text-decoration: none; }

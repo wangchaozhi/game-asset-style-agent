@@ -6,6 +6,13 @@
 
 ![flow](https://img.shields.io/badge/flow-参考图→风格指南→规划→生成→审核→重画-e2562b)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/main-dark.png" />
+  <img alt="Game Asset Agent 主界面：风格参考与风格指南、需求与 Agent 日志、素材库" src="docs/screenshots/main-light.png" />
+</picture>
+
+<sub>截图为演示模式（`AGENT_MODE=demo`），素材是离线 Mock 占位图；接入 Claude 与图像模型后为真实生成结果。</sub>
+
 ## 功能
 
 - 🎨 **风格提炼**：Claude 视觉分析参考图，保存结构化风格指南，项目内所有后续生成都复用它
@@ -17,6 +24,8 @@
 - 💰 **成本可控**：实时用量与费用估算；单次运行可设图像次数 / 费用上限，达到后 Agent 停止出图并收尾；图像接口限流自动退避重试
 - ⚡ 并行生成、SSE 实时日志（含思考摘要）、可随时停止、刷新页面自动续接任务
 - 🔌 图像模型可插拔：OpenAI `gpt-image-1`（多图参考 edits）、Google Gemini Image、本地 Stable Diffusion WebUI（AUTOMATIC1111 / Forge，可选 IP-Adapter 参考图风格）、离线 Mock
+
+<img alt="素材查看器：审核与按意见重画、色板一致性、精灵帧抖动检测与对齐、游戏尺寸" src="docs/screenshots/viewer.png" />
 
 ## 快速开始
 
