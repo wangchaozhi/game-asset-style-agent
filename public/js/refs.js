@@ -1,11 +1,11 @@
 // Style reference images: list, upload (picker / drag-drop / paste), remove.
 import { $, api, esc, toast } from "./lib.js";
-import { fileUrl, state } from "./state.js";
+import { state, thumbUrl } from "./state.js";
 
 export function renderRefs() {
   const refs = state.project.refs;
   $("#refs").innerHTML = refs
-    .map((r) => `<div class="ref"><img src="${fileUrl(r.file)}" alt="${esc(r.originalName)}" /><button data-ref="${r.id}" title="移除">×</button></div>`)
+    .map((r) => `<div class="ref"><img src="${thumbUrl(r.file, 160)}" alt="${esc(r.originalName)}" /><button data-ref="${r.id}" title="移除">×</button></div>`)
     .join("");
 }
 

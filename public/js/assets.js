@@ -1,6 +1,6 @@
 // Asset library grid, filters and multi-select.
 import { $, esc } from "./lib.js";
-import { fileUrl, state } from "./state.js";
+import { state, thumbUrl } from "./state.js";
 
 const LABEL = { approved: "✓ 通过", rejected: "✗ 驳回", pending_review: "… 审核中" };
 
@@ -47,7 +47,7 @@ export function renderAssets(newId) {
         .map(
           (a) => `<div class="card ${a.status} ${a.id === newId ? "new" : ""} ${state.selected.has(a.id) ? "selected" : ""}" data-asset="${a.id}">
             <span class="tick" aria-hidden="true"></span>
-            <div class="checker"><img loading="lazy" src="${fileUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /></div>
+            <div class="checker"><img loading="lazy" decoding="async" src="${thumbUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /></div>
             <div class="meta"><span class="name">${esc(a.name)}</span>
               <span class="sub"><span>${esc(typeName(a.assetType))}</span><span class="badge ${a.status}">${LABEL[a.status]}${a.score ? ` ${a.score}/10` : ""}</span></span>
             </div></div>`,

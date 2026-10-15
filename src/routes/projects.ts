@@ -7,6 +7,8 @@ import {
   clearConversation, createProject, deleteProject, listProjects, loadConversation, loadProject, projectDir,
   buildBackup, importBackup, projectDiskUsage, removeOrphanFiles, updateProject,
 } from "../store/index.js";
+import { THUMB_WIDTHS, getThumb } from "../image/thumbs.js";
+import { isPixelArt } from "../image/sizes.js";
 import { attachment, pid } from "./util.js";
 
 export const projectsRouter = Router();
@@ -61,6 +63,22 @@ projectsRouter.get("/api/projects/:id/files/*rel", (req, res) => {
   const rel = ([] as string[]).concat(req.params.rel as string | string[]).join("/");
   if (!/^(refs|assets)\/[\w.-]+$/.test(rel)) return void res.status(400).end();
   res.sendFile(path.join(projectDir(pid(req)), rel));
+});
+
+/** Cached WebP thumbnail of a reference or asset file: ?w=160|320|640 (default 320). */
+projectsRouter.get("/api/projects/:id/thumbs/*rel", async (req, res) => {
+  const rel = ([] as string[]).concat(req.params.rel as string | string[]).join("/");
+  if (!/^(refs|assets)\/[\w.-]+$/.test(rel)) return void res.status(400).end();
+  const w = Number(req.query.w ?? 320);
+  if (!(THUMB_WIDTHS as readonly number[]).includes(w)) return void res.status(400).json({ error: `w 需为 ${THUMB_WIDTHS.join(" / ")}` });
+  const project = await loadProject(pid(req));
+  // Asset art in a pixel style keeps hard edges; reference photos/paintings use smooth scaling.
+  const pixel = rel.startsWith("assets/") && isPixelArt(project.styleGuide);
+  const data = await getThumb(projectDir(project.id), rel, w, pixel);
+  res.setHeader("Content-Type", "image/webp");
+  // Revalidate every time (ETag → 304): a re-sliced GIF keeps its path but changes content.
+  res.setHeader("Cache-Control", "private, no-cache");
+  res.send(data);
 });
 
 /** Disk space used by the project folder. */

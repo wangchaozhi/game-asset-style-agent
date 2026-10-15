@@ -83,6 +83,10 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:5173/api/projects
 
 读取参考图或素材文件，`rel` 形如 `assets/ast_xxx.png`、`refs/ref_xxx.png`。
 
+### `GET /api/projects/:id/thumbs/*rel`
+
+参考图或素材的 WebP 缩略图：`?w=160|320|640`（默认 320）。首次请求时生成并缓存，源文件更新后自动重建；GIF 保持动画，像素风用最近邻缩放。
+
 ### `GET /api/projects/:id/storage`
 
 磁盘占用：`{ bytes }`。

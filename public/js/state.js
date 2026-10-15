@@ -20,3 +20,6 @@ export const state = {
 };
 
 export const fileUrl = (rel) => `/api/projects/${state.project.id}/files/${rel}`;
+
+/** Cached WebP thumbnail (160 / 320 / 640 px). */
+export const thumbUrl = (rel, w = 320) => `/api/projects/${state.project.id}/thumbs/${rel}?w=${w}`;

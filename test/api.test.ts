@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -94,6 +95,16 @@ describe("HTTP API (demo mode)", () => {
     const project = (await json(`/api/projects/${id}`)).body;
     const tile = project.assets.find((a: { assetType: string }) => a.assetType === "tile");
     assert.equal((await fetch(`${base}/api/projects/${id}/files/${tile.file}`)).status, 200);
+    const thumb = await fetch(`${base}/api/projects/${id}/thumbs/${tile.file}?w=160`);
+    assert.equal(thumb.headers.get("content-type"), "image/webp");
+    const etag = thumb.headers.get("etag")!;
+    // fetch() adds "cache-control: no-cache" to conditional requests, so revalidate the way a browser cache does.
+    const revalidated = await new Promise<number>((resolve, reject) =>
+      http.get(`${base}/api/projects/${id}/thumbs/${tile.file}?w=160`, { headers: { "if-none-match": etag } }, (r) => (r.resume(), resolve(r.statusCode!))).on("error", reject),
+    );
+    assert.equal(revalidated, 304);
+    assert.equal((await fetch(`${base}/api/projects/${id}/thumbs/${tile.file}?w=999`)).status, 400);
+    assert.equal((await fetch(`${base}/api/projects/${id}/thumbs/project.json`)).status, 400);
     assert.equal((await fetch(`${base}/api/projects/${id}/files/project.json`)).status, 400);
     assert.equal((await fetch(`${base}/api/projects/${id}/files/assets/..%2Fproject.json`)).status, 400);
     const sized = await fetch(`${base}/api/projects/${id}/assets/${tile.id}/sized.png?size=32`);
