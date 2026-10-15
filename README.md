@@ -31,6 +31,39 @@ AGENT_MODE=demo npm start
 
 演示模式不调用 Claude，用脚本跑一遍「风格提取 → 生成 → 入库」，图像用本地 Mock 占位图。
 
+## 部署
+
+### Docker
+
+```bash
+cp .env.example .env          # 填入 key
+docker compose up -d --build  # http://localhost:5173
+```
+
+数据保存在名为 `asset-data` 的卷里（容器内 `/data`）。改端口：`PORT=8080 docker compose up -d`。
+
+不用 compose 时：
+
+```bash
+docker build -t game-asset-agent .
+docker run -d -p 5173:5173 --env-file .env -v gaa-data:/data game-asset-agent
+```
+
+镜像为多阶段构建：先把 TypeScript 编译到 `dist/`，运行层只装生产依赖，以非 root 的 `node` 用户运行，并带 `/api/config` 健康检查。
+
+### 直接用 Node（≥ 22）
+
+```bash
+npm ci && npm run build
+NODE_ENV=production npm run start:prod
+```
+
+### 上线前注意
+
+- 应用本身**没有登录鉴权**，任何能访问端口的人都能用你的 API 额度。公网部署请放在带认证的反向代理（如 Nginx basic auth、Cloudflare Access）之后。
+- 生成任务记录在内存里，同一份数据目录只运行**一个实例**；重启会中断进行中的任务（已生成的素材不受影响）。
+- SSE 实时日志需要反向代理关闭缓冲（Nginx：`proxy_buffering off;`）。
+
 ## 开发
 
 ```bash

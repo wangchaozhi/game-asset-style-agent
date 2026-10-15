@@ -14,4 +14,4 @@
 - [x] 工程模块化：后端按 agent / routes / providers / image / export / usage / store 分目录，前端拆为 ES modules 与分区样式
 - [x] 单元测试：store / 工具输入校验 / mock provider（node:test）
 - [x] GitHub Actions：typecheck + 测试
-- [ ] Dockerfile 与一键部署说明
+- [x] Dockerfile 与一键部署说明

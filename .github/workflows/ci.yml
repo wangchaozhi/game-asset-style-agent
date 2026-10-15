@@ -27,3 +27,27 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+
+  docker:
+    name: docker build + smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: check
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t game-asset-agent:ci .
+      - name: Run in demo mode and wait for healthy
+        run: |
+          docker run -d --name gaa -p 5173:5173 -e AGENT_MODE=demo game-asset-agent:ci
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' gaa)
+            [ "$status" = healthy ] && break
+            sleep 2
+          done
+          docker inspect -f '{{.State.Health.Status}}' gaa | grep -qx healthy
+          curl -fsS http://localhost:5173/api/config | grep -q '"demo":true'
+          curl -fsS -X POST -H 'Content-Type: application/json' -d '{"name":"ci"}' http://localhost:5173/api/projects | grep -q '"id":"prj_'
+      - name: Container logs
+        if: always()
+        run: docker logs gaa || true

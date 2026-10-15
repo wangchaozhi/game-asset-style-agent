@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    image: game-asset-agent
+    ports:
+      - "${PORT:-5173}:5173"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: "5173"
+      DATA_DIR: /data
+    volumes:
+      - asset-data:/data
+    restart: unless-stopped
+
+volumes:
+  asset-data:
