@@ -225,6 +225,7 @@ function openViewer(id) {
       <button class="btn primary" data-redraw="${a.id}">按意见重画</button>
     </div>
     ${a.assetType === "sprite_sheet" ? spriteSection(a) : ""}
+    ${a.assetType === "tile" ? tileSection(a) : ""}
     ${sizeSection(a)}
     <form class="cutout-form" data-cutout="${a.id}">
       <label>去背景容差 <input name="tolerance" type="range" min="4" max="100" value="28" /><output>28</output></label>
@@ -238,6 +239,29 @@ function openViewer(id) {
       <button class="btn ghost danger" data-del-asset="${a.id}">删除</button>
     </div>`;
   $("#viewer").showModal();
+  if (a.assetType === "tile") loadSeams(a.id);
+}
+
+function tileSection(a) {
+  return `<div class="tile-check">
+    <div class="sizes-head"><b>无缝平铺检查</b><span class="seam-result muted">检测中…</span></div>
+    <div class="tile-grid" style="background-image:url('${fileUrl(a.file)}?t=${Date.now()}')"></div>
+  </div>`;
+}
+
+async function loadSeams(id) {
+  const el = $("#viewerMeta .seam-result");
+  try {
+    const r = await api(`/api/projects/${state.project.id}/assets/${id}/seams`);
+    if (!el.isConnected) return;
+    const bad = [!r.horizontalOk && "左右", !r.verticalOk && "上下"].filter(Boolean).join("、");
+    el.className = `seam-result ${r.seamless ? "ok" : "bad"}`;
+    el.textContent = r.seamless
+      ? `✓ 可无缝平铺（左右差 ${r.horizontalDiff}，上下差 ${r.verticalDiff}）`
+      : `✗ ${bad}边缘有接缝（左右差 ${r.horizontalDiff}，上下差 ${r.verticalDiff}，基线 ${r.baseline}）`;
+  } catch (err) {
+    el.textContent = err.message;
+  }
 }
 
 function sizeSection(a) {

@@ -18,6 +18,7 @@ import {
 } from "./store.js";
 import { providers, toPng } from "./imageProviders.js";
 import { removeBackground } from "./postprocess.js";
+import { analyzeSeams, tilePreview } from "./tiles.js";
 import { createZip, type ZipEntry } from "./zip.js";
 import { SIZE_PRESETS, isPixelArt, parseSize, resizeAsset } from "./sizes.js";
 import { ASSET_TYPES, type AgentEvent, StyleGuideInput, jobs, sliceAssetFrames, startJob } from "./agent.js";
@@ -165,6 +166,25 @@ app.post("/api/projects/:id/assets/:assetId/cutout", async (req, res) => {
     if (a) Object.assign(a, { originalFile, file, mime: restore ? asset.mime : "image/png" }, sliced);
   });
   res.json(p.assets.find((a) => a.id === asset.id));
+});
+
+app.get("/api/projects/:id/assets/:assetId/seams", async (req, res) => {
+  const projectId = pid(req);
+  const project = await loadProject(projectId);
+  const asset = project.assets.find((a) => a.id === req.params.assetId);
+  if (!asset) return void res.status(404).json({ error: "素材不存在" });
+  res.json(await analyzeSeams(await readProjectFile(projectId, asset.file)));
+});
+
+app.get("/api/projects/:id/assets/:assetId/tiled.png", async (req, res) => {
+  const projectId = pid(req);
+  const project = await loadProject(projectId);
+  const asset = project.assets.find((a) => a.id === req.params.assetId);
+  if (!asset) return void res.status(404).json({ error: "素材不存在" });
+  const n = Number(req.query.n ?? 3);
+  if (!Number.isInteger(n) || n < 2 || n > 6) return void res.status(400).json({ error: "平铺数需为 2-6 的整数" });
+  res.setHeader("Content-Type", "image/png");
+  res.send(await tilePreview(await readProjectFile(projectId, asset.file), n));
 });
 
 app.get("/api/projects/:id/assets/:assetId/sized.png", async (req, res) => {

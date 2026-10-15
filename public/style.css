@@ -191,3 +191,8 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .size-custom { width: 130px; font: inherit; font-size: 12px; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 .size-preview { display: flex; justify-content: center; align-items: center; padding: 10px; border-radius: 8px; min-height: 60px; }
 .size-preview img { image-rendering: pixelated; max-width: 100%; }
+
+.tile-check { display: grid; gap: 8px; }
+.tile-grid { --n: 3; width: 100%; aspect-ratio: 1; border-radius: 8px; border: 1px solid var(--line); background-size: calc(100% / 3) calc(100% / 3); background-repeat: repeat; image-rendering: pixelated; }
+.seam-result.ok { color: #2e9e5b; }
+.seam-result.bad { color: #d64545; }
