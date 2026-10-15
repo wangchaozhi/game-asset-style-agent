@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { type NextFunction, type Request, type Response, Router } from "express";
+import { createLoginLimiter } from "./security.js";
 
 export const COOKIE = "gaa_session";
 const MAX_AGE_S = 30 * 24 * 3600;
@@ -35,12 +36,22 @@ export function isAuthorized(req: Request, token: string) {
  * Login routes plus a gate in front of everything else.
  * API calls without a session get 401; page loads are sent to the login page.
  */
-export function authGate(token: string) {
+export function authGate(token: string, limiter = createLoginLimiter()) {
   const router = Router();
 
   router.post("/api/login", (req, res) => {
+    const ip = req.ip ?? "unknown";
+    const wait = limiter.blockedFor(ip);
+    if (wait > 0) {
+      res.setHeader("Retry-After", String(Math.ceil(wait / 1000)));
+      return void res.status(429).json({ error: `尝试次数过多，请 ${Math.ceil(wait / 60_000)} 分钟后再试` });
+    }
     const given = typeof req.body?.token === "string" ? req.body.token : "";
-    if (!safeEqual(given, token)) return void res.status(401).json({ error: "访问令牌不正确" });
+    if (!safeEqual(given, token)) {
+      limiter.fail(ip);
+      return void res.status(401).json({ error: "访问令牌不正确" });
+    }
+    limiter.succeed(ip);
     const secure = req.secure ? "; Secure" : "";
     res.setHeader("Set-Cookie", `${COOKIE}=${sessionValue(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE_S}${secure}`);
     res.json({ ok: true });

@@ -66,6 +66,8 @@ NODE_ENV=production npm run start:prod
 - 公网部署务必设置 `ACCESS_TOKEN`：开启后打开页面需先输入令牌登录（会话保存在 HttpOnly Cookie，30 天），脚本可用 `Authorization: Bearer <令牌>` 调 API；`/healthz` 始终开放供健康检查。不设置时任何能访问端口的人都能用你的 API 额度。
 - 生成任务记录在内存里，同一份数据目录只运行**一个实例**；重启会中断进行中的任务（已生成的素材不受影响）。
 - SSE 实时日志需要反向代理关闭缓冲（Nginx：`proxy_buffering off;`）。
+- 登录失败按 IP 限速（默认 10 分钟 10 次）。在反向代理后面时设置 `TRUST_PROXY=1`（或 `loopback`），否则所有请求都会被当成代理的 IP。
+- 响应默认带 CSP、`nosniff`、禁止被嵌入 iframe 等安全头。
 
 ## 开发
 

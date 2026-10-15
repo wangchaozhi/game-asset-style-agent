@@ -46,8 +46,12 @@ describe("HTTP API (demo mode)", () => {
     assert.ok(body.providers.some((p: { id: string; available: boolean }) => p.id === "mock" && p.available));
     assert.ok("item_icon" in body.assetTypes);
     assert.equal(body.budget.maxImages, 40);
-    const html = await (await fetch(base + "/")).text();
-    assert.match(html, /js\/main\.js/);
+    const page = await fetch(base + "/");
+    assert.match(await page.text(), /js\/main\.js/);
+    assert.match(page.headers.get("content-security-policy")!, /script-src 'self'/);
+    assert.equal(page.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(page.headers.get("x-frame-options"), "DENY");
+    assert.equal(page.headers.get("x-powered-by"), null);
   });
 
   it("creates a project and uploads a reference", async () => {

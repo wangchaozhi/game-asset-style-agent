@@ -69,6 +69,16 @@ describe("access token", () => {
     assert.equal((await get("/api/config", { cookie: "gaa_session=" })).status, 401);
   });
 
+  it("rate-limits repeated wrong tokens per IP, even for a then-correct token", async () => {
+    let last: Response | undefined;
+    for (let i = 0; i < 12; i++) last = await login(`wrong-${i}`);
+    assert.equal(last!.status, 429);
+    assert.ok(Number(last!.headers.get("retry-after")) > 0);
+    assert.equal((await login("s3cret-token")).status, 429);
+    // Existing sessions and bearer tokens keep working.
+    assert.equal((await get("/api/projects", { authorization: "Bearer s3cret-token" })).status, 200);
+  });
+
   it("logout clears the cookie", async () => {
     const res = await fetch(base + "/api/logout", { method: "POST", headers: { cookie: `gaa_session=${sessionValue("s3cret-token")}` } });
     assert.match(res.headers.get("set-cookie")!, /Max-Age=0/);
