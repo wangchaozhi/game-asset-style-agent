@@ -25,6 +25,26 @@ jobsRouter.post("/api/projects/:id/run", async (req, res) => {
   res.json({ jobId: job.id });
 });
 
+/** Regenerate one asset from an edited prompt, straight to the image model (no Claude). */
+jobsRouter.post("/api/projects/:id/assets/:assetId/regenerate", async (req, res) => {
+  const projectId = pid(req);
+  const project = await loadProject(projectId);
+  if (!project.assets.some((a) => a.id === req.params.assetId)) return void res.status(404).json({ error: "素材不存在" });
+  const prompt = String(req.body?.prompt ?? "").trim();
+  if (prompt.length < 10) return void res.status(400).json({ error: "prompt 太短" });
+  const running = runningJobFor(projectId);
+  if (running) return void res.status(409).json({ error: "该项目已有任务在运行", jobId: running.id });
+  const job = startJob({
+    projectId,
+    request: "",
+    assetTypes: [],
+    providerId: req.body?.provider ? String(req.body.provider) : undefined,
+    budget: typeof req.body?.budget === "object" && req.body.budget ? req.body.budget : undefined,
+    manual: { assetId: String(req.params.assetId), prompt: prompt.slice(0, 8000) },
+  });
+  res.json({ jobId: job.id });
+});
+
 jobsRouter.post("/api/jobs/:id/stop", (req, res) => {
   jobs.get(String(req.params.id))?.abort.abort();
   res.json({ ok: true });

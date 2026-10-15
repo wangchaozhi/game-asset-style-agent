@@ -164,6 +164,10 @@ Server-Sent Events。连接后先回放已发生的事件，再实时推送，�
 curl -N http://localhost:5173/api/jobs/job_xxx/events
 ```
 
+### `POST /api/projects/:id/assets/:assetId/regenerate`
+
+用编辑后的 prompt 直接调用图像模型生成新版本（不经过 Claude，不消耗 tokens）：`{ "prompt": "…", "provider": "openai", "budget": {…} }`。返回 `{ jobId }`，进度同样从事件流读取；新素材待审核，`parentId` 指向原素材。用量记录的 `mode` 为 `manual`。
+
 ### `POST /api/jobs/:id/stop`
 
 中止任务（已生成的素材保留）。

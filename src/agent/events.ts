@@ -39,6 +39,8 @@ export interface RunOptions {
   redraw?: { assetId: string; feedback: string };
   /** append to the project's previous agent conversation instead of starting fresh */
   continueConversation?: boolean;
+  /** regenerate one asset from an edited prompt, without Claude */
+  manual?: { assetId: string; prompt: string };
   /** per-run limits; missing fields fall back to RUN_MAX_IMAGES / RUN_MAX_USD */
   budget?: { maxImages?: unknown; maxUsd?: unknown };
 }
@@ -65,5 +67,5 @@ export function reportUsage(job: Job) {
   saveRunUsage(job.projectId, job.usage).catch(() => undefined);
 }
 
-export const requestLabel = (opts: Pick<RunOptions, "request" | "redraw">) =>
-  opts.redraw ? `重画：${opts.redraw.feedback}` : opts.request;
+export const requestLabel = (opts: Pick<RunOptions, "request" | "redraw" | "manual">) =>
+  opts.manual ? `直接重生成：${opts.manual.prompt.slice(0, 80)}` : opts.redraw ? `重画：${opts.redraw.feedback}` : opts.request;

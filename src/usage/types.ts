@@ -20,8 +20,8 @@ export interface RunUsage {
   finishedAt?: string;
   /** "interrupted": the server stopped before the run finished */
   status: "running" | "ok" | "error" | "stopped" | "interrupted";
-  /** "demo" when no Claude call was made */
-  mode: "agent" | "demo";
+  /** "demo": scripted run; "manual": image model only. Neither calls Claude. */
+  mode: "agent" | "demo" | "manual";
   claude: {
     requests: number;
     /** token usage per model actually served (server-side fallback may switch models) */

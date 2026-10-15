@@ -32,8 +32,8 @@ export function renderLiveUsage(usage) {
   }
   const t = runTokens(usage);
   const claude =
-    usage.mode === "demo"
-      ? `<span>Claude 未调用（演示）</span>`
+    usage.mode !== "agent"
+      ? `<span>Claude 未调用（${usage.mode === "manual" ? "直接生成" : "演示"}）</span>`
       : `<span title="输入 / 输出 / 缓存写 / 缓存读">Claude ${usage.claude.requests} 次 · ↑${fmtTokens(t.input_tokens + t.cache_creation_input_tokens + t.cache_read_input_tokens)} ↓${fmtTokens(t.output_tokens)}${t.cache_read_input_tokens ? ` · 缓存命中 ${fmtTokens(t.cache_read_input_tokens)}` : ""}</span>`;
   bar.hidden = false;
   bar.innerHTML = `<span class="usage-label">本次</span>${claude}
@@ -101,7 +101,7 @@ export async function openUsageDialog(projectId) {
               <td>${new Date(r.startedAt).toLocaleString()}</td>
               <td class="req" title="${esc(r.request)}">${esc(r.request || "（按所选类型生成）")}</td>
               <td><span class="run-status ${r.status}">${STATUS[r.status] ?? r.status}</span></td>
-              <td>${r.mode === "demo" ? "演示" : `${r.claude.requests} 次`}</td>
+              <td>${r.mode === "demo" ? "演示" : r.mode === "manual" ? "直接生成" : `${r.claude.requests} 次`}</td>
               <td>${fmtTokens(t.input_tokens + t.cache_creation_input_tokens + t.cache_read_input_tokens)} / ${fmtTokens(t.output_tokens)}</td>
               <td>${r.images.calls}${r.images.failed ? ` <span class="bad">(${r.images.failed}✗)</span>` : ""}</td>
               <td>${fmtCost(r.cost.total)}</td>

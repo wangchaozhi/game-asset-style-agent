@@ -10,6 +10,7 @@ const { runTool } = await import("../src/agent/runTool.js");
 const { buildIntro } = await import("../src/agent/prompts.js");
 const { tools } = await import("../src/agent/tools.js");
 const { demoStyleGuide } = await import("../src/agent/demo.js");
+const { aspectOf } = await import("../src/agent/manual.js");
 const { StyleGuideInput } = await import("../src/agent/schemas.js");
 const { mock } = await import("../src/providers/mock.js");
 type Job = import("../src/agent/events.js").Job;
@@ -234,6 +235,12 @@ describe("buildIntro", () => {
     assert.match(text, /old prompt/);
     assert.match(text, /Approved assets so far/);
     assert.doesNotMatch(text, /User request/);
+  });
+});
+
+describe("aspectOf", () => {
+  it("classifies by a 1.2 ratio margin", () => {
+    assert.deepEqual([aspectOf(1536, 1024), aspectOf(1024, 1536), aspectOf(1024, 1024), aspectOf(1100, 1000)], ["landscape", "portrait", "square", "square"]);
   });
 });
 

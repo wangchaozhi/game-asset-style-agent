@@ -303,6 +303,18 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json("/api/projects/import", { method: "POST", body: bad })).status, 400);
   });
 
+  it("regenerates an asset from an edited prompt as a job", async () => {
+    const asset = (await json(`/api/projects/${id}`)).body.assets[0];
+    const r = await json(`/api/projects/${id}/assets/${asset.id}/regenerate`, { method: "POST", body: { prompt: "A brand new prompt for this icon, bold", provider: "mock" } });
+    assert.equal(r.status, 200);
+    const evs = await events(r.body.jobId);
+    assert.ok(!evs.some((e) => e.type === "error"), JSON.stringify(evs.filter((e) => e.type === "error")));
+    const created = (await json(`/api/projects/${id}`)).body.assets.at(-1);
+    assert.deepEqual([created.parentId, created.prompt], [asset.id, "A brand new prompt for this icon, bold"]);
+    assert.equal((await json(`/api/projects/${id}/assets/${asset.id}/regenerate`, { method: "POST", body: { prompt: "short" } })).status, 400);
+    assert.equal((await json(`/api/projects/${id}/assets/ast_nope/regenerate`, { method: "POST", body: { prompt: "long enough prompt here" } })).status, 404);
+  });
+
   it("returns 404 for unknown projects and jobs", async () => {
     assert.equal((await json("/api/projects/prj_0000000000")).status, 404);
     assert.equal((await fetch(`${base}/api/jobs/job_nope/events`)).status, 404);

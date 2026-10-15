@@ -290,6 +290,21 @@ describe("agent loop against a fake Messages API", () => {
     assert.deepEqual([fixed.status, fixed.provider, fixed.reviewer], ["approved", "postprocess", "agent"]);
   });
 
+  it("manual regeneration goes straight to the image model, never to Claude", async () => {
+    const projectId = await newProject();
+    fake.script({ content: [gen("toolu_g", "木剑")], stop_reason: "tool_use" }, say("ok"));
+    await run({ projectId });
+    const old = (await store.loadProject(projectId)).assets[0];
+    fake.reset();
+    const { job, events } = await run({ projectId, request: "", manual: { assetId: old.id, prompt: "A wooden sword icon, blue blade, thick outline" } });
+    assert.deepEqual(errorsOf(events), []);
+    assert.equal(fake.requests.length, 0, "no Messages API call");
+    assert.deepEqual([job.usage.mode, job.usage.claude.requests, job.usage.images.calls], ["manual", 0, 1]);
+    const created = (await store.loadProject(projectId)).assets.at(-1)!;
+    assert.deepEqual([created.parentId, created.prompt, created.status], [old.id, "A wooden sword icon, blue blade, thick outline", "pending_review"]);
+    assert.match(job.usage.request, /^直接重生成：A wooden sword/);
+  });
+
   it("a redraw sends the old image and asks for exactly one replacement", async () => {
     const projectId = await newProject();
     fake.script({ content: [gen("toolu_g", "木剑")], stop_reason: "tool_use" }, say("ok"));

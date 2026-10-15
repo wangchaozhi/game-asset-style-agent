@@ -5,6 +5,7 @@ import { resolveBudget } from "./budget.js";
 import { runDemo } from "./demo.js";
 import { type Job, type RunOptions, emit, jobs, reportUsage, requestLabel } from "./events.js";
 import { runAgent } from "./loop.js";
+import { runManual } from "./manual.js";
 
 /** How long a finished job's event log stays available for reconnecting clients. */
 const JOB_TTL_MS = 30 * 60_000;
@@ -20,14 +21,15 @@ export function startJob(opts: RunOptions): Job {
     listeners: new Set(),
     finished: false,
     abort: new AbortController(),
-    usage: newRunUsage(id, requestLabel(opts), demo ? "demo" : "agent"),
+    usage: newRunUsage(id, requestLabel(opts), opts.manual ? "manual" : demo ? "demo" : "agent"),
     budget: resolveBudget(opts.budget),
   };
   job.usage.budget = job.budget;
   jobs.set(job.id, job);
   // Record the run immediately so a crash before the first image call still leaves a trace.
   reportUsage(job);
-  const runner = demo ? runDemo : runAgent;
+  // Manual regeneration skips Claude even outside demo mode.
+  const runner = opts.manual ? runManual : demo ? runDemo : runAgent;
   runner(job, opts)
     .then(() => {
       job.usage.status = "ok";

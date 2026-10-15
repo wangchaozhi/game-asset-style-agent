@@ -2,7 +2,7 @@
 import { $, api, esc, toast } from "./lib.js";
 import { fileUrl, state } from "./state.js";
 import { renderAssets, upsertAsset, visibleAssets } from "./assets.js";
-import { run } from "./run.js";
+import { attachJob, run } from "./run.js";
 
 export function openViewer(id) {
   const a = state.project.assets.find((x) => x.id === id);
@@ -32,7 +32,11 @@ export function openViewer(id) {
       <button class="btn ghost" type="submit">${a.originalFile ? "重新抠图" : "去除背景"}</button>
       ${a.originalFile ? `<button class="btn ghost" type="button" data-restore="${a.id}">恢复原图</button>` : ""}
     </form>
-    <div><b>Prompt</b></div><pre>${esc(a.prompt)}</pre>
+    <form class="prompt-form" data-regen="${a.id}">
+      <div class="sizes-head"><b>Prompt</b><span class="muted">可直接修改后重生成</span></div>
+      <textarea name="prompt" rows="5" spellcheck="false">${esc(a.prompt)}</textarea>
+      <button class="btn ghost" type="submit" title="用编辑后的 prompt 直接调用图像模型生成新版本，不经过 Claude">直接重生成（不经过 Agent）</button>
+    </form>
     <div class="actions">
       <a class="btn primary" href="${fileUrl(a.file)}" download="${esc(a.name)}.${a.file.split(".").pop()}">下载</a>
       <button class="btn ghost" data-variant="${a.id}">基于此图继续生成</button>
@@ -306,6 +310,24 @@ export function bindViewer() {
   $("#viewerMeta").addEventListener("change", (e) => {
     const form = e.target.closest("form[data-align]");
     if (form && e.target.name === "mode") loadJitter(form.dataset.align, e.target.value);
+  });
+  $("#viewerMeta").addEventListener("submit", async (e) => {
+    const form = e.target.closest("form[data-regen]");
+    if (!form) return;
+    e.preventDefault();
+    if (state.job) return toast("已有任务在运行，请稍候");
+    try {
+      const { jobId } = await api(`/api/projects/${state.project.id}/assets/${form.dataset.regen}/regenerate`, {
+        method: "POST",
+        body: { prompt: new FormData(form).get("prompt"), provider: $("#providerSelect").value },
+      });
+      $("#viewer").close();
+      $("#log").innerHTML = "";
+      attachJob(jobId);
+    } catch (err) {
+      if (err.data?.jobId) attachJob(err.data.jobId);
+      toast(err.message);
+    }
   });
   $("#viewerMeta").addEventListener("submit", async (e) => {
     const form = e.target.closest("form[data-align]");
