@@ -176,7 +176,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ### `PATCH /api/projects/:id/assets/:assetId`
 
-人工审核与编辑，字段任选：`{ "status": "approved" | "rejected" | "pending_review", "notes": "意见", "name": "新名称" }`。返回更新后的素材。
+人工审核与编辑，字段任选：`{ "status": "approved" | "rejected" | "pending_review", "notes": "意见", "name": "新名称", "tags": ["第一关"] }`（标签最多 10 个、每个 ≤ 20 字，空数组清除）。返回更新后的素材。
 
 ### `DELETE /api/projects/:id/assets/:assetId`
 
@@ -184,7 +184,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ### `POST /api/projects/:id/assets/batch`
 
-`{ "action": "approve" | "reject" | "pending" | "delete" | "restore" | "purge", "ids": ["ast_…"] }`，返回 `{ affected, project }`。`delete` 移到回收站，`restore` 从回收站恢复，`purge` 彻底删除（素材库或回收站中的都可以）。
+`{ "action": "approve" | "reject" | "pending" | "delete" | "restore" | "purge", "ids": ["ast_…"] }`，返回 `{ affected, project }`。`delete` 移到回收站，`restore` 从回收站恢复，`purge` 彻底删除（素材库或回收站中的都可以）；`"tag"` / `"untag"` 需额外带 `"tags": ["…"]`，为所选素材添加或移除标签。
 
 ### `POST /api/projects/:id/trash/empty`
 
@@ -236,7 +236,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 按类型分目录的素材包，附 `manifest.json`、`style-guide.json`、参考图。精灵表带切帧、GIF 与 Godot 4 `.tres`。
 
-- 默认只含已通过素材；`?status=all` 全部；`?ids=ast_a,ast_b` 指定素材（不限状态）
+- 默认只含已通过素材；`?status=all` 全部；`?ids=ast_a,ast_b` 指定素材（不限状态）；`?tag=第一关` 只含带该标签的素材（可与前两者组合）
 - `?sizes=1` 追加各类型常用尺寸
 - `?godot=game/art` 指定 `.tres` 里的 `res://` 目录（默认 `assets`）
 
@@ -245,7 +245,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 图集：`atlas.png` + `atlas.json`（TexturePacker JSON Hash，Phaser / PixiJS 可直接加载）、`animations.json`（Phaser 3 动画）。背景图不进图集。
 
 - `?max=256` 单个精灵最长边（16-1024），`?size=2048` 图集页尺寸（512 / 1024 / 2048 / 4096），放不下时分多页 `atlas_0`、`atlas_1`…
-- `?status=all`、`?ids=` 同上
+- `?status=all`、`?ids=`、`?tag=` 同上
 
 ## 用量
 

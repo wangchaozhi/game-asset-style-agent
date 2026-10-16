@@ -51,3 +51,8 @@
 .batch-bar.in-trash .trash-actions { display: flex; }
 .batch-bar.in-trash .library-actions { display: none; }
 .badge.trashed { color: var(--muted); font-weight: 500; }
+.card .tags, .viewer-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+.tag { font-size: 10px; line-height: 1.4; padding: 0 6px; border-radius: 999px; background: var(--chip); color: var(--ink); white-space: nowrap; }
+.viewer-tags { align-items: center; gap: 6px; }
+.viewer-tags .tag { font-size: 12px; padding: 1px 8px; }
+.viewer-tags .btn.link { font-size: 12px; }

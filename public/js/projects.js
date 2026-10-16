@@ -23,6 +23,7 @@ export async function openProject(id) {
   document.dispatchEvent(new CustomEvent("gaa:project-switch", { detail: { from: state.project?.id, to: id } }));
   state.query = "";
   state.typeFilter = "";
+  state.tagFilter = "";
   const search = $("#assetSearch");
   if (search) search.value = "";
   try { localStorage.setItem("gaa.project", id); } catch {}

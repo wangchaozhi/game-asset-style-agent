@@ -98,6 +98,7 @@ async function newVersion(project: Project, asset: Asset, png: Buffer, notes: st
     provider: "postprocess",
     createdAt: new Date().toISOString(),
     parentId: asset.id,
+    ...(asset.tags?.length ? { tags: [...asset.tags] } : {}),
   };
   if (extra) Object.assign(created, await extra(created));
   await updateProject(project.id, (p) => void p.assets.push(created));

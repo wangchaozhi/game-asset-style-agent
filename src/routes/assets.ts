@@ -7,6 +7,7 @@ import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { tilePreview } from "../image/tiles.js";
 import { moveToTrash, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject } from "../store/index.js";
 import type { Asset } from "../store/types.js";
+import { hasTag, normalizeTags } from "../domain/tags.js";
 import { attachment, findAsset, pid } from "./util.js";
 
 export const assetsRouter = Router();
@@ -14,12 +15,13 @@ export const assetsRouter = Router();
 const STATUSES = ["approved", "rejected", "pending_review"];
 
 const REVIEW_ACTIONS = { approve: "approved", reject: "rejected", pending: "pending_review" } as const;
-const BATCH_ACTIONS = ["approve", "reject", "pending", "delete", "restore", "purge"] as const;
+const BATCH_ACTIONS = ["approve", "reject", "pending", "delete", "restore", "purge", "tag", "untag"] as const;
 type BatchAction = (typeof BATCH_ACTIONS)[number];
 
 /**
  * Apply one action to many assets: approve / reject / pending (review), delete (to the trash),
- * restore (from the trash), purge (permanently, from the library or the trash).
+ * restore (from the trash), purge (permanently, from the library or the trash),
+ * tag / untag (add or remove `tags`).
  */
 assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
   const action = req.body?.action as BatchAction;
@@ -29,16 +31,27 @@ assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
     return void res.status(400).json({ error: "请提供要操作的素材 id 列表" });
   }
   const wanted = new Set(ids as string[]);
+  const tags = normalizeTags(req.body?.tags);
+  if ((action === "tag" || action === "untag") && !tags.length) return void res.status(400).json({ error: "请提供标签" });
   let affected = 0;
   let purged: string[] = [];
   const project = await updateProject(pid(req), (p) => {
     if (action === "delete") affected = moveToTrash(p, wanted);
     else if (action === "restore") affected = restoreFromTrash(p, wanted);
     else if (action === "purge") affected = (purged = takeForPurge(p, wanted)).length;
-    else {
+    else if (action === "tag" || action === "untag") {
       for (const a of p.assets) {
         if (!wanted.has(a.id)) continue;
-        a.status = REVIEW_ACTIONS[action];
+        const next =
+          action === "tag" ? normalizeTags([...(a.tags ?? []), ...tags]) : (a.tags ?? []).filter((t) => !hasTag(tags, t));
+        if (next.length) a.tags = next;
+        else delete a.tags;
+        affected++;
+      }
+    } else {
+      for (const a of p.assets) {
+        if (!wanted.has(a.id)) continue;
+        a.status = REVIEW_ACTIONS[action as keyof typeof REVIEW_ACTIONS];
         a.reviewer = "user";
         affected++;
       }
@@ -58,10 +71,13 @@ assetsRouter.post("/api/projects/:id/trash/empty", async (req, res) => {
 
 /** Manual review and edits: any of status, notes, name. */
 assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
-  const { status, notes, name } = req.body ?? {};
+  const { status, notes, name, tags } = req.body ?? {};
   if (status !== undefined && !STATUSES.includes(status)) return void res.status(400).json({ error: "无效的状态" });
   if (name !== undefined && (typeof name !== "string" || !name.trim())) return void res.status(400).json({ error: "名称不能为空" });
-  if (status === undefined && name === undefined && typeof notes !== "string") return void res.status(400).json({ error: "没有要修改的内容" });
+  if (tags !== undefined && !Array.isArray(tags)) return void res.status(400).json({ error: "tags 需为字符串数组" });
+  if (status === undefined && name === undefined && tags === undefined && typeof notes !== "string") {
+    return void res.status(400).json({ error: "没有要修改的内容" });
+  }
   let asset: Asset | undefined;
   await updateProject(pid(req), (p) => {
     asset = p.assets.find((a) => a.id === req.params.assetId);
@@ -75,6 +91,11 @@ assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
       asset.reviewer = "user";
     }
     if (typeof name === "string") asset.name = name.trim().slice(0, 80);
+    if (tags !== undefined) {
+      const clean = normalizeTags(tags);
+      if (clean.length) asset.tags = clean;
+      else delete asset.tags;
+    }
   });
   if (!asset) return void res.status(404).json({ error: "素材不存在" });
   res.json(asset);

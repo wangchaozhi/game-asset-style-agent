@@ -7,6 +7,8 @@ export const state = {
   filter: "all",
   /** asset library: type filter ("" = all) and free-text query */
   typeFilter: "",
+  /** tag filter ("" = all) */
+  tagFilter: "",
   query: "",
   job: null,
   source: null,

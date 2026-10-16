@@ -50,6 +50,8 @@ export interface Asset {
   /** previous version this asset was redrawn from */
   parentId?: string;
   reviewer?: "agent" | "user";
+  /** user / agent labels for grouping, e.g. a level or set name */
+  tags?: string[];
   /** palette consistency, measured against the style guide when the asset was made */
   palette?: { coverage: number; meanDeltaE: number; offPalette: { hex: string; share: number }[] };
 }

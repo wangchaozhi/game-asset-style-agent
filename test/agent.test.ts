@@ -96,6 +96,19 @@ describe("runTool", () => {
     assert.ok(asset.gif);
   });
 
+  it("generate_image applies tags; redraws and post-processed versions inherit them", async () => {
+    const job = fakeJob(projectId);
+    await runTool(job, mock, call("generate_image", {
+      name: "宝箱", asset_type: "prop", prompt: "A wooden treasure chest, closed", aspect: "square", transparent_background: true, tags: ["第一关", "第一关"],
+    }));
+    const chest = (await store.loadProject(projectId)).assets.at(-1)!;
+    assert.deepEqual(chest.tags, ["第一关"]);
+    await runTool(job, mock, call("generate_image", {
+      name: "宝箱", asset_type: "prop", prompt: "A wooden treasure chest, open", aspect: "square", transparent_background: true, replaces_asset_id: chest.id, tags: ["宝物"],
+    }));
+    assert.deepEqual((await store.loadProject(projectId)).assets.at(-1)!.tags, ["第一关", "宝物"]);
+  });
+
   it("generate_image failures come back as tool errors and are counted", async () => {
     const job = fakeJob(projectId);
     const failing = { ...mock, generate: async () => { throw new Error("quota"); } };
@@ -154,7 +167,7 @@ describe("post-processing tools", () => {
     await store.writeProjectFile(projectId, "assets/ast_tile0001.png", png);
     await store.updateProject(projectId, (p) => void p.assets.push({
       id: "ast_tile0001", name: "草地", assetType: "tile", prompt: "grass", file: "assets/ast_tile0001.png", mime: "image/png",
-      status: "pending_review", runId: "job_x", provider: "mock", createdAt: "",
+      status: "pending_review", runId: "job_x", provider: "mock", createdAt: "", tags: ["草地"],
     }));
     return "ast_tile0001";
   }
@@ -175,6 +188,7 @@ describe("post-processing tools", () => {
     assert.match(textOf(r), /Before: Seam check: FAILS[\s\S]*After: Seam check: tiles seamlessly/);
     const created = (await store.loadProject(projectId)).assets.at(-1)!;
     assert.deepEqual([created.parentId, created.reviewer, created.runId, created.status], [id, "agent", "job_test", "pending_review"]);
+    assert.deepEqual(created.tags, ["草地"], "post-processed versions keep tags");
     assert.ok(job.events.some((e) => e.type === "asset"));
   });
 

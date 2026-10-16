@@ -26,6 +26,7 @@ export const GenerateInput = z.object({
   consistency_asset_ids: z.array(z.string()).max(4).optional(),
   frames: z.number().int().min(2).max(16).optional(),
   replaces_asset_id: z.string().optional(),
+  tags: z.array(z.string()).max(10).optional(),
 });
 export type GenerateInput = z.infer<typeof GenerateInput>;
 

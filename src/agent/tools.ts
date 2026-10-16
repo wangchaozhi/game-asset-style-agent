@@ -69,6 +69,11 @@ export const tools: Anthropic.Beta.BetaTool[] = [
           type: "integer",
           description: "sprite_sheet only: number of animation frames in the single horizontal row (2-16). The sheet is sliced into frames and a GIF preview automatically.",
         },
+        tags: {
+          type: "array",
+          items: { type: "string" },
+          description: "Optional short labels to group the asset, in the user's language — e.g. the level, set or character the user named (\"第一关\", \"小狐狸\"). Redraws keep the original's tags automatically.",
+        },
       },
       required: ["name", "asset_type", "prompt", "aspect", "transparent_background"],
     },

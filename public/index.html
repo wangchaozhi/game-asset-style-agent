@@ -107,6 +107,7 @@
       <div class="asset-search">
         <input type="search" id="assetSearch" placeholder="搜索名称 / 意见 / prompt" aria-label="搜索素材" />
         <select id="typeFilter" aria-label="按类型筛选"><option value="">全部类型</option></select>
+        <select id="tagFilter" aria-label="按标签筛选" hidden><option value="">全部标签</option></select>
       </div>
       <div class="batch-bar" id="batchBar" hidden>
         <span class="batch-count"></span>
@@ -121,6 +122,8 @@
           <button class="btn ghost small" data-batch="approve">✓ 通过</button>
           <button class="btn ghost small" data-batch="reject">✗ 驳回</button>
           <button class="btn ghost small" data-batch="redraw" title="把所选素材连同各自的审核意见一次交给 Agent 重画（最多 10 个）">按意见重画</button>
+          <button class="btn ghost small" data-batch="tag" title="给所选素材加标签">+ 标签</button>
+          <button class="btn ghost small" data-batch="untag" title="从所选素材移除标签">− 标签</button>
           <button class="btn ghost small" data-batch="zip">导出 ZIP</button>
           <button class="btn ghost small" data-batch="atlas">导出图集</button>
           <button class="btn ghost small danger" data-batch="delete">删除</button>

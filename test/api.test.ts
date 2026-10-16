@@ -173,6 +173,27 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/assets/${asset.id}`, { method: "PATCH", body: { status: "great" } })).status, 400);
   });
 
+  it("tags assets, filters exports by tag, and batch-adds / removes tags", async () => {
+    const [a, b] = (await json(`/api/projects/${id}`)).body.assets;
+    const set = await json(`/api/projects/${id}/assets/${a.id}`, { method: "PATCH", body: { tags: [" 第一关 ", "第一关", "Boss"] } });
+    assert.deepEqual(set.body.tags, ["第一关", "Boss"]);
+    const batch = await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "tag", ids: [a.id, b.id], tags: ["UI"] } });
+    assert.equal(batch.body.affected, 2);
+    const byId = Object.fromEntries(batch.body.project.assets.map((x: { id: string; tags?: string[] }) => [x.id, x.tags]));
+    assert.deepEqual([byId[a.id], byId[b.id]], [["第一关", "Boss", "UI"], ["UI"]]);
+    assert.equal((await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "tag", ids: [a.id] } })).status, 400);
+    // export only the tagged subset (any status, via status=all)
+    const zip = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?status=all&tag=boss`)).arrayBuffer()));
+    const manifest = JSON.parse(zip["manifest.json"].data.toString());
+    assert.deepEqual(manifest.assets.map((x: { id: string; tags: string[] }) => [x.id, x.tags]), [[a.id, ["第一关", "Boss", "UI"]]]);
+    assert.equal((await json(`/api/projects/${id}/export.zip?status=all&tag=nope`)).status, 400);
+    // untag; empty tag lists disappear
+    const un = await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "untag", ids: [a.id, b.id], tags: ["ui", "boss"] } });
+    const after = Object.fromEntries(un.body.project.assets.map((x: { id: string; tags?: string[] }) => [x.id, x.tags]));
+    assert.deepEqual([after[a.id], after[b.id]], [["第一关"], undefined]);
+    assert.equal((await json(`/api/projects/${id}/assets/${a.id}`, { method: "PATCH", body: { tags: "x" } })).status, 400);
+  });
+
   it("renames an asset without touching its review", async () => {
     const asset = (await json(`/api/projects/${id}`)).body.assets[0];
     const r = await json(`/api/projects/${id}/assets/${asset.id}`, { method: "PATCH", body: { name: "  火焰剑 v2  " } });

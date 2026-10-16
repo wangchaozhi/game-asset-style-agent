@@ -1,3 +1,4 @@
+import { normalizeTags } from "../domain/tags.js";
 import { shrink } from "../image/io.js";
 import { isOpaque, removeBackground } from "../image/background.js";
 import { analyzePalette } from "../image/palette.js";
@@ -101,6 +102,10 @@ async function generateReserved(job: Job, provider: ImageProvider, input: Genera
     originalFile,
     parentId: input.replaces_asset_id,
   };
+  // A redraw keeps its predecessor's tags; tags given now are added.
+  const inherited = input.replaces_asset_id ? project.assets.find((a) => a.id === input.replaces_asset_id)?.tags : undefined;
+  const tags = normalizeTags([...(inherited ?? []), ...(input.tags ?? [])]);
+  if (tags.length) asset.tags = tags;
   if (input.asset_type === "sprite_sheet") {
     Object.assign(asset, await sliceAssetFrames(project.id, asset, img.data, input.frames).catch(() => ({})));
   }

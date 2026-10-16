@@ -5,7 +5,9 @@ import { state, thumbUrl } from "./state.js";
 const LABEL = { approved: "✓ 通过", rejected: "✗ 驳回", pending_review: "… 审核中" };
 
 const matchesQuery = (a, q) =>
-  !q || [a.name, a.notes, a.prompt, a.id].some((v) => String(v ?? "").toLowerCase().includes(q));
+  !q || [a.name, a.notes, a.prompt, a.id, ...(a.tags ?? [])].some((v) => String(v ?? "").toLowerCase().includes(q));
+
+const hasTag = (a, tag) => !tag || (a.tags ?? []).some((t) => t.toLowerCase() === tag.toLowerCase());
 
 /** Assets currently visible under the status / type filters and search, newest first. */
 export const inTrash = () => state.filter === "trash";
@@ -14,12 +16,18 @@ export const visibleAssets = () => {
   const q = state.query.trim().toLowerCase();
   if (inTrash()) {
     return (state.project.trash ?? [])
-      .filter((a) => (!state.typeFilter || a.assetType === state.typeFilter) && matchesQuery(a, q))
+      .filter((a) => (!state.typeFilter || a.assetType === state.typeFilter) && hasTag(a, state.tagFilter) && matchesQuery(a, q))
       .slice()
       .sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
   }
   return state.project.assets
-    .filter((a) => (state.filter === "all" || a.status === state.filter) && (!state.typeFilter || a.assetType === state.typeFilter) && matchesQuery(a, q))
+    .filter(
+      (a) =>
+        (state.filter === "all" || a.status === state.filter) &&
+        (!state.typeFilter || a.assetType === state.typeFilter) &&
+        hasTag(a, state.tagFilter) &&
+        matchesQuery(a, q),
+    )
     .slice()
     .reverse();
 };
@@ -36,6 +44,20 @@ function renderTypeFilter() {
       .map(([t, n]) => `<option value="${esc(t)}">${esc(state.config.assetTypes[t] ?? t)}（${n}）</option>`)
       .join("");
   sel.value = state.typeFilter;
+  renderTagFilter();
+}
+
+/** Tag dropdown appears once any asset has a tag. */
+function renderTagFilter() {
+  const sel = $("#tagFilter");
+  const counts = new Map();
+  for (const a of state.project.assets) for (const t of a.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
+  if (state.tagFilter && !counts.has(state.tagFilter)) state.tagFilter = "";
+  sel.hidden = !counts.size;
+  sel.innerHTML =
+    `<option value="">全部标签</option>` +
+    [...counts].sort((x, y) => x[0].localeCompare(y[0])).map(([t, n]) => `<option value="${esc(t)}">#${esc(t)}（${n}）</option>`).join("");
+  sel.value = state.tagFilter;
 }
 
 export function renderAssets(newId) {
@@ -62,6 +84,7 @@ export function renderAssets(newId) {
             <span class="tick" aria-hidden="true"></span>
             <div class="checker"><img loading="lazy" decoding="async" src="${thumbUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /></div>
             <div class="meta"><span class="name">${esc(a.name)}</span>
+              ${a.tags?.length ? `<span class="tags">${a.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join("")}</span>` : ""}
               <span class="sub"><span>${esc(typeName(a.assetType))}</span>${
                 a.deletedAt
                   ? `<span class="badge trashed" title="删除于 ${esc(new Date(a.deletedAt).toLocaleString())}">${left(a)} 天后清除</span>`
@@ -136,6 +159,10 @@ export function bindAssets({ onOpen }) {
   });
   $("#typeFilter").addEventListener("change", (e) => {
     state.typeFilter = e.target.value;
+    renderAssets();
+  });
+  $("#tagFilter").addEventListener("change", (e) => {
+    state.tagFilter = e.target.value;
     renderAssets();
   });
   $("#assets").addEventListener("click", (e) => {

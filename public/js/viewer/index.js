@@ -34,6 +34,8 @@ export function openViewer(id) {
     <h3 class="viewer-title">${esc(a.name)} <button class="btn link rename" data-rename="${a.id}" title="改名" aria-label="改名">✎</button></h3>
     <div class="muted">${esc(state.config.assetTypes[a.assetType] ?? a.assetType)} · ${esc(a.provider)} · ${new Date(a.createdAt).toLocaleString()}</div>
     ${a.notes ? `<div><b>${a.reviewer === "user" ? "我的意见" : "Agent 审核"}：</b>${esc(a.notes)}${a.score && a.reviewer !== "user" ? `（一致性 ${a.score}/10）` : ""}</div>` : ""}
+    <div class="viewer-tags">${(a.tags ?? []).map((t) => `<span class="tag">#${esc(t)}</span>`).join("")}
+      <button class="btn link" data-edit-tags="${a.id}">${a.tags?.length ? "编辑标签" : "+ 标签"}</button></div>
     ${versionLinks(a)}
     <div class="review">
       <div class="verdict">
@@ -92,6 +94,20 @@ function bindCore(root) {
   root.addEventListener("click", async (e) => {
     const ds = e.target.dataset ?? {};
     if (ds.open) return openViewer(ds.open);
+    if (ds.editTags) {
+      const a = state.project.assets.find((x) => x.id === ds.editTags);
+      const input = prompt("标签（多个用逗号或空格分隔，留空清除）", (a?.tags ?? []).join(", "));
+      if (input === null) return;
+      try {
+        const tags = input.split(/[,，、\s]+/).map((t) => t.trim()).filter(Boolean);
+        const asset = await api(`/api/projects/${state.project.id}/assets/${ds.editTags}`, { method: "PATCH", body: { tags } });
+        upsertAsset(asset);
+        openViewer(asset.id);
+      } catch (err) {
+        toast(err.message);
+      }
+      return;
+    }
     if (ds.rename) {
       const a = state.project.assets.find((x) => x.id === ds.rename);
       const name = prompt("素材名称", a?.name ?? "");

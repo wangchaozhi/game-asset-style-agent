@@ -1,4 +1,5 @@
 import { SIZE_PRESETS, isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
+import { hasTag } from "../domain/tags.js";
 import { readProjectFile } from "../store/index.js";
 import type { Project } from "../store/types.js";
 import { buildAtlas, prepareSprite, scaleSprite } from "./atlas.js";
@@ -10,6 +11,8 @@ export interface ExportOptions {
   all?: boolean;
   /** export exactly these assets (any status); overrides `all` */
   ids?: string[];
+  /** only assets carrying this tag */
+  tag?: string;
   /** add each asset's common game sizes */
   sizes?: boolean;
   /** folder under res:// where the bundle is unzipped in a Godot project (for .tres paths) */
@@ -30,13 +33,12 @@ export function uniqueNamer() {
   };
 }
 
-/** Explicit ids win; otherwise approved only, or everything with `all`. */
-export function selectAssets(project: Project, opts: { all?: boolean; ids?: string[] }) {
-  if (opts.ids?.length) {
-    const ids = new Set(opts.ids);
-    return project.assets.filter((a) => ids.has(a.id));
-  }
-  return project.assets.filter((a) => opts.all || a.status === "approved");
+/** Explicit ids win; otherwise approved only, or everything with `all`; then narrowed to `tag`. */
+export function selectAssets(project: Project, opts: { all?: boolean; ids?: string[]; tag?: string }) {
+  const ids = opts.ids?.length ? new Set(opts.ids) : null;
+  return project.assets.filter(
+    (a) => (ids ? ids.has(a.id) : opts.all || a.status === "approved") && (!opts.tag || hasTag(a.tags, opts.tag)),
+  );
 }
 
 /**
@@ -85,7 +87,7 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
       entries.push({ name: `${base}.tres`, data: Buffer.from(tres) });
     }
     manifest.push({
-      id: a.id, name: a.name, type: a.assetType, status: a.status, score: a.score ?? null,
+      id: a.id, name: a.name, type: a.assetType, status: a.status, score: a.score ?? null, tags: a.tags ?? [],
       notes: a.notes ?? null, prompt: a.prompt, provider: a.provider, createdAt: a.createdAt, fps: a.fps ?? null, files,
     });
   }
@@ -104,6 +106,7 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
 export interface AtlasExportOptions {
   all?: boolean;
   ids?: string[];
+  tag?: string;
   /** longest side of each sprite in the atlas, px */
   maxSprite?: number;
   /** longest side of an atlas page, px */

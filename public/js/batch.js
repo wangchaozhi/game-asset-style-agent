@@ -5,15 +5,23 @@ import { renderAssets, setSelecting, visibleAssets } from "./assets.js";
 import { loadProjectsQuiet } from "./projects.js";
 import { run } from "./run.js";
 
-const VERB = { approve: "通过", reject: "驳回", pending: "设为待审核", delete: "移到回收站", restore: "恢复", purge: "彻底删除" };
+const VERB = { approve: "通过", reject: "驳回", pending: "设为待审核", delete: "移到回收站", restore: "恢复", purge: "彻底删除", tag: "添加标签到", untag: "移除标签自" };
+const splitTags = (s) => s.split(/[,，、\s]+/).map((t) => t.trim()).filter(Boolean);
 const REMOVES = new Set(["delete", "restore", "purge"]);
 
 async function apply(action) {
   const ids = [...state.selected];
   if (!ids.length) return;
+  let tags;
+  if (action === "tag" || action === "untag") {
+    const input = prompt(action === "tag" ? "要添加的标签（多个用逗号或空格分隔）" : "要移除的标签（多个用逗号或空格分隔）", "");
+    if (!input) return;
+    tags = splitTags(input);
+    if (!tags.length) return;
+  }
   if (action === "purge" && !confirm(`彻底删除所选的 ${ids.length} 个素材及其文件？此操作不可撤销。`)) return;
   try {
-    const { affected, project } = await api(`/api/projects/${state.project.id}/assets/batch`, { method: "POST", body: { action, ids } });
+    const { affected, project } = await api(`/api/projects/${state.project.id}/assets/batch`, { method: "POST", body: { action, ids, ...(tags ? { tags } : {}) } });
     state.project = project;
     if (REMOVES.has(action)) state.selected.clear();
     renderAssets();
