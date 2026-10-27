@@ -91,4 +91,4 @@
 - [x] 描边后处理：给透明背景素材加统一外描边（宽度可选，颜色默认取色板最深色），生成新版本；Agent 可调用
 - [x] 换色变体：把素材里的几种颜色映射成新颜色生成变体（精英怪、套装配色），不调用图像模型
 - [x] Unity 动画：精灵表额外导出 AnimationClip（.anim），引用 .meta 里的帧
-- [ ] Godot TileSet：瓦片导出 TileSet .tres，可直接拖进 TileMap
+- [x] Godot TileSet：瓦片导出 TileSet .tres，可直接拖进 TileMap

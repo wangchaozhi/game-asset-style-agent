@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { SIZE_PRESETS, isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { hasTag } from "../domain/tags.js";
 import { fitNineSlice, scaleNineSlice } from "../domain/nineSlice.js";
@@ -5,7 +6,7 @@ import { imageSize } from "../image/io.js";
 import { readProjectFile } from "../store/index.js";
 import type { Project } from "../store/types.js";
 import { type AtlasInput, buildAtlas, prepareSprite, scaleSprite } from "./atlas.js";
-import { spriteFramesTres, styleBoxTextureTres } from "./godot.js";
+import { spriteFramesTres, styleBoxTextureTres, tileSetTres } from "./godot.js";
 import { type UnitySpriteMeta, animationClip, nativeMeta, spriteMeta } from "./unity.js";
 import { type ZipEntry, createZip } from "./zip.js";
 
@@ -22,7 +23,12 @@ export interface ExportOptions {
   godotRoot?: string;
   /** add a Unity TextureImporter .meta next to every image */
   unity?: boolean;
+  /** px per tile in the Godot TileSet built from the exported tiles (default 32) */
+  tileSize?: number;
 }
+
+/** Tiles per row in the TileSet texture. */
+const TILESET_COLUMNS = 8;
 
 /** Types drawn standing on the ground: their sprites pivot at the bottom centre. */
 const STANDING_TYPES = new Set(["character", "enemy", "sprite_sheet", "prop"]);
@@ -130,6 +136,33 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
       notes: a.notes ?? null, prompt: a.prompt, provider: a.provider, createdAt: a.createdAt, fps: a.fps ?? null, files,
     });
   }
+  const tiles = assets.filter((a) => a.assetType === "tile");
+  let tileset: { image: string; tres: string; tileSize: number; tiles: { id: string; name: string; coords: [number, number] }[] } | null = null;
+  if (tiles.length) {
+    // All tiles at one game size in a grid texture, plus a TileSet that indexes them.
+    const size = opts.tileSize ?? 32;
+    const columns = Math.min(TILESET_COLUMNS, tiles.length);
+    const rows = Math.ceil(tiles.length / columns);
+    const cells = await Promise.all(
+      tiles.map(async (a, i) => ({
+        input: await resizeAsset(await readProjectFile(project.id, a.file), { w: size, h: size, assetType: "tile", pixel }),
+        left: (i % columns) * size,
+        top: Math.floor(i / columns) * size,
+      })),
+    );
+    const png = await sharp({ create: { width: columns * size, height: rows * size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite(cells)
+      .png()
+      .toBuffer();
+    tileset = {
+      image: "tile/tileset.png",
+      tres: "tile/tileset.tres",
+      tileSize: size,
+      tiles: tiles.map((a, i) => ({ id: a.id, name: a.name, coords: [i % columns, Math.floor(i / columns)] })),
+    };
+    entries.push({ name: tileset.image, data: png });
+    entries.push({ name: tileset.tres, data: Buffer.from(tileSetTres(resPath(tileset.image), { tileSize: size, count: tiles.length, columns })) });
+  }
   for (const [i, r] of project.refs.entries()) {
     entries.push({ name: `_references/ref_${i + 1}.png`, data: await readProjectFile(project.id, r.file) });
   }
@@ -137,7 +170,7 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
   entries.push({ name: "style-guide.json", data: json(project.styleGuide) });
   entries.push({
     name: "manifest.json",
-    data: json({ project: project.name, exportedAt: new Date().toISOString(), count: manifest.length, assets: manifest }),
+    data: json({ project: project.name, exportedAt: new Date().toISOString(), count: manifest.length, assets: manifest, tileset }),
   });
   return { filename: `${safeName(project.name)}_assets.zip`, zip: createZip(entries) };
 }

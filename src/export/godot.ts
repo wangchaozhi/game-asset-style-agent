@@ -40,3 +40,24 @@ animations = [{
 }]
 `;
 }
+
+/**
+ * Godot 4 TileSet with one atlas source: `count` tiles of `tileSize` px laid out left to right,
+ * `columns` per row, in the texture at `path`. Drop it on a TileMapLayer and paint.
+ */
+export function tileSetTres(path: string, o: { tileSize: number; count: number; columns: number }): string {
+  const tiles = Array.from({ length: o.count }, (_, i) => `${i % o.columns}:${Math.floor(i / o.columns)}/0 = 0`).join("\n");
+  return `[gd_resource type="TileSet" load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="${path.replace(/"/g, '\\"')}" id="1"]
+
+[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1"]
+texture = ExtResource("1")
+texture_region_size = Vector2i(${o.tileSize}, ${o.tileSize})
+${tiles}
+
+[resource]
+tile_size = Vector2i(${o.tileSize}, ${o.tileSize})
+sources/0 = SubResource("TileSetAtlasSource_1")
+`;
+}

@@ -366,6 +366,24 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: variants.map((v: { id: string }) => v.id) } });
   });
 
+  it("exports a Godot TileSet built from the tiles", async () => {
+    const tiles = (await json(`/api/projects/${id}`)).body.assets.filter((a: { assetType: string }) => a.assetType === "tile");
+    assert.ok(tiles.length >= 1);
+    const zip = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?status=all&tile=16`)).arrayBuffer()));
+    const { tileset } = JSON.parse(zip["manifest.json"].data.toString());
+    assert.equal(tileset.tileSize, 16);
+    assert.deepEqual(tileset.tiles.map((t: { id: string }) => t.id), tiles.map((t: { id: string }) => t.id));
+    const meta = await sharp(zip["tile/tileset.png"].data).metadata();
+    assert.deepEqual([meta.width, meta.height], [Math.min(8, tiles.length) * 16, Math.ceil(tiles.length / 8) * 16]);
+    const tres = zip["tile/tileset.tres"].data.toString();
+    assert.match(tres, /path="res:\/\/assets\/tile\/tileset\.png"/);
+    assert.equal(tres.match(/^\d+:\d+\/0 = 0$/gm)?.length, tiles.length);
+    assert.equal((await json(`/api/projects/${id}/export.zip?status=all&tile=3`)).status, 400);
+    const other = (await json(`/api/projects/${id}`)).body.assets.find((a: { assetType: string }) => a.assetType !== "tile");
+    const withoutTiles = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?ids=${other.id}`)).arrayBuffer()));
+    assert.equal(JSON.parse(withoutTiles["manifest.json"].data.toString()).tileset, null, "no TileSet without tiles");
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);
