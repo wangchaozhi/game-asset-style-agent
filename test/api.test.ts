@@ -219,6 +219,9 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await patch(ui.id, { ...margins, top: 1.5 })).status, 400);
     assert.equal((await patch(ui.id, { left: 0, top: 0, right: 0, bottom: 0 })).status, 400);
     assert.equal((await patch("ast_missing", margins)).status, 404);
+    const detected = (await json(`/api/projects/${id}/assets/${ui.id}/nine-slice`)).body;
+    assert.ok("suggestion" in detected);
+    assert.equal((await json(`/api/projects/${id}/assets/${other.id}/nine-slice`)).status, 400);
 
     // Post-processing keeps the layout, so the new version keeps the margins.
     const snapped = (await json(`/api/projects/${id}/assets/${ui.id}/snap-palette`, { method: "POST", body: {} })).body;

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import sharp from "sharp";
 import { fitNineSlice, parseNineSlice, scaleNineSlice } from "../src/domain/nineSlice.js";
 import { buildAtlas } from "../src/export/atlas.js";
+import { detectNineSlice } from "../src/image/nineSlice.js";
 import { styleBoxTextureTres } from "../src/export/godot.js";
 import { solidPng } from "./helpers.js";
 
@@ -60,5 +62,59 @@ describe("9-slice exports", () => {
       [...tres.matchAll(/texture_margin_(\w+) = ([\d.]+)/g)].map((m) => [m[1], m[2]]),
       [["left", "6.0"], ["top", "4.0"], ["right", "8.0"], ["bottom", "2.0"]],
     );
+  });
+});
+
+/** A w×h panel: border and 12px corner ornaments around a flat (or vertically graded) fill. */
+async function panel(w: number, h: number, opts: { gradient?: boolean; noise?: number } = {}) {
+  const raw = Buffer.alloc(w * h * 4);
+  let seed = 7;
+  const rand = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff - 0.5) * 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const corner = (x < 12 || x >= w - 12) && (y < 12 || y >= h - 12);
+      const border = x < 6 || x >= w - 6 || y < 6 || y >= h - 6;
+      const fill = opts.gradient ? 120 + Math.round((y / h) * 60) : 140;
+      const [r, g, b] = corner ? [230, 190, 40] : border ? [60, 30, 90] : [fill, 90, 60];
+      const n = () => Math.round(rand() * (opts.noise ?? 0));
+      const clamp = (v: number) => Math.max(0, Math.min(255, v));
+      raw.set([clamp(r + n()), clamp(g + n()), clamp(b + n()), 255], (y * w + x) * 4);
+    }
+  }
+  return sharp(raw, { raw: { width: w, height: h, channels: 4 } }).png().toBuffer();
+}
+
+describe("detectNineSlice", () => {
+  const corners = { left: 12, top: 12, right: 12, bottom: 12 };
+
+  it("finds the band between corner ornaments", async () => {
+    assert.deepEqual(await detectNineSlice(await panel(100, 60)), corners);
+  });
+
+  it("tolerates per-pixel noise and smooth gradients", async () => {
+    assert.deepEqual(await detectNineSlice(await panel(100, 60, { noise: 10 })), corners);
+    assert.deepEqual(await detectNineSlice(await panel(100, 60, { gradient: true })), corners);
+  });
+
+  it("counts transparent padding as part of the margins", async () => {
+    const padded = await sharp({ create: { width: 140, height: 100, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: await panel(100, 60), left: 15, top: 25 }])
+      .png()
+      .toBuffer();
+    assert.deepEqual(await detectNineSlice(padded), { left: 27, top: 37, right: 37, bottom: 27 });
+  });
+
+  it("ignores blank padding at the image edge when the subject itself can't stretch", async () => {
+    // A diamond: every interior column and row differs from its neighbour.
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><polygon points="60,10 100,40 60,70 20,40" fill="#3a6"/></svg>`;
+    assert.equal(await detectNineSlice(await sharp(Buffer.from(svg)).png().toBuffer()), null);
+  });
+
+  it("returns null when nothing can stretch, or everything can", async () => {
+    const raw = Buffer.alloc(64 * 64 * 4);
+    for (let i = 0; i < 64 * 64; i++) raw.set([((i % 64) + Math.floor(i / 64)) % 2 ? 255 : 0, 0, 0, 255], i * 4);
+    const checker = await sharp(raw, { raw: { width: 64, height: 64, channels: 4 } }).png().toBuffer();
+    assert.equal(await detectNineSlice(checker), null);
+    assert.equal(await detectNineSlice(await solidPng(32, 32, "#336699")), null);
   });
 });

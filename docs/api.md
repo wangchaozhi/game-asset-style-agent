@@ -202,6 +202,10 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 瓦片接缝检测：`{ horizontalDiff, verticalDiff, baseline, horizontalOk, verticalOk, seamless, … }`。
 
+### `GET /api/projects/:id/assets/:assetId/nine-slice`
+
+UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "bottom" } | null }`。在每个方向上找出相邻行 / 列几乎一致、可以拉伸而看不出变化的区域（优先经过中心的那段），横竖任一方向找不到时为 `null`。只是建议，保存仍用 `PATCH`。
+
 ### `GET /api/projects/:id/assets/:assetId/tiled.png`
 
 `?n=3` 平铺 n×n 的预览图（2-6）。

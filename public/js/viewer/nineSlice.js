@@ -22,6 +22,7 @@ export function html(a) {
     <form class="nine-form" data-nine="${a.id}">
       ${SIDES.map(([s, label]) => `<label>${label} <input name="${s}" type="number" min="0" step="1" required /></label>`).join("")}
       <button class="btn ghost" type="submit">保存边距</button>
+      <button class="btn link" type="button" data-nine-detect="${a.id}">自动检测</button>
       ${a.nineSlice ? `<button class="btn link" type="button" data-nine-clear="${a.id}">清除</button>` : ""}
     </form>
     <p class="nine-error" role="alert" hidden></p>
@@ -33,19 +34,26 @@ export function load(a) {
   if (a.assetType !== "ui") return;
   size = null;
   const img = new Image();
-  img.onload = () => {
+  img.onload = async () => {
     const form = $("#viewerMeta .nine-form");
     if (!form?.isConnected || form.dataset.nine !== a.id) return;
     size = { w: img.naturalWidth, h: img.naturalHeight };
-    // Unset: start from a quarter of each side, a common panel border.
-    const m = a.nineSlice ?? { left: Math.round(size.w / 4), top: Math.round(size.h / 4), right: Math.round(size.w / 4), bottom: Math.round(size.h / 4) };
-    for (const [s] of SIDES) {
-      form.elements[s].value = m[s];
-      form.elements[s].max = (s === "left" || s === "right" ? size.w : size.h) - 1;
-    }
-    update(form, fileUrl(a.file));
+    // Unset: start from the detected band, else a quarter of each side (a common panel border).
+    const suggestion = a.nineSlice ? null : await detect(a.id).catch(() => null);
+    if (!form.isConnected) return;
+    if (suggestion) form.closest(".nine").querySelector(".nine-status").textContent = "未设置，已填入自动检测的建议";
+    const quarter = { left: Math.round(size.w / 4), top: Math.round(size.h / 4), right: Math.round(size.w / 4), bottom: Math.round(size.h / 4) };
+    for (const [s] of SIDES) form.elements[s].max = (s === "left" || s === "right" ? size.w : size.h) - 1;
+    fill(form, a, a.nineSlice ?? suggestion ?? quarter);
   };
   img.src = fileUrl(a.file);
+}
+
+const detect = async (id) => (await api(`/api/projects/${state.project.id}/assets/${id}/nine-slice`)).suggestion;
+
+function fill(form, a, m) {
+  for (const [s] of SIDES) form.elements[s].value = m[s];
+  update(form, fileUrl(a.file));
 }
 
 /** Margins from the form, or an error message. */
@@ -99,6 +107,18 @@ export function bind(root, ctx) {
     ctx.show(asset, "九宫格边距已保存");
   });
   root.addEventListener("click", async (e) => {
+    const detectId = e.target.dataset?.nineDetect;
+    if (detectId && size) {
+      try {
+        const m = await detect(detectId);
+        if (!m) return toast("没有找到可拉伸的区域，请手动设置边距");
+        fill(e.target.closest(".nine-form"), state.project.assets.find((x) => x.id === detectId), m);
+        toast("已填入检测结果，确认后保存");
+      } catch (err) {
+        toast(err.message);
+      }
+      return;
+    }
     const id = e.target.dataset?.nineClear;
     if (!id) return;
     try {

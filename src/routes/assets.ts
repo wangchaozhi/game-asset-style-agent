@@ -10,6 +10,7 @@ import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
 import { type NineSlice, parseNineSlice } from "../domain/nineSlice.js";
 import { imageSize } from "../image/io.js";
+import { detectNineSlice } from "../image/nineSlice.js";
 import { attachment, findAsset, pid } from "./util.js";
 
 export const assetsRouter = Router();
@@ -156,6 +157,14 @@ assetsRouter.get("/api/projects/:id/assets/:assetId/seams", async (req, res) => 
   const found = await findAsset(req, res);
   if (!found) return;
   res.json(await seamsOf(found.project, found.asset));
+});
+
+/** Suggested 9-slice margins for a UI asset (null when no stretchable band is found). */
+assetsRouter.get("/api/projects/:id/assets/:assetId/nine-slice", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  if (found.asset.assetType !== "ui") return void res.status(400).json({ error: "只有 UI 素材可以设置九宫格" });
+  res.json({ suggestion: await detectNineSlice(await readProjectFile(found.project.id, found.asset.file)) });
 });
 
 assetsRouter.get("/api/projects/:id/assets/:assetId/tiled.png", async (req, res) => {
