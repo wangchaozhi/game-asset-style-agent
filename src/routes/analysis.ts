@@ -1,4 +1,6 @@
 import { Router } from "express";
+import { ASSET_TYPES, isAssetType } from "../domain/assetTypes.js";
+import { toCsv } from "../export/csv.js";
 import { jitterOf, parseAlignMode, seamsOf } from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
@@ -74,6 +76,24 @@ analysisRouter.get("/api/projects/:id/consistency", async (req, res) => {
   const report = await measureConsistency(await loadProject(pid(req)), { tag });
   if (!report) return void res.status(400).json({ error: "项目还没有风格指南色板" });
   res.json(report);
+});
+
+/** The consistency report as CSV for a spreadsheet: ranked rows with measurements and reasons; ?tag= as above. */
+analysisRouter.get("/api/projects/:id/consistency.csv", async (req, res) => {
+  const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
+  const project = await loadProject(pid(req));
+  const report = await measureConsistency(project, { tag });
+  if (!report) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  const byId = new Map(project.assets.map((a) => [a.id, a]));
+  const STATUS = { approved: "已通过", rejected: "已驳回", pending_review: "待审核" } as const;
+  const rows: unknown[][] = [["排名", "素材 id", "名称", "类型", "状态", "色板内占比", "平均色差 ΔE", "偏离度", "原因"]];
+  for (const [i, item] of report.items.entries()) {
+    const a = byId.get(item.id)!;
+    rows.push([i + 1, a.id, a.name, isAssetType(a.assetType) ? ASSET_TYPES[a.assetType] : a.assetType, STATUS[a.status], `${Math.round(item.coverage * 100)}%`, item.meanDeltaE, item.drift, item.reasons.join("；")]);
+  }
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", attachment("consistency.csv", `${project.name}${tag ? `_${tag}` : ""}_一致性.csv`));
+  res.send(toCsv(rows));
 });
 
 /**

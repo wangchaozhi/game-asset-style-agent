@@ -250,6 +250,10 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 
 一致性总览：每个当前素材（不含已被新版本取代的、换色变体和回收站里的）按当前风格色板重新测量，再与项目自己的中位数比较——色板内像素低于中位数、平均色差高于中位数、Agent 一致性评分低于 7 都会增加偏离度。返回 `{ medianCoverage, medianDeltaE, items: [{ id, drift, reasons, coverage, meanDeltaE }] }`，按 `drift` 从大到小排列，`reasons` 是可直接作为重画意见的中文说明。`?tag=第一关` 只看带该标签的素材，中位数也只在这组里算（看某个角色或关卡内部是否协调）。没有色板时返回 400。
 
+### `GET /api/projects/:id/consistency.csv`
+
+一致性总览导出为 CSV（UTF-8 带 BOM，Excel 可直接打开）：排名、素材 id、名称、类型、状态、色板内占比、平均色差、偏离度、原因；`?tag=` 同上。以 `=`、`+`、`-`、`@` 开头的单元格前加 `'`，防止被表格软件当作公式执行。
+
 ### `GET /api/projects/:id/assets-by-color`
 
 按颜色找素材：`?hex=%23d84848&threshold=20&min=0.02`。在当前素材（不含被取代的旧版本）里，统计可见像素中与该颜色色差（ΔE）不超过 `threshold`（5-60，默认 20）的占比，返回占比 ≥ `min`（默认 2%）的素材：`{ hex, threshold, items: [{ id, share }] }`，按占比从高到低。

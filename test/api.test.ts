@@ -687,6 +687,18 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [cut.id, plain.id, tile.id] } });
   });
 
+  it("exports the consistency report as CSV", async () => {
+    const res = await fetch(`${base}/api/projects/${id}/consistency.csv`);
+    assert.equal(res.headers.get("content-type"), "text/csv; charset=utf-8");
+    assert.match(res.headers.get("content-disposition") ?? "", /attachment; filename="consistency.csv"/);
+    const text = await res.text();
+    assert.ok(text.startsWith("排名,素材 id,名称"), "BOM is stripped by fetch().text(); header row first");
+    const json = (await (await fetch(`${base}/api/projects/${id}/consistency`)).json()) as { items: { id: string }[] };
+    const rows = text.trim().split("\r\n").slice(1);
+    assert.equal(rows.length, json.items.length);
+    assert.ok(rows[0].startsWith(`1,${json.items[0].id},`));
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

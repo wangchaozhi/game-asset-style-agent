@@ -31,7 +31,7 @@ function render() {
         </li>`;
       })
       .join("")}</ol>
-    <div class="export-go"><span class="muted" id="driftPicked"></span><button class="btn primary" id="driftRedraw">按偏离原因重画所选</button></div>`;
+    <div class="export-go"><span class="muted" id="driftPicked"></span><span class="drift-actions"><a class="btn ghost" id="driftCsv" download href="/api/projects/${state.project.id}/consistency.csv${$("#consistencyTag").value ? `?tag=${encodeURIComponent($("#consistencyTag").value)}` : ""}">导出 CSV</a><button class="btn primary" id="driftRedraw">按偏离原因重画所选</button></span></div>`;
   updatePicked();
 }
 

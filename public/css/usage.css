@@ -81,3 +81,4 @@
 @media (max-width: 720px) { .side-grid { --cols: 2 !important; } .side-grid img { height: 26vh; } }
 .shortcut-table th[scope="rowgroup"] { text-align: left; padding-top: 12px; font-size: 13px; }
 .shortcut-table td:first-child { white-space: nowrap; width: 1%; }
+.drift-actions { display: flex; gap: 8px; }
