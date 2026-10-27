@@ -243,6 +243,7 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 - 默认只含已通过素材；`?status=all` 全部；`?ids=ast_a,ast_b` 指定素材（不限状态）；`?tag=第一关` 只含带该标签的素材（可与前两者组合）
 - `?sizes=1` 追加各类型常用尺寸
 - `?godot=game/art` 指定 `.tres` 里的 `res://` 目录（默认 `assets`）
+- `?unity=1` 每张图旁附 Unity `TextureImporter` `.meta`：按 Sprite 导入；精灵表为 Multiple 并按帧切片；UI 九宫格写入 `spriteBorder`；角色 / 敌人 / 物件 / 帧的轴心在底部中心；瓦片为 Repeat；像素风为 Point 过滤、不压缩。GUID 由项目、素材 id 与用途决定，重复导出保持不变，Unity 里的引用不会断
 
 ### `GET /api/projects/:id/export-atlas.zip`
 

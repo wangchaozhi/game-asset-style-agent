@@ -297,6 +297,32 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/export-atlas.zip?size=300`)).status, 400);
   });
 
+  it("exports Unity .meta files with stable GUIDs, sheet slicing and 9-slice borders", async () => {
+    const assets = (await json(`/api/projects/${id}`)).body.assets;
+    const sheet = assets.find((a: { assetType: string }) => a.assetType === "sprite_sheet");
+    const ui = assets.find((a: { assetType: string }) => a.assetType === "ui");
+    await json(`/api/projects/${id}/assets/${ui.id}`, { method: "PATCH", body: { nineSlice: { left: 10, top: 8, right: 12, bottom: 6 } } });
+    const get = async (q: string) => readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?ids=${sheet.id},${ui.id}${q}`)).arrayBuffer()));
+    const zip = await get("&unity=1&sizes=1");
+    const images = Object.keys(zip).filter((n) => /\.(png|jpe?g|webp)$/.test(n) && !n.startsWith("_references/"));
+    assert.ok(images.length >= 6, images.join());
+    for (const n of images) assert.ok(zip[`${n}.meta`], `${n}.meta`);
+    const manifest = JSON.parse(zip["manifest.json"].data.toString());
+    const files = (assetId: string) => manifest.assets.find((a: { id: string }) => a.id === assetId).files;
+    const sheetMeta = zip[`${files(sheet.id).image}.meta`].data.toString();
+    assert.match(sheetMeta, /spriteMode: 2/);
+    assert.equal(sheetMeta.match(/- serializedVersion: 2\n\s+name: /g)?.length, sheet.frames.length);
+    assert.match(zip[`${files(ui.id).image}.meta`].data.toString(), /spriteBorder: \{x: 10, y: 6, z: 12, w: 8\}/);
+    // Same GUIDs on the next export, even after a rename.
+    await json(`/api/projects/${id}/assets/${ui.id}`, { method: "PATCH", body: { name: "面板改名" } });
+    const again = await get("&unity=1");
+    const guid = (z: typeof zip, n: string) => z[n].data.toString().match(/guid: (\w+)/)![1];
+    const renamed = JSON.parse(again["manifest.json"].data.toString()).assets.find((a: { id: string }) => a.id === ui.id).files.image;
+    assert.equal(guid(again, `${renamed}.meta`), guid(zip, `${files(ui.id).image}.meta`));
+    assert.ok(!Object.keys(await get("")).some((n) => n.endsWith(".meta")), "no .meta without ?unity");
+    await json(`/api/projects/${id}/assets/${ui.id}`, { method: "PATCH", body: { nineSlice: null } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

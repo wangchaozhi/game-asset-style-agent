@@ -6,6 +6,7 @@ import { readProjectFile } from "../store/index.js";
 import type { Project } from "../store/types.js";
 import { type AtlasInput, buildAtlas, prepareSprite, scaleSprite } from "./atlas.js";
 import { spriteFramesTres, styleBoxTextureTres } from "./godot.js";
+import { type UnitySpriteMeta, spriteMeta } from "./unity.js";
 import { type ZipEntry, createZip } from "./zip.js";
 
 export interface ExportOptions {
@@ -19,7 +20,12 @@ export interface ExportOptions {
   sizes?: boolean;
   /** folder under res:// where the bundle is unzipped in a Godot project (for .tres paths) */
   godotRoot?: string;
+  /** add a Unity TextureImporter .meta next to every image */
+  unity?: boolean;
 }
+
+/** Types drawn standing on the ground: their sprites pivot at the bottom centre. */
+const STANDING_TYPES = new Set(["character", "enemy", "sprite_sheet", "prop"]);
 
 /** Strip characters that are unsafe in archive paths. */
 export const safeName = (s: string) => s.replace(/[\\/:*?"<>|\s]+/g, "_").replace(/^_+|_+$/g, "") || "asset";
@@ -64,8 +70,18 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
     const files: Record<string, string | string[]> = { image: `${base}.${ext}` };
     entries.push({ name: `${base}.${ext}`, data: original });
     // Re-checked against the real image: stored margins may come from an imported backup.
-    const size = a.nineSlice ? await imageSize(original) : null;
+    const size = a.nineSlice || opts.unity ? await imageSize(original) : null;
     const nineSlice = size && fitNineSlice(a.nineSlice, size.width, size.height);
+    /** Unity .meta beside an image; the GUID follows the asset id and role, not the (renamable) file name. */
+    const meta = (name: string, role: string, o: Omit<UnitySpriteMeta, "seed" | "pixel"> = {}) => {
+      if (!opts.unity) return;
+      const repeat = a.assetType === "tile";
+      entries.push({ name: `${name}.meta`, data: Buffer.from(spriteMeta({ seed: `${project.id}/${a.id}/${role}`, pixel, repeat, ...o })) });
+    };
+    const standing = STANDING_TYPES.has(a.assetType);
+    const sheet = (w: number, h: number) =>
+      a.frames?.length ? { count: a.frames.length, width: Math.floor(w / a.frames.length), height: h, name: safeName(a.name) } : undefined;
+    meta(`${base}.${ext}`, "image", { nineSlice, bottomPivot: standing, frames: size ? sheet(size.width, size.height) : undefined });
     if (nineSlice) {
       files.godot = `${base}.tres`;
       entries.push({ name: `${base}.tres`, data: Buffer.from(styleBoxTextureTres(resPath(`${base}.${ext}`), nineSlice)) });
@@ -75,10 +91,16 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
       for (const spec of SIZE_PRESETS[a.assetType] ?? []) {
         const name = `${base}@${spec}.png`;
         sized.push(name);
-        entries.push({
-          name,
-          data: await resizeAsset(original, { ...parseSize(spec)!, assetType: a.assetType, pixel, frames: a.frames?.length }),
-        });
+        const data = await resizeAsset(original, { ...parseSize(spec)!, assetType: a.assetType, pixel, frames: a.frames?.length });
+        entries.push({ name, data });
+        if (opts.unity && size) {
+          const out = await imageSize(data);
+          meta(name, `size:${spec}`, {
+            nineSlice: nineSlice && scaleNineSlice(nineSlice, size, out),
+            bottomPivot: standing,
+            frames: sheet(out.width, out.height),
+          });
+        }
       }
     }
     if (a.gif) {
@@ -91,6 +113,7 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
         const name = `${base}_frames/${String(i).padStart(2, "0")}.png`;
         frames.push(name);
         entries.push({ name, data: await readProjectFile(project.id, f) });
+        meta(name, `frame:${i}`, { bottomPivot: true });
       }
       const tres = spriteFramesTres(frames.map(resPath), { name: "default", fps: a.fps ?? 8 });
       files.godot = `${base}.tres`;

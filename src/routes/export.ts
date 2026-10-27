@@ -9,14 +9,14 @@ const idsParam = (q: unknown) =>
 
 export const exportRouter = Router();
 
-/** ?status=all includes unapproved assets; ?sizes=1 adds common game sizes. */
+/** ?status=all includes unapproved assets; ?sizes=1 adds common game sizes; ?unity=1 adds Unity .meta files. */
 exportRouter.get("/api/projects/:id/export.zip", async (req, res) => {
   const project = await loadProject(pid(req));
   const all = req.query.status === "all";
   const godotRoot = typeof req.query.godot === "string" ? req.query.godot.slice(0, 200) : undefined;
   const ids = idsParam(req.query.ids);
   const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
-  const out = await buildExport(project, { all, ids, tag, sizes: !!req.query.sizes, godotRoot });
+  const out = await buildExport(project, { all, ids, tag, sizes: !!req.query.sizes, godotRoot, unity: !!req.query.unity });
   if (!out) return void res.status(400).json({ error: ids ? "所选素材不存在" : tag ? `没有带「${tag}」标签的${all ? "" : "已通过"}素材` : all ? "项目还没有素材" : "还没有已通过的素材" });
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", attachment("assets.zip", out.filename));
