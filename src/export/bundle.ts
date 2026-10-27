@@ -6,7 +6,7 @@ import { readProjectFile } from "../store/index.js";
 import type { Project } from "../store/types.js";
 import { type AtlasInput, buildAtlas, prepareSprite, scaleSprite } from "./atlas.js";
 import { spriteFramesTres, styleBoxTextureTres } from "./godot.js";
-import { type UnitySpriteMeta, spriteMeta } from "./unity.js";
+import { type UnitySpriteMeta, animationClip, nativeMeta, spriteMeta } from "./unity.js";
 import { type ZipEntry, createZip } from "./zip.js";
 
 export interface ExportOptions {
@@ -114,6 +114,12 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
         frames.push(name);
         entries.push({ name, data: await readProjectFile(project.id, f) });
         meta(name, `frame:${i}`, { bottomPivot: true });
+      }
+      if (opts.unity) {
+        files.unity = `${base}.anim`;
+        const clip = animationClip({ name: safeName(a.name), sheetSeed: `${project.id}/${a.id}/image`, count: a.frames.length, fps: a.fps ?? 8 });
+        entries.push({ name: `${base}.anim`, data: Buffer.from(clip) });
+        entries.push({ name: `${base}.anim.meta`, data: Buffer.from(nativeMeta(`${project.id}/${a.id}/anim`)) });
       }
       const tres = spriteFramesTres(frames.map(resPath), { name: "default", fps: a.fps ?? 8 });
       files.godot = `${base}.tres`;

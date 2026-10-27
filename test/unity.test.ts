@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { spriteMeta, unityGuid } from "../src/export/unity.js";
+import { animationClip, nativeMeta, spriteMeta, unityGuid } from "../src/export/unity.js";
 
 const field = (meta: string, key: string) => meta.match(new RegExp(`^\\s*${key}: (.*)$`, "m"))?.[1];
 
@@ -43,5 +43,25 @@ describe("Unity sprite .meta", () => {
     const ids = [...meta.matchAll(/internalID: (\d+)/g)].map((m) => m[1]);
     assert.equal(new Set(ids).size, 3);
     for (const [i, id] of ids.entries()) assert.match(meta, new RegExp(`walk_${i}: ${id}\\n`), "nameFileIdTable matches");
+  });
+});
+
+describe("Unity AnimationClip", () => {
+  it("keys every frame of the sheet by the sprite ids its .meta defines", () => {
+    const meta = spriteMeta({ seed: "p/a/image", pixel: false, frames: { count: 4, width: 32, height: 32, name: "walk" } });
+    const ids = [...meta.matchAll(/internalID: (\d+)/g)].map((m) => m[1]);
+    const clip = animationClip({ name: "walk", sheetSeed: "p/a/image", count: 4, fps: 8 });
+    assert.match(clip, /^%YAML 1\.1\n%TAG !u! tag:unity3d\.com,2011:\n--- !u!74 &7400000\nAnimationClip:/);
+    const keys = [...clip.matchAll(/- time: ([\d.]+)\n\s+value: \{fileID: (\d+), guid: (\w+), type: 3\}/g)];
+    assert.deepEqual(keys.map((k) => +k[1]), [0, 0.125, 0.25, 0.375]);
+    assert.deepEqual(keys.map((k) => k[2]), ids);
+    assert.ok(keys.every((k) => k[3] === unityGuid("p/a/image")));
+    assert.deepEqual(["m_SampleRate", "m_StopTime", "m_LoopTime", "attribute"].map((k) => field(clip, k)), ["8", "0.5", "1", "m_Sprite"]);
+  });
+
+  it("native .meta points at the clip object", () => {
+    const meta = nativeMeta("p/a/anim");
+    assert.equal(field(meta, "guid"), unityGuid("p/a/anim"));
+    assert.equal(field(meta, "mainObjectFileID"), "7400000");
   });
 });

@@ -85,3 +85,95 @@ TextureImporter:
   assetBundleVariant:
 `;
 }
+
+/** Unity reference to sprite `i` of a Multiple-mode texture exported with spriteMeta. */
+const spriteRef = (seed: string, i: number) => `{fileID: ${internalId(`${seed}#${i}`)}, guid: ${unityGuid(seed)}, type: 3}`;
+
+/**
+ * Looping AnimationClip (.anim) that flips a SpriteRenderer's m_Sprite through the frames of a sheet
+ * exported with spriteMeta(seed, frames). Add it to an Animator, or drag it onto a sprite in the scene.
+ */
+export function animationClip(o: { name: string; sheetSeed: string; count: number; fps: number }): string {
+  const fps = Math.max(1, Math.round(o.fps));
+  const keys = Array.from({ length: o.count }, (_, i) => `    - time: ${+(i / fps).toFixed(6)}\n      value: ${spriteRef(o.sheetSeed, i)}`).join("\n");
+  const mapping = Array.from({ length: o.count }, (_, i) => `    - ${spriteRef(o.sheetSeed, i)}`).join("\n");
+  return `%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!74 &7400000
+AnimationClip:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ${o.name.replace(/[\r\n:]/g, " ")}
+  serializedVersion: 7
+  m_Legacy: 0
+  m_Compressed: 0
+  m_UseHighQualityCurve: 1
+  m_RotationCurves: []
+  m_CompressedRotationCurves: []
+  m_EulerCurves: []
+  m_PositionCurves: []
+  m_ScaleCurves: []
+  m_FloatCurves: []
+  m_PPtrCurves:
+  - curve:
+${keys}
+    attribute: m_Sprite
+    path: 
+    classID: 212
+    script: {fileID: 0}
+  m_SampleRate: ${fps}
+  m_WrapMode: 0
+  m_Bounds:
+    m_Center: {x: 0, y: 0, z: 0}
+    m_Extent: {x: 0, y: 0, z: 0}
+  m_ClipBindingConstant:
+    genericBindings:
+    - serializedVersion: 2
+      path: 0
+      attribute: 0
+      script: {fileID: 0}
+      typeID: 212
+      customType: 23
+      isPPtrCurve: 1
+    pptrCurveMapping:
+${mapping}
+  m_AnimationClipSettings:
+    serializedVersion: 2
+    m_AdditiveReferencePoseClip: {fileID: 0}
+    m_AdditiveReferencePoseTime: 0
+    m_StartTime: 0
+    m_StopTime: ${+(o.count / fps).toFixed(6)}
+    m_OrientationOffsetY: 0
+    m_Level: 0
+    m_CycleOffset: 0
+    m_HasAdditiveReferencePose: 0
+    m_LoopTime: 1
+    m_LoopBlend: 0
+    m_LoopBlendOrientation: 0
+    m_LoopBlendPositionY: 0
+    m_LoopBlendPositionXZ: 0
+    m_KeepOriginalOrientation: 0
+    m_KeepOriginalPositionY: 1
+    m_KeepOriginalPositionXZ: 0
+    m_HeightFromFeet: 0
+    m_Mirror: 0
+  m_EditorCurves: []
+  m_EulerEditorCurves: []
+  m_HasGenericRootTransform: 0
+  m_HasMotionFloatCurves: 0
+  m_Events: []
+`;
+}
+
+/** .meta for a native Unity asset such as an .anim (main object 7400000 = the AnimationClip). */
+export const nativeMeta = (seed: string) => `fileFormatVersion: 2
+guid: ${unityGuid(seed)}
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 7400000
+  userData:
+  assetBundleName:
+  assetBundleVariant:
+`;

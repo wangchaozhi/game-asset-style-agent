@@ -313,6 +313,14 @@ describe("HTTP API (demo mode)", () => {
     assert.match(sheetMeta, /spriteMode: 2/);
     assert.equal(sheetMeta.match(/- serializedVersion: 2\n\s+name: /g)?.length, sheet.frames.length);
     assert.match(zip[`${files(ui.id).image}.meta`].data.toString(), /spriteBorder: \{x: 10, y: 6, z: 12, w: 8\}/);
+    // The sheet's AnimationClip references exactly the sprites its .meta defines.
+    const clip = zip[files(sheet.id).unity].data.toString();
+    const sheetGuid = sheetMeta.match(/guid: (\w+)/)![1];
+    const spriteIds = [...sheetMeta.matchAll(/internalID: (\d+)/g)].map((m) => m[1]);
+    const keyRefs = [...clip.matchAll(/value: \{fileID: (\d+), guid: (\w+), type: 3\}/g)];
+    assert.deepEqual(keyRefs.map((k) => k[1]), spriteIds);
+    assert.ok(keyRefs.every((k) => k[2] === sheetGuid));
+    assert.ok(zip[`${files(sheet.id).unity}.meta`]);
     // Same GUIDs on the next export, even after a rename.
     await json(`/api/projects/${id}/assets/${ui.id}`, { method: "PATCH", body: { name: "面板改名" } });
     const again = await get("&unity=1");
