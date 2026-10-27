@@ -421,8 +421,14 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(r.status, 200, JSON.stringify(r.body));
     const evs = await events(r.body.jobId);
     assert.ok(evs.some((e: { type: string }) => e.type === "done"), JSON.stringify(evs.at(-1)));
-    const after = (await json(`/api/projects/${id}`)).body.assets.filter((a: { assetType: string }) => a.assetType === "sprite_sheet").length;
-    assert.ok(after > before, "the run made sprite sheets");
+    const sheets = (await json(`/api/projects/${id}`)).body.assets.filter((a: { assetType: string }) => a.assetType === "sprite_sheet");
+    assert.equal(sheets.length, before + 2, "one sheet per distinct action");
+    // Demo mode follows the set too: preset frames and fps, tagged with the character's name.
+    const sheetFor = (label: string) => sheets.find((a: { name: string }) => a.name === `${hero.name}·${label}`);
+    assert.deepEqual([sheetFor("待机").frames.length, sheetFor("待机").fps, sheetFor("待机").tags], [4, 6, [hero.name]]);
+    assert.deepEqual([sheetFor("行走").frames.length, sheetFor("行走").fps], [6, 10]);
+    const usage = (await json(`/api/projects/${id}/usage`)).body.runs.find((u: { jobId: string }) => u.jobId === r.body.jobId);
+    assert.equal(usage.request, `动作套装「${hero.name}」：待机、行走`);
   });
 
   it("batch-updates, exports by id, and batch-deletes", async () => {

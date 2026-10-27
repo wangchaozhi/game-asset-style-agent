@@ -1,3 +1,4 @@
+import { ACTION_PRESETS, type ActionKey } from "../domain/actionSet.js";
 import type { Asset, StyleGuide } from "../store/types.js";
 import { saveRunUsage } from "../store/usage.js";
 import type { RunUsage } from "../usage/types.js";
@@ -45,6 +46,8 @@ export interface RunOptions {
   manual?: { assetId: string; prompt: string };
   /** per-run limits; missing fields fall back to RUN_MAX_IMAGES / RUN_MAX_USD */
   budget?: { maxImages?: unknown; maxUsd?: unknown };
+  /** an animation set for a character; `request` carries the same as instructions for Claude */
+  actionSet?: { assetId: string; name: string; actions: ActionKey[] };
 }
 
 /** In-memory registry of running and recently finished jobs. */
@@ -75,8 +78,9 @@ export function reportUsage(job: Job) {
 /** Most assets one run may redraw (each adds an image to the request). */
 export const MAX_REDRAWS = 10;
 
-export function requestLabel(opts: Pick<RunOptions, "request" | "redraws" | "manual">) {
+export function requestLabel(opts: Pick<RunOptions, "request" | "redraws" | "manual" | "actionSet">) {
   if (opts.manual) return `直接重生成：${opts.manual.prompt.slice(0, 80)}`;
+  if (opts.actionSet) return `动作套装「${opts.actionSet.name}」：${opts.actionSet.actions.map((k) => ACTION_PRESETS[k].label).join("、")}`;
   const r = opts.redraws ?? [];
   if (r.length === 1) return `重画：${r[0].feedback}`;
   if (r.length > 1) return `重画 ${r.length} 个素材`;

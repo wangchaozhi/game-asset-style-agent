@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { ACTION_PRESETS } from "../domain/actionSet.js";
 import { ASSET_TYPES, type AssetType, isAssetType, isOpaqueType } from "../domain/assetTypes.js";
 import { getProvider } from "../providers/index.js";
 import { loadConversation, loadProject, readProjectFile, recordStyleVersion, saveConversation, updateProject } from "../store/index.js";
@@ -91,17 +92,30 @@ export async function runDemo(job: Job, opts: RunOptions) {
     return;
   }
 
-  const types = (opts.assetTypes.length ? opts.assetTypes : ["item_icon", "character", "tile"]).filter(isAssetType);
-  emit(job, { type: "text", delta: `计划生成 ${types.length} 个素材：${types.map((t) => ASSET_TYPES[t]).join("、")}。\n` });
-  await Promise.all(
-    types.map(async (t, i) => {
-      const input: GenerateInput = {
+  const set = opts.actionSet;
+  const inputs: GenerateInput[] = set
+    ? // One sheet per action, at the preset's frame count and speed, tied to the character.
+      set.actions.map((k) => ({
+        name: `${set.name}·${ACTION_PRESETS[k].label}`,
+        asset_type: "sprite_sheet",
+        prompt: `${sg.prompt_prefix} ${set.name}: ${ACTION_PRESETS[k].motion}, ${ACTION_PRESETS[k].frames} frames in one row`,
+        aspect: "landscape",
+        transparent_background: true,
+        frames: ACTION_PRESETS[k].frames,
+        fps: ACTION_PRESETS[k].fps,
+        consistency_asset_ids: [set.assetId],
+        tags: [set.name],
+      }))
+    : (opts.assetTypes.length ? opts.assetTypes : ["item_icon", "character", "tile"]).filter(isAssetType).map((t, i) => ({
         name: `${ASSET_TYPES[t]} #${i + 1}`,
         asset_type: t,
         prompt: `${sg.prompt_prefix} ${opts.request} ${t}`,
         aspect: aspectFor(t),
         transparent_background: !isOpaqueType(t),
-      };
+      }));
+  emit(job, { type: "text", delta: `计划生成 ${inputs.length} 个素材：${inputs.map((i) => i.name).join("、")}。\n` });
+  await Promise.all(
+    inputs.map(async (input) => {
       emit(job, { type: "tool", name: "generate_image", input });
       const made = await generateAsset(job, provider, input).catch((err) => {
         if (err instanceof BudgetExceededError) return null;
@@ -120,6 +134,6 @@ export async function runDemo(job: Job, opts: RunOptions) {
       emit(job, { type: "asset", asset });
     }),
   );
-  await recordDemoTurn(project.id, opts, `生成了 ${types.length} 个素材`);
+  await recordDemoTurn(project.id, opts, `生成了 ${inputs.length} 个素材`);
   emit(job, { type: "text", delta: "演示完成。配置 ANTHROPIC_API_KEY 并去掉 AGENT_MODE=demo 即可启用真正的 Claude 美术总监。\n" });
 }

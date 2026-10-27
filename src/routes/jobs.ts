@@ -50,6 +50,7 @@ jobsRouter.post("/api/projects/:id/assets/:assetId/action-set", async (req, res)
     projectId,
     request: actionSetRequest(asset, actions),
     assetTypes: ["sprite_sheet"],
+    actionSet: { assetId: asset.id, name: asset.name, actions },
     providerId: req.body?.provider ? String(req.body.provider) : undefined,
     continueConversation: req.body?.continueConversation !== false,
     budget: typeof req.body?.budget === "object" && req.body.budget ? req.body.budget : undefined,
