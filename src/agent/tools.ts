@@ -199,4 +199,15 @@ export const tools: Anthropic.Beta.BetaTool[] = [
       required: ["asset_id", "swaps"],
     },
   },
+  {
+    name: "check_consistency",
+    description:
+      "Measure every current asset in the project against the style palette and list the ones that drift furthest from the rest of the set, with the reasons (low on-palette share, large colour distance, low review score). Free, no image calls. Call it once before your final summary, after generating several assets: fix or regenerate assets from this run that it flags, and mention older ones in the summary.",
+    input_schema: {
+      type: "object",
+      properties: {
+        limit: { type: "integer", description: "How many of the most drifted assets to list (1-20, default 8)." },
+      },
+    },
+  },
 ];

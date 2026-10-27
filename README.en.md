@@ -116,6 +116,7 @@ The agent is a hand-written tool-use loop on the Anthropic TypeScript SDK (`src/
 | `set_nine_slice` | Detect (or take) 9-slice margins for stretchable UI — panels, buttons, bars — save them and return a stretched preview to check (no image-model call) |
 | `add_outline` | Add a uniform outer outline when the style calls for one and an asset lacks it (colour defaults to the darkest palette colour; no image-model call) |
 | `recolor_variant` | Colour-swap variants — elite / element enemies, outfit colours, rarity tiers — as new assets with shading kept (no image-model call) |
+| `check_consistency` | Self-check before finishing: measure every asset against the palette and list the ones drifting most, with reasons, so the agent can fix or redraw them (no image-model call) |
 
 See the architecture section of the [Chinese README](README.md#架构) for the source layout.
 

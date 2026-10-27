@@ -10,11 +10,12 @@ import { alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, outlineVersi
 import type { ImageProvider } from "../providers/types.js";
 import { loadProject, readProjectFile, recordStyleVersion, updateProject } from "../store/index.js";
 import type { Asset, Project } from "../store/types.js";
+import { measureConsistency } from "../ops/consistency.js";
 import { generateAsset } from "./assets.js";
 import { BudgetExceededError } from "./budget.js";
 import { type Job, emit } from "./events.js";
 import {
-  AlignFramesInput, FixSeamsInput, GenerateInput, NineSliceToolInput, OutlineInput, RecolorInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput,
+  AlignFramesInput, CheckConsistencyInput, FixSeamsInput, GenerateInput, NineSliceToolInput, OutlineInput, RecolorInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput,
 } from "./schemas.js";
 
 type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
@@ -206,6 +207,29 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
         await readProjectFile(found.project.id, r.file),
         r.mime,
       );
+    }
+    case "check_consistency": {
+      const parsed = CheckConsistencyInput.safeParse(block.input ?? {});
+      if (!parsed.success) return invalid();
+      const project = await loadProject(job.projectId);
+      const report = await measureConsistency(project);
+      if (!report) return errResult(block.id, "There is no style guide palette yet; call save_style_guide first.");
+      const byId = new Map(project.assets.map((a) => [a.id, a]));
+      const pct = (x: number) => `${Math.round(x * 100)}%`;
+      const drifting = report.items.filter((i) => i.reasons.length).slice(0, parsed.data.limit ?? 8);
+      const lines = drifting.map((i) => {
+        const a = byId.get(i.id)!;
+        const mine = a.runId === job.id ? " (made in this run)" : "";
+        return `- ${a.id} "${a.name}" [${a.assetType}]${mine}: drift ${i.drift} — ${i.reasons.join("; ")}`;
+      });
+      return {
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: [
+          `Measured ${report.items.length} current assets. Project median: on-palette ${pct(report.medianCoverage)}, mean ΔE ${Math.round(report.medianDeltaE * 10) / 10}.`,
+          drifting.length ? `Clearly drifting, most first:\n${lines.join("\n")}` : "No asset clearly drifts from the rest of the set.",
+        ].join("\n"),
+      };
     }
     case "set_nine_slice": {
       const parsed = NineSliceToolInput.safeParse(block.input);

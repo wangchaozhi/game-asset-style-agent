@@ -34,7 +34,7 @@ describe("tool definitions", () => {
   it("every tool has a schema whose required fields are declared", () => {
     assert.deepEqual(tools.map((t) => t.name), [
       "save_style_guide", "generate_image", "review_asset", "fix_tile_seams", "align_sprite_frames", "remove_background", "snap_to_palette",
-      "set_nine_slice", "add_outline", "recolor_variant",
+      "set_nine_slice", "add_outline", "recolor_variant", "check_consistency",
     ]);
     for (const t of tools) {
       const props = Object.keys(t.input_schema.properties ?? {});
@@ -276,6 +276,27 @@ describe("post-processing tools", () => {
     const err = async (input: object) => textOf(await runTool(fakeJob(projectId), mock, call("recolor_variant", input)));
     assert.match(await err({ asset_id: "ast_nope", swaps: [{ from: "#000000", to: "#ffffff" }] }), /Unknown asset_id/);
     assert.match(await err({ asset_id: id, swaps: [] }), /INVALID_JSON/);
+  });
+
+  it("check_consistency lists the assets drifting from the set, marking this run's", async () => {
+    const p = await projectWithRef();
+    await store.updateProject(p.id, (q) => void (q.styleGuide = validStyleGuide()));
+    const add = async (id: string, color: string, runId: string) => {
+      await store.writeProjectFile(p.id, `assets/${id}.png`, await solidPng(24, 24, color));
+      await store.updateProject(p.id, (q) => void q.assets.push({
+        id, name: id, assetType: "item_icon", prompt: "x", file: `assets/${id}.png`, mime: "image/png", status: "approved", runId, provider: "mock", createdAt: new Date().toISOString(),
+      }));
+    };
+    for (const [i, c] of ["#112233", "#aabbcc", "#ffeedd", "#aabbcc"].entries()) await add(`ast_ok${i}`, c, "old");
+    await add("ast_pink", "#ff00ff", "job_test");
+    const r = await runTool(fakeJob(p.id), mock, call("check_consistency", {}));
+    const text = String(r.content);
+    assert.match(text, /^Measured 5 current assets\. Project median: on-palette 100%/);
+    assert.match(text, /Clearly drifting, most first:\n- ast_pink "ast_pink" \[item_icon\] \(made in this run\): drift \d+/);
+    assert.doesNotMatch(text, /ast_ok/);
+    const bare = await store.createProject("no palette");
+    assert.match(String((await runTool(fakeJob(bare.id), mock, call("check_consistency", {}))).content), /no style guide palette/);
+    assert.match(String((await runTool(fakeJob(p.id), mock, call("check_consistency", { limit: 99 }))).content), /INVALID_JSON/);
   });
 
   it("align_sprite_frames removes the mock walk cycle's bobbing", async () => {

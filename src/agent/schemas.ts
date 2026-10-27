@@ -79,3 +79,7 @@ export const RecolorInput = z.object({
   name: z.string().max(80).optional(),
   threshold: z.number().min(5).max(60).optional(),
 });
+
+export const CheckConsistencyInput = z.object({
+  limit: z.number().int().min(1).max(20).optional(),
+});

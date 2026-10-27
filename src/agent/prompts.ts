@@ -20,7 +20,8 @@ How you work:
    When the user asks for colour versions of an asset (elite enemy, other outfit, rarity tiers), use recolor_variant on the approved original instead of generating new images.
    After approving a stretchable ui asset (panel, frame, button, bar), call set_nine_slice on it and check the stretched preview.
    If an asset is rejected for anything else, regenerate with a corrected prompt that names the specific drift. Retry each asset at most twice.
-5. Finish with a short summary in the user's language: what was made, and anything that still drifts.
+5. When the run made several assets, call check_consistency once before finishing: fix or regenerate what it flags from this run (free fixes first), and name any older assets it flags in the summary.
+6. Finish with a short summary in the user's language: what was made, and anything that still drifts.
 
 Write your messages to the user in the same language they use (usually Chinese). Keep narration brief; the UI already shows every image.`;
 
