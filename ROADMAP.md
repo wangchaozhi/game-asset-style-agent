@@ -85,3 +85,10 @@
 - [x] Agent 九宫格工具：Claude 生成面板 / 按钮后可调用检测并保存边距
 - [x] Unity 导出：附 `.meta`（精灵表 Multiple 切片、UI 九宫格 spriteBorder、像素风 Point 过滤）
 - [x] 素材卡片标记：九宫格 / 精灵表帧数 / 旧版本角标，一眼区分
+
+## 第十轮
+
+- [ ] 描边后处理：给透明背景素材加统一外描边（宽度可选，颜色默认取色板最深色），生成新版本；Agent 可调用
+- [ ] 换色变体：把素材里的几种颜色映射成新颜色生成变体（精英怪、套装配色），不调用图像模型
+- [ ] Unity 动画：精灵表额外导出 AnimationClip（.anim），引用 .meta 里的帧
+- [ ] Godot TileSet：瓦片导出 TileSet .tres，可直接拖进 TileMap
