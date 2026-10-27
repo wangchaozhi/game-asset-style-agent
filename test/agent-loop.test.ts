@@ -134,6 +134,28 @@ describe("agent loop against a fake Messages API", () => {
     assert.equal(conv!.runs.length, 1);
   });
 
+  it("runs a preset project without reference images, guided by its style guide", async () => {
+    const { STYLE_PRESETS } = await import("../src/domain/stylePresets.js");
+    const p = await store.createProject("preset");
+    await store.updateProject(p.id, (q) => void (q.styleGuide = STYLE_PRESETS.pixel.guide));
+    fake.script({ content: [gen("toolu_g", "金币")], stop_reason: "tool_use" }, say("完成：金币。"));
+    const { events } = await run({ projectId: p.id });
+
+    assert.deepEqual(errorsOf(events), []);
+    const opening = fake.requests[0].body.messages[0].content as { type: string; text?: string }[];
+    assert.equal(opening.filter((b) => b.type === "image").length, 0, "no reference images to attach");
+    assert.match(opening[0].text!, /^No reference images: this project starts from its style guide/);
+    assert.match(opening.at(-1)!.text!, /already has a style guide[\s\S]*16-bit pixel art/);
+    assert.ok((await store.loadProject(p.id)).assets.some((a) => a.name === "金币"), "the generation went through");
+  });
+
+  it("refuses to start without references or a style guide", async () => {
+    const p = await store.createProject("empty");
+    const { events } = await run({ projectId: p.id });
+    assert.match(JSON.stringify(errorsOf(events)), /风格预设/);
+    assert.equal(fake.requests.length, 0, "Claude was never called");
+  });
+
   it("continues the conversation: history is resent unchanged, references are not re-attached", async () => {
     const projectId = await newProject();
     fake.script(say("第一轮"));
