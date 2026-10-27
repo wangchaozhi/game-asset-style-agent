@@ -77,12 +77,21 @@ export function renderAssets(newId) {
   grid.classList.toggle("selecting", state.selecting || inTrash());
   const days = state.config.trashDays ?? 7;
   const left = (a) => Math.max(0, Math.ceil(days - (Date.now() - Date.parse(a.deletedAt)) / 86_400_000));
+  // Assets with a newer version (a redraw or post-processed copy) are marked as superseded.
+  const superseded = new Set(state.project.assets.map((a) => a.parentId).filter(Boolean));
+  /** Corner chips on the thumbnail: what kind of asset this is beyond its type. */
+  const marks = (a) =>
+    [
+      a.frames?.length && `<span class="mark" title="精灵表，已切成 ${a.frames.length} 帧">${a.frames.length} 帧</span>`,
+      a.nineSlice && `<span class="mark" title="已设置九宫格边距">九宫格</span>`,
+      !a.deletedAt && superseded.has(a.id) && `<span class="mark old" title="已有新版本">旧版本</span>`,
+    ].filter(Boolean).join("");
   grid.innerHTML = shown.length
     ? shown
         .map(
           (a) => `<div class="card ${a.status} ${a.id === newId ? "new" : ""} ${state.selected.has(a.id) ? "selected" : ""}" data-asset="${a.id}">
             <span class="tick" aria-hidden="true"></span>
-            <div class="checker"><img loading="lazy" decoding="async" src="${thumbUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /></div>
+            <div class="checker"><img loading="lazy" decoding="async" src="${thumbUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /><span class="marks">${marks(a)}</span></div>
             <div class="meta"><span class="name">${esc(a.name)}</span>
               ${a.tags?.length ? `<span class="tags">${a.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join("")}</span>` : ""}
               <span class="sub"><span>${esc(typeName(a.assetType))}</span>${

@@ -56,3 +56,7 @@
 .viewer-tags { align-items: center; gap: 6px; }
 .viewer-tags .tag { font-size: 12px; padding: 1px 8px; }
 .viewer-tags .btn.link { font-size: 12px; }
+.card .checker { position: relative; }
+.marks { position: absolute; right: 6px; bottom: 6px; display: flex; gap: 4px; pointer-events: none; }
+.mark { font-size: 11px; line-height: 1.6; padding: 0 6px; border-radius: 999px; color: #fff; background: rgba(0, 0, 0, 0.6); }
+.mark.old { background: rgba(70, 70, 70, 0.85); }
