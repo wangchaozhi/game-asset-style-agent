@@ -164,6 +164,10 @@ Server-Sent Events。连接后先回放已发生的事件，再实时推送，�
 curl -N http://localhost:5173/api/jobs/job_xxx/events
 ```
 
+### `POST /api/projects/:id/assets/:assetId/action-set`
+
+为角色 / 敌人生成动作套装：`{ "actions": ["idle", "walk", "attack", "hurt"], "provider": "openai" }`。可选动作见 `GET /api/config` 的 `actionPresets`（待机、行走、奔跑、攻击、受击、跳跃、倒下，各自带默认帧数与帧率）。启动一次 Agent 任务：每个动作一张精灵表，都以该素材为一致性参考、打上角色名标签。`provider`、`budget`、`continueConversation` 与 `/run` 相同。返回 `{ jobId }`；已有任务运行时返回 409。
+
 ### `POST /api/projects/:id/assets/:assetId/regenerate`
 
 用编辑后的 prompt 直接调用图像模型生成新版本（不经过 Claude，不消耗 tokens）：`{ "prompt": "…", "provider": "openai", "budget": {…} }`。返回 `{ jobId }`，进度同样从事件流读取；新素材待审核，`parentId` 指向原素材。用量记录的 `mode` 为 `manual`。

@@ -119,3 +119,10 @@ kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5p
 .recolor-opts label { display: flex; gap: 4px; align-items: center; color: var(--muted); }
 .recolor-opts input[name="name"] { width: 140px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; }
 .recolor-opts select { padding: 3px 6px; font-size: 12px; }
+.action-set { display: grid; gap: 6px; }
+.action-list { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 12px; }
+.action-list label { display: flex; gap: 4px; align-items: center; }
+.action-set > .btn { justify-self: start; }
+.action-set .sizes-head { flex-wrap: wrap; justify-content: flex-start; gap: 2px 8px; }
+.action-set .sizes-head b { white-space: nowrap; }
+.action-set .sizes-head .muted { font-size: 12px; }

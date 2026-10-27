@@ -404,6 +404,27 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${bare.id}/consistency`)).status, 400);
   });
 
+  it("starts an action-set run for a character and validates the request", async () => {
+    assert.ok("idle" in (await json("/api/config")).body.actionPresets);
+    const made = await json(`/api/projects/${id}/run`, { method: "POST", body: { request: "主角", assetTypes: ["character"], provider: "mock" } });
+    await events(made.body.jobId);
+    const assets = (await json(`/api/projects/${id}`)).body.assets;
+    const hero = assets.findLast((a: { assetType: string }) => a.assetType === "character");
+    const other = assets.find((a: { assetType: string }) => a.assetType === "tile");
+    const post = (assetId: string, body: unknown) => json(`/api/projects/${id}/assets/${assetId}/action-set`, { method: "POST", body });
+    assert.equal((await post(other.id, { actions: ["idle"] })).status, 400, "only characters and enemies");
+    assert.equal((await post(hero.id, { actions: [] })).status, 400);
+    assert.equal((await post(hero.id, { actions: ["dance"] })).status, 400, "unknown actions are dropped");
+    assert.equal((await post("ast_missing", { actions: ["idle"] })).status, 404);
+    const before = assets.filter((a: { assetType: string }) => a.assetType === "sprite_sheet").length;
+    const r = await post(hero.id, { actions: ["idle", "walk", "idle"], provider: "mock" });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const evs = await events(r.body.jobId);
+    assert.ok(evs.some((e: { type: string }) => e.type === "done"), JSON.stringify(evs.at(-1)));
+    const after = (await json(`/api/projects/${id}`)).body.assets.filter((a: { assetType: string }) => a.assetType === "sprite_sheet").length;
+    assert.ok(after > before, "the run made sprite sheets");
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

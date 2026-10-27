@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ACTION_SET_TYPES, actionSetRequest, isActionKey } from "../domain/actionSet.js";
 import { type AgentEvent, jobs, runningJobFor, startJob } from "../agent/index.js";
 import { MAX_REDRAWS } from "../agent/events.js";
 import { loadProject } from "../store/index.js";
@@ -30,6 +31,28 @@ jobsRouter.post("/api/projects/:id/run", async (req, res) => {
     continueConversation: req.body?.continueConversation !== false,
     budget: typeof req.body?.budget === "object" && req.body.budget ? req.body.budget : undefined,
     redraws: parseRedraws(req.body),
+  });
+  res.json({ jobId: job.id });
+});
+
+/** Animation set for a character / enemy: { actions: ["idle", "walk", …] } starts an agent run with one sprite sheet per action. */
+jobsRouter.post("/api/projects/:id/assets/:assetId/action-set", async (req, res) => {
+  const projectId = pid(req);
+  const project = await loadProject(projectId);
+  const asset = project.assets.find((a) => a.id === req.params.assetId);
+  if (!asset) return void res.status(404).json({ error: "素材不存在" });
+  if (!ACTION_SET_TYPES.has(asset.assetType)) return void res.status(400).json({ error: "只有角色和敌人可以生成动作套装" });
+  const actions = Array.isArray(req.body?.actions) ? [...new Set(req.body.actions as unknown[])].filter(isActionKey) : [];
+  if (!actions.length) return void res.status(400).json({ error: "请至少选择一个动作" });
+  const running = runningJobFor(projectId);
+  if (running) return void res.status(409).json({ error: "该项目已有任务在运行", jobId: running.id });
+  const job = startJob({
+    projectId,
+    request: actionSetRequest(asset, actions),
+    assetTypes: ["sprite_sheet"],
+    providerId: req.body?.provider ? String(req.body.provider) : undefined,
+    continueConversation: req.body?.continueConversation !== false,
+    budget: typeof req.body?.budget === "object" && req.body.budget ? req.body.budget : undefined,
   });
   res.json({ jobId: job.id });
 });
