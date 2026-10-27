@@ -51,6 +51,8 @@ export interface Asset {
   originalFile?: string;
   /** previous version this asset was redrawn from */
   parentId?: string;
+  /** colour-swap variant of this asset (a sibling, not a newer version) */
+  variantOf?: string;
   reviewer?: "agent" | "user";
   /** user / agent labels for grouping, e.g. a level or set name */
   tags?: string[];

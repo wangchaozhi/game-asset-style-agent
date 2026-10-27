@@ -339,6 +339,25 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/${r.body.id}`, { method: "DELETE" });
   });
 
+  it("lists main colours and makes colour-swap variants as sibling assets", async () => {
+    const sheet = (await json(`/api/projects/${id}`)).body.assets.find((a: { assetType: string }) => a.assetType === "sprite_sheet");
+    const { colors } = (await json(`/api/projects/${id}/assets/${sheet.id}/colors`)).body;
+    assert.ok(colors.length >= 1 && colors.every((c: { hex: string; share: number }) => /^#[0-9a-f]{6}$/.test(c.hex) && c.share > 0));
+    const post = (body: unknown) => json(`/api/projects/${id}/assets/${sheet.id}/recolor`, { method: "POST", body });
+    const r = await post({ swaps: [{ from: colors[0].hex, to: "#d84848" }] });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.deepEqual([r.body.variantOf, r.body.parentId, r.body.status, r.body.frames.length], [sheet.id, undefined, "pending_review", sheet.frames.length]);
+    assert.equal(r.body.name, `${sheet.name}（变体）`);
+    assert.equal((await post({ swaps: [{ from: colors[0].hex, to: "#d84848" }], name: " 精英 " })).body.name, "精英");
+    assert.equal((await post({ swaps: [] })).status, 400);
+    assert.equal((await post({ swaps: [{ from: "red", to: "#d84848" }] })).status, 400);
+    assert.equal((await post({ swaps: [{ from: colors[0].hex, to: "#d84848" }], threshold: 99 })).status, 400);
+    assert.equal((await json(`/api/projects/${id}/assets/ast_missing/colors`)).status, 404);
+    const variants = (await json(`/api/projects/${id}`)).body.assets.filter((a: { variantOf?: string }) => a.variantOf === sheet.id);
+    assert.equal(variants.length, 2);
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: variants.map((v: { id: string }) => v.id) } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

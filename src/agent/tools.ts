@@ -176,4 +176,23 @@ export const tools: Anthropic.Beta.BetaTool[] = [
       required: ["asset_id"],
     },
   },
+  {
+    name: "recolor_variant",
+    description:
+      "Make a colour-swap variant of an asset as a new asset (no image-model call, no cost): elite or element versions of an enemy, other outfit colours, rarity tiers of an item. Pixels near each `from` colour shift to the `to` colour with their shading kept. Use the asset's main colours (from the palette check, or this tool's result) as `from`. Returns the variant's asset_id and image; review it like any asset.",
+    input_schema: {
+      type: "object",
+      properties: {
+        asset_id: { type: "string" },
+        swaps: {
+          type: "array",
+          items: { type: "object", properties: { from: { type: "string", description: "#rrggbb present in the asset" }, to: { type: "string", description: "#rrggbb" } }, required: ["from", "to"] },
+          description: "1-8 colour swaps.",
+        },
+        name: { type: "string", description: "Name of the variant in the user's language, e.g. \"精英史莱姆\"." },
+        threshold: { type: "number", description: "How far (ΔE, 5-60, default 20) a pixel may be from `from` and still change. Raise it if shades of the colour are left behind." },
+      },
+      required: ["asset_id", "swaps"],
+    },
+  },
 ];

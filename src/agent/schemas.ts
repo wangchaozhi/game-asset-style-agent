@@ -71,3 +71,10 @@ export const OutlineInput = z.object({
   width: z.number().int().min(1).max(16).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
 });
+
+export const RecolorInput = z.object({
+  asset_id: z.string(),
+  swaps: z.array(z.object({ from: z.string().regex(/^#[0-9a-fA-F]{6}$/), to: z.string().regex(/^#[0-9a-fA-F]{6}$/) })).min(1).max(8),
+  name: z.string().max(80).optional(),
+  threshold: z.number().min(5).max(60).optional(),
+});

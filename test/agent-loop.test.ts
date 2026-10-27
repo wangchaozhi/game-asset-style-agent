@@ -84,7 +84,7 @@ describe("agent loop against a fake Messages API", () => {
     assert.equal(first.body.stream, true);
     assert.deepEqual((first.body.tools as { name: string }[]).map((t) => t.name), [
       "save_style_guide", "generate_image", "review_asset", "fix_tile_seams", "align_sprite_frames", "remove_background", "snap_to_palette",
-      "set_nine_slice", "add_outline",
+      "set_nine_slice", "add_outline", "recolor_variant",
     ]);
     assert.deepEqual(first.body.thinking, { type: "adaptive", display: "summarized" });
     const opening = first.body.messages[0].content as { type: string; text?: string }[];

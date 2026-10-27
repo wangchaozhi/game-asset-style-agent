@@ -1,11 +1,12 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { imageSize, shrink } from "../image/io.js";
 import { detectNineSlice, stretchNineSlice } from "../image/nineSlice.js";
+import { dominantColors } from "../image/recolor.js";
 import { isPixelArt } from "../image/sizes.js";
 import { describePalette } from "../image/palette.js";
 import type { Jitter } from "../image/spriteSheet.js";
 import type { SeamReport } from "../image/tiles.js";
-import { alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, outlineVersion, seamlessVersion, seamsOf, setNineSlice } from "../ops/assetOps.js";
+import { alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, outlineVersion, recolorVariant, seamlessVersion, seamsOf, setNineSlice } from "../ops/assetOps.js";
 import type { ImageProvider } from "../providers/types.js";
 import { loadProject, readProjectFile, recordStyleVersion, updateProject } from "../store/index.js";
 import type { Asset, Project } from "../store/types.js";
@@ -13,7 +14,7 @@ import { generateAsset } from "./assets.js";
 import { BudgetExceededError } from "./budget.js";
 import { type Job, emit } from "./events.js";
 import {
-  AlignFramesInput, FixSeamsInput, GenerateInput, NineSliceToolInput, OutlineInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput,
+  AlignFramesInput, FixSeamsInput, GenerateInput, NineSliceToolInput, OutlineInput, RecolorInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput,
 } from "./schemas.js";
 
 type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
@@ -185,6 +186,23 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
       return withImage(
         block.id,
         `New version asset_id=${r.id} (from ${found.asset.id}) with a ${width}px outline. Check it is even and doesn't swallow small details, then review the new version.`,
+        await readProjectFile(found.project.id, r.file),
+        r.mime,
+      );
+    }
+    case "recolor_variant": {
+      const parsed = RecolorInput.safeParse(block.input);
+      if (!parsed.success) return invalid();
+      const found = await findAssetFor(job, parsed.data.asset_id);
+      if (!found) return errResult(block.id, `Unknown asset_id ${parsed.data.asset_id}`);
+      const { swaps, name, threshold } = parsed.data;
+      const r = await recolorVariant(found.project, found.asset, { swaps, name, threshold }, { by: "agent", runId: job.id });
+      if (typeof r === "string") return errResult(block.id, r);
+      emit(job, { type: "asset", asset: r });
+      const main = (await dominantColors(await readProjectFile(found.project.id, found.asset.file))).map((c) => `${c.hex} ${Math.round(c.share * 100)}%`).join(", ");
+      return withImage(
+        block.id,
+        `New variant asset_id=${r.id} "${r.name}" (of ${found.asset.id}). The original's main colours: ${main}. If some shades of a colour didn't change, retry with a higher threshold or add that shade as another swap. Review the variant.`,
         await readProjectFile(found.project.id, r.file),
         r.mime,
       );

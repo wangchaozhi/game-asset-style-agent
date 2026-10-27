@@ -12,17 +12,22 @@ import * as palette from "./palette.js";
 import * as sizes from "./sizes.js";
 import * as cutout from "./cutout.js";
 import * as outline from "./outline.js";
+import * as recolor from "./recolor.js";
 import * as promptSection from "./prompt.js";
 
 /** Rendered in this order below the review box; each may render nothing for a given asset. */
-const SECTIONS = [sprite, tile, nineSlice, palette, sizes, cutout, outline, promptSection];
+const SECTIONS = [sprite, tile, nineSlice, palette, sizes, cutout, outline, recolor, promptSection];
 
 function versionLinks(a) {
   const parent = a.parentId && state.project.assets.find((x) => x.id === a.parentId);
   const children = state.project.assets.filter((x) => x.parentId === a.id);
-  if (!parent && !children.length) return "";
+  const original = a.variantOf && state.project.assets.find((x) => x.id === a.variantOf);
+  const variants = state.project.assets.filter((x) => x.variantOf === a.id);
+  if (!parent && !children.length && !original && !variants.length) return "";
   return `<div class="versions">${parent ? `<button class="btn link" data-open="${parent.id}">← 上一版本</button>` : ""}
     ${children.map((c, i) => `<button class="btn link" data-open="${c.id}">新版本 ${i + 1} →</button>`).join("")}
+    ${original ? `<button class="btn link" data-open="${original.id}">← 原素材</button>` : ""}
+    ${variants.map((v) => `<button class="btn link" data-open="${v.id}">变体：${esc(v.name)}</button>`).join("")}
     ${parent ? `<button class="btn link" data-compare="${parent.id}:${a.id}">对比上一版本</button>` : ""}</div>`;
 }
 

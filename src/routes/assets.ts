@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-  alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, outlineVersion, seamsOf, setNineSlice, sliceAssetFrames,
+  alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, outlineVersion, recolorVariant, seamsOf, setNineSlice, sliceAssetFrames,
 } from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
@@ -9,6 +9,7 @@ import { moveToTrash, readProjectFile, removeAssetFiles, restoreFromTrash, takeF
 import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
 import { detectNineSlice } from "../image/nineSlice.js";
+import { dominantColors } from "../image/recolor.js";
 import { attachment, findAsset, pid } from "./util.js";
 
 export const assetsRouter = Router();
@@ -217,6 +218,22 @@ assetsRouter.post("/api/projects/:id/assets/:assetId/align-frames", async (req, 
 });
 
 /** Snap colours to the style palette; the result is a new version. Body: { dither: "none" | "ordered" }. */
+/** The asset's main colours, to pick swap sources from. */
+assetsRouter.get("/api/projects/:id/assets/:assetId/colors", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  res.json({ colors: await dominantColors(await readProjectFile(found.project.id, found.asset.file)) });
+});
+
+/** Colour-swap variant as a new sibling asset: { swaps: [{ from, to }], threshold?: 5-60, name? }. */
+assetsRouter.post("/api/projects/:id/assets/:assetId/recolor", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  const r = await recolorVariant(found.project, found.asset, req.body ?? {}, { by: "user" });
+  if (typeof r === "string") return void res.status(400).json({ error: r });
+  res.json(r);
+});
+
 /** Outer outline as a new version: { width: 1-16, color?: "#rrggbb" } (default colour: darkest palette colour). */
 assetsRouter.post("/api/projects/:id/assets/:assetId/outline", async (req, res) => {
   const found = await findAsset(req, res);

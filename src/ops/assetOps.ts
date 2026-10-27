@@ -4,6 +4,7 @@ import { type NineSlice, fitNineSlice, parseNineSlice } from "../domain/nineSlic
 import { isOpaque, removeBackground } from "../image/background.js";
 import { isOpaqueType } from "../domain/assetTypes.js";
 import { addOutline, darkestColor } from "../image/outline.js";
+import { type ColorSwap, recolor } from "../image/recolor.js";
 import { imageSize } from "../image/io.js";
 import { analyzePalette, snapToPalette } from "../image/palette.js";
 import { isPixelArt } from "../image/sizes.js";
@@ -199,4 +200,35 @@ export async function outlineVersion(project: Project, asset: Asset, opts: Outli
   return newVersion(project, asset, png, `由「${asset.name}」加 ${opts.width}px 描边（${color}）`, actor, async (a) =>
     asset.frames?.length ? sliceAssetFrames(project.id, a, png, asset.frames.length, asset.fps ?? 8) : {},
   );
+}
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/**
+ * Colour-swap variant (e.g. an elite enemy, another outfit colour) as a new pending sibling asset:
+ * `variantOf` links it instead of `parentId`, so the original isn't marked as superseded.
+ * Returns an error message for bad input.
+ */
+export async function recolorVariant(
+  project: Project,
+  asset: Asset,
+  input: { swaps: unknown; threshold?: unknown; name?: unknown },
+  actor: Actor,
+): Promise<Asset | string> {
+  const swaps = input.swaps;
+  if (!Array.isArray(swaps) || !swaps.length || swaps.length > 8) return "请给出 1-8 组换色（from → to）";
+  if (!swaps.every((s) => s && HEX.test(s.from) && HEX.test(s.to))) return "颜色需为 #rrggbb";
+  const threshold = input.threshold === undefined ? 20 : Number(input.threshold);
+  if (!Number.isFinite(threshold) || threshold < 5 || threshold > 60) return "容差需为 5-60";
+  const name = typeof input.name === "string" && input.name.trim() ? input.name.trim().slice(0, 80) : `${asset.name}（变体）`;
+  const clean = (swaps as ColorSwap[]).map((s) => ({ from: s.from.toLowerCase(), to: s.to.toLowerCase() }));
+  const png = await recolor(await readProjectFile(project.id, asset.file), clean, threshold);
+  const notes = `由「${asset.name}」换色：${clean.map((s) => `${s.from}→${s.to}`).join("，")}`;
+  return newVersion(project, asset, png, notes, actor, async (a) => ({
+    name,
+    // A sibling, not a newer version: drop the parent link newVersion sets.
+    parentId: undefined,
+    variantOf: asset.id,
+    ...(asset.frames?.length ? await sliceAssetFrames(project.id, a, png, asset.frames.length, asset.fps ?? 8) : {}),
+  }));
 }

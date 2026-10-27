@@ -222,6 +222,14 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 
 色板一致性：`?threshold=20`（ΔE）。返回 `{ coverage, meanDeltaE, usage, offPalette, pixels, threshold }`。
 
+### `GET /api/projects/:id/assets/:assetId/colors`
+
+素材的主要颜色（可见像素，相近色合并）：`{ "colors": [{ "hex": "#7848d8", "share": 0.42 }, …] }`，最多 8 个，用来挑换色的源颜色。
+
+### `POST /api/projects/:id/assets/:assetId/recolor`
+
+换色变体，生成一个新素材（待审核，`variantOf` 指向原素材，不算新版本）：`{ "swaps": [{ "from": "#7848d8", "to": "#d84848" }], "threshold": 20, "name": "精英史莱姆" }`。与某个 `from` 色差（ΔE）不超过 `threshold`（5-60，默认 20）的像素按 Lab 空间里同样的偏移改色，明暗层次保留；其他像素不变。最多 8 组；`name` 默认「原名（变体）」。精灵表重新切帧，标签与九宫格沿用。返回新素材。
+
 ### `POST /api/projects/:id/assets/:assetId/outline`
 
 加外描边，生成新版本（待审核）：`{ "width": 2, "color": "#1a1020" }`。`width` 1-16 像素（默认 2）；`color` 默认取风格色板里最深的颜色。像素风用方形笔刷保持边角清晰，其他风格用圆形笔刷；图片尺寸不变，贴边的描边会被裁掉。精灵表重新切帧，九宫格边距与标签沿用。背景、瓦片和没有透明背景的素材返回 400。返回新素材。

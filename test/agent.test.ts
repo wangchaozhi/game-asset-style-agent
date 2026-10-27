@@ -34,7 +34,7 @@ describe("tool definitions", () => {
   it("every tool has a schema whose required fields are declared", () => {
     assert.deepEqual(tools.map((t) => t.name), [
       "save_style_guide", "generate_image", "review_asset", "fix_tile_seams", "align_sprite_frames", "remove_background", "snap_to_palette",
-      "set_nine_slice", "add_outline",
+      "set_nine_slice", "add_outline", "recolor_variant",
     ]);
     for (const t of tools) {
       const props = Object.keys(t.input_schema.properties ?? {});
@@ -249,6 +249,23 @@ describe("post-processing tools", () => {
     assert.match(await err({ asset_id: await add("ground", await solidPng(16, 16, "#336699"), "tile") }), /不需要描边/);
     assert.match(await err({ asset_id: "ast_nope" }), /Unknown asset_id/);
     assert.match(await err({ asset_id: sword, color: "red" }), /INVALID_JSON/);
+  });
+
+  it("recolor_variant makes a named variant and reports the original's colours", async () => {
+    const id = `ast_slime`;
+    await store.writeProjectFile(projectId, `assets/${id}.png`, await solidPng(16, 16, "#33aa44"));
+    await store.updateProject(projectId, (p) => void p.assets.push({
+      id, name: "史莱姆", assetType: "enemy", prompt: "x", file: `assets/${id}.png`, mime: "image/png", status: "approved", runId: "r", provider: "mock", createdAt: new Date().toISOString(),
+    }));
+    const job = fakeJob(projectId);
+    const r = await runTool(job, mock, call("recolor_variant", { asset_id: id, swaps: [{ from: "#33aa44", to: "#aa3333" }], name: "精英史莱姆" }));
+    assert.match(textOf(r), /New variant asset_id=ast_\w+ "精英史莱姆" \(of ast_slime\)\. The original's main colours: #33aa44 100%/);
+    const created = (await store.loadProject(projectId)).assets.at(-1)!;
+    assert.deepEqual([created.variantOf, created.parentId, created.reviewer], [id, undefined, "agent"]);
+    assert.ok(job.events.some((e) => e.type === "asset"));
+    const err = async (input: object) => textOf(await runTool(fakeJob(projectId), mock, call("recolor_variant", input)));
+    assert.match(await err({ asset_id: "ast_nope", swaps: [{ from: "#000000", to: "#ffffff" }] }), /Unknown asset_id/);
+    assert.match(await err({ asset_id: id, swaps: [] }), /INVALID_JSON/);
   });
 
   it("align_sprite_frames removes the mock walk cycle's bobbing", async () => {

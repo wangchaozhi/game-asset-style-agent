@@ -84,6 +84,7 @@ export function renderAssets(newId) {
     [
       a.frames?.length && `<span class="mark" title="精灵表，已切成 ${a.frames.length} 帧">${a.frames.length} 帧</span>`,
       a.nineSlice && `<span class="mark" title="已设置九宫格边距">九宫格</span>`,
+      a.variantOf && `<span class="mark" title="换色变体">变体</span>`,
       !a.deletedAt && superseded.has(a.id) && `<span class="mark old" title="已有新版本">旧版本</span>`,
     ].filter(Boolean).join("");
   grid.innerHTML = shown.length
