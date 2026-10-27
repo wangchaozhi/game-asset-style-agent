@@ -9,7 +9,7 @@ const load = (path: string) => import(path);
 const { exportUrl } = await load("../public/js/exportDialog.js");
 const { esc } = await load("../public/js/lib.js");
 const { feedbackOf } = await load("../public/js/consistency.js");
-const { lineage } = await load("../public/js/viewer/history.js");
+const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
 const { visibleAssets } = await load("../public/js/assets.js");
 
@@ -45,6 +45,10 @@ describe("front end: helpers", () => {
     const assets = [a("v1", "1"), a("v2", "2", { parentId: "v1" }), a("red", "3", { variantOf: "v1" }), a("v3", "4", { parentId: "v2" }), a("other", "5")];
     assert.deepEqual(lineage(assets[3], assets).map((x: { id: string }) => x.id), ["v1", "v2", "red", "v3"]);
     assert.deepEqual(lineage(assets[4], assets).map((x: { id: string }) => x.id), ["other"]);
+    assert.equal(stepVersion(assets[1], 1, assets).id, "red");
+    assert.equal(stepVersion(assets[1], -1, assets).id, "v1");
+    assert.equal(stepVersion(assets[0], -1, assets), null, "nothing before the original");
+    assert.equal(stepVersion(assets[3], 1, assets), null, "nothing after the newest");
   });
 });
 

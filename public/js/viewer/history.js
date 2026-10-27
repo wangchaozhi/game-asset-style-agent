@@ -20,6 +20,12 @@ export function lineage(a, assets = state.project.assets) {
   return out.sort((x, y) => x.createdAt.localeCompare(y.createdAt));
 }
 
+/** The version `delta` steps away from `a` in its timeline (oldest first), or null at either end. */
+export function stepVersion(a, delta, assets = state.project.assets) {
+  const list = lineage(a, assets);
+  return list[list.findIndex((x) => x.id === a.id) + delta] ?? null;
+}
+
 export function html(a) {
   const items = lineage(a);
   if (items.length < 2) return "";

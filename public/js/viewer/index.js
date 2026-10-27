@@ -61,7 +61,7 @@ export function openViewer(id) {
       <button class="btn ghost" data-variant="${a.id}">基于此图继续生成</button>
       <button class="btn ghost danger" data-del-asset="${a.id}" title="移到回收站">删除</button>
     </div>
-    <p class="muted shortcuts"><kbd>←</kbd> <kbd>→</kbd> 切换 · <kbd>A</kbd> 通过 · <kbd>R</kbd> 驳回 · <kbd>Esc</kbd> 关闭 · <kbd>?</kbd> 全部快捷键</p>`;
+    <p class="muted shortcuts"><kbd>←</kbd> <kbd>→</kbd> 切换 · <kbd>A</kbd> 通过 · <kbd>R</kbd> 驳回 · <kbd>[</kbd> <kbd>]</kbd> 切换版本 · <kbd>Esc</kbd> 关闭 · <kbd>?</kbd> 全部快捷键</p>`;
   $("#viewer").showModal();
   for (const s of SECTIONS) s.load?.(a);
   showSize(a);
@@ -113,6 +113,13 @@ function bindShortcuts() {
     const key = e.key.toLowerCase();
     if (key === "arrowleft") step(-1);
     else if (key === "arrowright") step(1);
+    else if (key === "[" || key === "]") {
+      // Older / newer version of the same asset (its versions and colour variants, by time).
+      const a = state.project.assets.find((x) => x.id === state.viewing);
+      const other = a && history.stepVersion(a, key === "]" ? 1 : -1);
+      if (other) openViewer(other.id);
+      else toast(key === "]" ? "已经是最新的版本" : "已经是最早的版本");
+    }
     else if (key === "a") setVerdict(state.viewing, "approved").catch((err) => toast(err.message));
     else if (key === "r") setVerdict(state.viewing, "rejected").catch((err) => toast(err.message));
     else return;
