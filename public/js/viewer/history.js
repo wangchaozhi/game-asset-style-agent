@@ -1,10 +1,10 @@
 // Version timeline: every version of this asset (and its colour variants) with review notes, oldest first.
 import { esc } from "../lib.js";
 import { state, thumbUrl } from "../state.js";
+import { t } from "../i18n.js";
 
-const STATUS = { approved: "已通过", rejected: "已驳回", pending_review: "待审核" };
-/** How a version was made, from its provider. */
-const ORIGIN = { postprocess: "后处理", import: "导入", mock: "生成（Mock）" };
+/** How a version was made, from its provider (history.origin.*), else "generated (provider)". */
+const ORIGINS = new Set(["postprocess", "import", "mock"]);
 
 /** The root of the asset's version chain, then everything descending from it (new versions and variants). */
 export function lineage(a, assets = state.project.assets) {
@@ -30,17 +30,17 @@ export function html(a) {
   const items = lineage(a);
   if (items.length < 2) return "";
   return `<details class="version-log">
-    <summary><b>版本记录</b> <span class="muted">${items.length} 个版本</span></summary>
+    <summary><b>${t("history.title")}</b> <span class="muted">${t("history.count", { n: items.length })}</span></summary>
     <ol>${items
       .map((x) => {
-        const kind = x.variantOf ? "换色变体" : ORIGIN[x.provider] ?? `生成（${x.provider}）`;
+        const kind = x.variantOf ? t("mark.variantTitle") : ORIGINS.has(x.provider) ? t(`history.origin.${x.provider}`) : t("history.generated", { provider: x.provider });
         // Post-processed versions and variants carry a log of what was done, not a review.
-        const who = x.provider === "postprocess" ? "处理" : x.reviewer === "user" ? "我的意见" : x.reviewer === "agent" ? "Agent 审核" : "";
+        const who = x.provider === "postprocess" ? t("history.processed") : x.reviewer === "user" ? t("viewer.myNotes") : x.reviewer === "agent" ? t("viewer.agentNotes") : "";
         return `<li class="${x.id === a.id ? "here" : ""}">
-          <button type="button" class="version-thumb checker" data-open="${x.id}" title="打开这个版本"><img src="${thumbUrl(x.gif ?? x.file, 160)}" alt="" /></button>
-          <div><b>${esc(x.name)}</b>${x.id === a.id ? ' <span class="muted">（当前）</span>' : ""}
-            <span class="muted">${new Date(x.createdAt).toLocaleString()} · ${esc(kind)} · ${STATUS[x.status] ?? x.status}${x.score && x.reviewer === "agent" ? ` ${x.score}/10` : ""}</span>
-            ${x.notes ? `<span>${who ? `${who}：` : ""}${esc(x.notes)}</span>` : ""}</div>
+          <button type="button" class="version-thumb checker" data-open="${x.id}" title="${t("history.open")}"><img src="${thumbUrl(x.gif ?? x.file, 160)}" alt="" /></button>
+          <div><b>${esc(x.name)}</b>${x.id === a.id ? ` <span class="muted">${t("history.current")}</span>` : ""}
+            <span class="muted">${new Date(x.createdAt).toLocaleString()} · ${esc(kind)} · ${t(`filter.${x.status}`)}${x.score && x.reviewer === "agent" ? ` ${x.score}/10` : ""}</span>
+            ${x.notes ? `<span>${who ? `${who}: ` : ""}${esc(x.notes)}</span>` : ""}</div>
         </li>`;
       })
       .join("")}</ol>

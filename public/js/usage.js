@@ -1,6 +1,7 @@
 // Cost & usage: live numbers for the running job, and a per-project dialog with progress stats and run history.
 import { $, api, esc, toast } from "./lib.js";
 import { state } from "./state.js";
+import { t, typeLabel } from "./i18n.js";
 
 const fmtTokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
 
@@ -12,16 +13,16 @@ export function fmtCost(c) {
 
 /** Sum token counters across every model a run used. */
 export function runTokens(run) {
-  const t = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
-  for (const u of Object.values(run.claude.byModel)) for (const k in t) t[k] += u[k] ?? 0;
-  return t;
+  const tok = { input_tokens: 0, output_tokens: 0, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 };
+  for (const u of Object.values(run.claude.byModel)) for (const k in tok) tok[k] += u[k] ?? 0;
+  return tok;
 }
 
 function costNote(cost) {
   const parts = [];
-  if (cost.claude === null) parts.push("模型单价未知");
-  if (cost.images === null) parts.push("图像单价未配置");
-  return parts.length ? `（${parts.join("，")}，未计入）` : "";
+  if (cost.claude === null) parts.push(t("usage.noModelPrice"));
+  if (cost.images === null) parts.push(t("usage.noImagePrice"));
+  return parts.length ? t("usage.notCounted", { what: parts.join(t("usage.sep")) }) : "";
 }
 
 /** One-line summary under the run button, updated from SSE `usage` events. */
@@ -31,19 +32,19 @@ export function renderLiveUsage(usage) {
     bar.hidden = true;
     return;
   }
-  const t = runTokens(usage);
+  const tok = runTokens(usage);
   const claude =
     usage.mode !== "agent"
-      ? `<span>Claude 未调用（${usage.mode === "manual" ? "直接生成" : "演示"}）</span>`
-      : `<span title="输入 / 输出 / 缓存写 / 缓存读">Claude ${usage.claude.requests} 次 · ↑${fmtTokens(t.input_tokens + t.cache_creation_input_tokens + t.cache_read_input_tokens)} ↓${fmtTokens(t.output_tokens)}${t.cache_read_input_tokens ? ` · 缓存命中 ${fmtTokens(t.cache_read_input_tokens)}` : ""}</span>`;
+      ? `<span>${t("usage.noClaude", { mode: t(usage.mode === "manual" ? "usage.manual" : "usage.demo") })}</span>`
+      : `<span title="${t("usage.tokensTitle")}">${t("usage.claudeCalls", { n: usage.claude.requests })} · ↑${fmtTokens(tok.input_tokens + tok.cache_creation_input_tokens + tok.cache_read_input_tokens)} ↓${fmtTokens(tok.output_tokens)}${tok.cache_read_input_tokens ? ` · ${t("usage.cacheHit", { n: fmtTokens(tok.cache_read_input_tokens) })}` : ""}</span>`;
   bar.hidden = false;
-  bar.innerHTML = `<span class="usage-label">本次</span>${claude}
-    <span>图像 ${usage.images.calls}${usage.budget?.maxImages ? ` / ${usage.budget.maxImages}` : ""} 次${usage.images.failed ? `（失败 ${usage.images.failed}）` : ""}</span>
-    <span class="usage-cost" title="估算费用${esc(costNote(usage.cost))}">≈ ${fmtCost(usage.cost.total)}${usage.budget?.maxUsd ? ` / $${usage.budget.maxUsd}` : ""}</span>
-    <button class="btn link" data-usage-open>项目用量 ›</button>`;
+  bar.innerHTML = `<span class="usage-label">${t("usage.thisRun")}</span>${claude}
+    <span>${t("usage.images", { n: `${usage.images.calls}${usage.budget?.maxImages ? ` / ${usage.budget.maxImages}` : ""}` })}${usage.images.failed ? t("usage.failed", { n: usage.images.failed }) : ""}</span>
+    <span class="usage-cost" title="${t("usage.estCost")}${esc(costNote(usage.cost))}">≈ ${fmtCost(usage.cost.total)}${usage.budget?.maxUsd ? ` / $${usage.budget.maxUsd}` : ""}</span>
+    <button class="btn link" data-usage-open>${t("usage.project")} ›</button>`;
 }
 
-const STATUS = { running: "进行中", ok: "完成", error: "出错", stopped: "已停止", interrupted: "已中断" };
+const RUN_STATUSES = new Set(["running", "ok", "error", "stopped", "interrupted"]);
 
 const fmtBytes = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
@@ -63,7 +64,7 @@ export function bindUsageDialog(getProjectId) {
     const projectId = getProjectId();
     try {
       const r = await api(`/api/projects/${projectId}/cleanup`, { method: "POST" });
-      toast(r.removed ? `已清理 ${r.removed} 个文件，释放 ${fmtBytes(r.bytes)}` : "没有需要清理的文件");
+      toast(r.removed ? t("usage.cleaned", { n: r.removed, size: fmtBytes(r.bytes) }) : t("usage.nothingToClean"));
       loadStorage(projectId);
     } catch (err) {
       toast(err.message);
@@ -76,66 +77,66 @@ function statsHtml(st) {
   const pct = (x) => (x === null ? "—" : `${Math.round(x * 100)}%`);
   const seg = (n, cls, label) => (n ? `<i class="${cls}" style="flex:${n}" title="${label} ${n}"></i>` : "");
   const types = st.byType
-    .map((t) => `<tr><td>${esc(state.config.assetTypes[t.type] ?? t.type)}</td><td>${t.current}</td><td>${t.approved}</td></tr>`)
+    .map((x) => `<tr><td>${esc(typeLabel(x.type, state.config.assetTypes[x.type]))}</td><td>${x.current}</td><td>${x.approved}</td></tr>`)
     .join("");
-  return `<h4 class="usage-sub">项目进度</h4>
+  return `<h4 class="usage-sub">${t("usage.progress")}</h4>
     <div class="usage-tiles">
-      <div class="tile"><span>当前素材</span><b>${st.current}</b></div>
-      <div class="tile"><span>已通过</span><b>${st.byStatus.approved}</b></div>
-      <div class="tile"><span>通过率</span><b>${pct(st.approvalRate)}</b></div>
-      <div class="tile"><span>平均一致性分</span><b>${st.meanScore ?? "—"}</b></div>
-      <div class="tile"><span>每个通过素材成本</span><b>${st.costPerApproved === null ? "—" : fmtCost(st.costPerApproved)}</b></div>
+      <div class="tile"><span>${t("usage.current")}</span><b>${st.current}</b></div>
+      <div class="tile"><span>${t("filter.approved")}</span><b>${st.byStatus.approved}</b></div>
+      <div class="tile"><span>${t("usage.rate")}</span><b>${pct(st.approvalRate)}</b></div>
+      <div class="tile"><span>${t("usage.meanScore")}</span><b>${st.meanScore ?? "—"}</b></div>
+      <div class="tile"><span>${t("usage.perApproved")}</span><b>${st.costPerApproved === null ? "—" : fmtCost(st.costPerApproved)}</b></div>
     </div>
-    ${st.current ? `<div class="stat-bar" role="img" aria-label="已通过 ${st.byStatus.approved}，待审核 ${st.byStatus.pending_review}，已驳回 ${st.byStatus.rejected}">${seg(st.byStatus.approved, "ok", "已通过")}${seg(st.byStatus.pending_review, "pending", "待审核")}${seg(st.byStatus.rejected, "bad", "已驳回")}</div>
-      <p class="muted usage-foot">已通过 ${st.byStatus.approved} · 待审核 ${st.byStatus.pending_review} · 已驳回 ${st.byStatus.rejected} · 换色变体 ${st.variants} · 旧版本 ${st.superseded} · 回收站 ${st.trashed}</p>` : ""}
-    ${types ? `<div class="usage-table-wrap"><table class="usage-table"><thead><tr><th>类型</th><th>当前</th><th>已通过</th></tr></thead><tbody>${types}</tbody></table></div>` : ""}`;
+    ${st.current ? `<div class="stat-bar" role="img" aria-label="${t("usage.split", { a: st.byStatus.approved, p: st.byStatus.pending_review, r: st.byStatus.rejected })}">${seg(st.byStatus.approved, "ok", t("filter.approved"))}${seg(st.byStatus.pending_review, "pending", t("filter.pending_review"))}${seg(st.byStatus.rejected, "bad", t("filter.rejected"))}</div>
+      <p class="muted usage-foot">${t("usage.foot", { a: st.byStatus.approved, p: st.byStatus.pending_review, r: st.byStatus.rejected, v: st.variants, o: st.superseded, d: st.trashed })}</p>` : ""}
+    ${types ? `<div class="usage-table-wrap"><table class="usage-table"><thead><tr><th>${t("usage.type")}</th><th>${t("usage.currentCol")}</th><th>${t("filter.approved")}</th></tr></thead><tbody>${types}</tbody></table></div>` : ""}`;
 }
 
 export async function openUsageDialog(projectId) {
   const dlg = $("#usageDialog");
   const body = $("#usageBody");
-  body.innerHTML = `<p class="muted">加载中…</p>`;
+  body.innerHTML = `<p class="muted">${t("common.loading")}</p>`;
   dlg.showModal();
   try {
     const [{ summary: s, runs }, st] = await Promise.all([api(`/api/projects/${projectId}/usage`), api(`/api/projects/${projectId}/stats`)]);
     const tiles = [
-      ["运行次数", s.runs],
-      ["Claude 请求", s.claudeRequests],
-      ["输入 tokens", fmtTokens(s.tokens.input_tokens + s.tokens.cache_creation_input_tokens + s.tokens.cache_read_input_tokens)],
-      ["输出 tokens", fmtTokens(s.tokens.output_tokens)],
-      ["图像调用", s.images.calls],
-      ["估算费用", fmtCost(s.cost.total)],
+      [t("usage.runs"), s.runs],
+      [t("usage.claudeRequests"), s.claudeRequests],
+      [t("usage.inTokens"), fmtTokens(s.tokens.input_tokens + s.tokens.cache_creation_input_tokens + s.tokens.cache_read_input_tokens)],
+      [t("usage.outTokens"), fmtTokens(s.tokens.output_tokens)],
+      [t("usage.imageCalls"), s.images.calls],
+      [t("usage.estCost"), fmtCost(s.cost.total)],
     ];
     const totalIn = s.tokens.input_tokens + s.tokens.cache_creation_input_tokens + s.tokens.cache_read_input_tokens;
     const hit = totalIn ? Math.round((s.tokens.cache_read_input_tokens / totalIn) * 100) : 0;
     body.innerHTML = `
       ${statsHtml(st)}
-      <h4 class="usage-sub">成本</h4>
+      <h4 class="usage-sub">${t("usage.cost")}</h4>
       <div class="usage-tiles">${tiles.map(([k, v]) => `<div class="tile"><span>${k}</span><b>${esc(v)}</b></div>`).join("")}</div>
-      <p class="muted usage-foot">Claude ${fmtCost(s.cost.claude)} · 图像 ${fmtCost(s.cost.images)} · 缓存命中率 ${hit}%${esc(costNote(s.cost))}</p>
+      <p class="muted usage-foot">${t("usage.costFoot", { c: fmtCost(s.cost.claude), i: fmtCost(s.cost.images), hit })}${esc(costNote(s.cost))}</p>
       ${
         runs.length
           ? `<div class="usage-table-wrap"><table class="usage-table">
-        <thead><tr><th>时间</th><th>需求</th><th>状态</th><th>Claude</th><th>输入/输出</th><th>图像</th><th>费用</th></tr></thead>
+        <thead><tr><th>${t("usage.time")}</th><th>${t("usage.request")}</th><th>${t("usage.status")}</th><th>Claude</th><th>${t("usage.inOut")}</th><th>${t("usage.imagesCol")}</th><th>${t("usage.costCol")}</th></tr></thead>
         <tbody>${runs
           .map((r) => {
-            const t = runTokens(r);
+            const tok = runTokens(r);
             return `<tr>
               <td>${new Date(r.startedAt).toLocaleString()}</td>
-              <td class="req" title="${esc(r.request)}">${esc(r.request || "（按所选类型生成）")}</td>
-              <td><span class="run-status ${r.status}">${STATUS[r.status] ?? r.status}</span></td>
-              <td>${r.mode === "demo" ? "演示" : r.mode === "manual" ? "直接生成" : `${r.claude.requests} 次`}</td>
-              <td>${fmtTokens(t.input_tokens + t.cache_creation_input_tokens + t.cache_read_input_tokens)} / ${fmtTokens(t.output_tokens)}</td>
+              <td class="req" title="${esc(r.request)}">${esc(r.request || t("usage.byTypes"))}</td>
+              <td><span class="run-status ${r.status}">${RUN_STATUSES.has(r.status) ? t(`run.status.${r.status}`) : esc(r.status)}</span></td>
+              <td>${r.mode === "demo" ? t("usage.demo") : r.mode === "manual" ? t("usage.manual") : t("usage.times", { n: r.claude.requests })}</td>
+              <td>${fmtTokens(tok.input_tokens + tok.cache_creation_input_tokens + tok.cache_read_input_tokens)} / ${fmtTokens(tok.output_tokens)}</td>
               <td>${r.images.calls}${r.images.failed ? ` <span class="bad">(${r.images.failed}✗)</span>` : ""}</td>
               <td>${fmtCost(r.cost.total)}</td>
             </tr>`;
           })
           .join("")}</tbody></table></div>`
-          : `<p class="muted">还没有运行记录。</p>`
+          : `<p class="muted">${t("usage.noRuns")}</p>`
       }
-      <p class="muted usage-foot">费用按 Claude 官方单价估算；图像单价通过环境变量 IMAGE_PRICE_OPENAI / IMAGE_PRICE_GEMINI（美元/张）配置。</p>
-      <div class="usage-storage muted"><span>磁盘占用 <b id="storageBytes">…</b></span>
-        <button class="btn link" data-cleanup title="删除不属于任何素材或参考图的文件">清理无主文件</button></div>`;
+      <p class="muted usage-foot">${t("usage.priceNote")}</p>
+      <div class="usage-storage muted"><span>${t("usage.disk")} <b id="storageBytes">…</b></span>
+        <button class="btn link" data-cleanup title="${t("usage.cleanupTitle")}">${t("usage.cleanup")}</button></div>`;
     loadStorage(projectId);
   } catch (e) {
     body.innerHTML = `<p class="bad">${esc(e.message)}</p>`;

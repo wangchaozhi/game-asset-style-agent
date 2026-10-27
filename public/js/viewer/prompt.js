@@ -2,11 +2,12 @@
 import { $, api, esc, toast } from "../lib.js";
 import { state } from "../state.js";
 import { attachJob } from "../run.js";
+import { t } from "../i18n.js";
 
 export const html = (a) => `<form class="prompt-form" data-regen="${a.id}">
-      <div class="sizes-head"><b>Prompt</b><span class="muted">可直接修改后重生成</span></div>
+      <div class="sizes-head"><b>Prompt</b><span class="muted">${t("prompt.hint")}</span></div>
       <textarea name="prompt" rows="5" spellcheck="false" aria-label="Prompt">${esc(a.prompt)}</textarea>
-      <button class="btn ghost" type="submit" title="用编辑后的 prompt 直接调用图像模型生成新版本，不经过 Claude">直接重生成（不经过 Agent）</button>
+      <button class="btn ghost" type="submit" title="${t("prompt.submitTitle")}">${t("prompt.submit")}</button>
     </form>`;
 
 export function bind(root) {
@@ -14,7 +15,7 @@ export function bind(root) {
     const form = e.target.closest("form[data-regen]");
     if (!form) return;
     e.preventDefault();
-    if (state.job) return toast("已有任务在运行，请稍候");
+    if (state.job) return toast(t("viewer.busy"));
     try {
       const { jobId } = await api(`/api/projects/${state.project.id}/assets/${form.dataset.regen}/regenerate`, {
         method: "POST",

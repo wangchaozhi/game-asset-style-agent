@@ -2,10 +2,11 @@
 import { $, api, toast } from "../lib.js";
 import { fileUrl, state } from "../state.js";
 import { onSubmit } from "./common.js";
+import { t } from "../i18n.js";
 
-const SIDES = [["left", "左"], ["top", "上"], ["right", "右"], ["bottom", "下"]];
+const SIDES = ["left", "top", "right", "bottom"];
 /** Preview boxes as multiples of the (scaled) image size. */
-const PREVIEWS = [["加宽", 2.2, 1], ["加高", 1, 1.8], ["放大", 1.8, 1.5]];
+const PREVIEWS = [["wider", 2.2, 1], ["taller", 1, 1.8], ["bigger", 1.8, 1.5]];
 /** Longest side of the scaled image in the previews, px. */
 const PREVIEW_BASE = 100;
 
@@ -16,17 +17,17 @@ export function html(a) {
   if (a.assetType !== "ui") return "";
   const url = fileUrl(a.file);
   return `<div class="nine">
-    <div class="sizes-head"><b>九宫格（9-slice）</b><span class="nine-status muted">${a.nineSlice ? "已设置，导出时附带边距" : "未设置"}</span></div>
-    <div class="nine-src checker"><img src="${url}" alt="九宫格边距示意" />
-      ${SIDES.map(([s]) => `<i class="nine-line ${s}" aria-hidden="true"></i>`).join("")}</div>
+    <div class="sizes-head"><b>${t("nine.title")}</b><span class="nine-status muted">${t(a.nineSlice ? "nine.set" : "nine.unset")}</span></div>
+    <div class="nine-src checker"><img src="${url}" alt="${t("nine.alt")}" />
+      ${SIDES.map((s) => `<i class="nine-line ${s}" aria-hidden="true"></i>`).join("")}</div>
     <form class="nine-form" data-nine="${a.id}">
-      ${SIDES.map(([s, label]) => `<label>${label} <input name="${s}" type="number" min="0" step="1" required /></label>`).join("")}
-      <button class="btn ghost" type="submit">保存边距</button>
-      <button class="btn link" type="button" data-nine-detect="${a.id}">自动检测</button>
-      ${a.nineSlice ? `<button class="btn link" type="button" data-nine-clear="${a.id}">清除</button>` : ""}
+      ${SIDES.map((s) => `<label>${t(`nine.${s}`)} <input name="${s}" type="number" min="0" step="1" required /></label>`).join("")}
+      <button class="btn ghost" type="submit">${t("nine.save")}</button>
+      <button class="btn link" type="button" data-nine-detect="${a.id}">${t("nine.detect")}</button>
+      ${a.nineSlice ? `<button class="btn link" type="button" data-nine-clear="${a.id}">${t("nine.clear")}</button>` : ""}
     </form>
     <p class="nine-error" role="alert" hidden></p>
-    <div class="nine-previews">${PREVIEWS.map(([label]) => `<figure><div class="nine-box checker"></div><figcaption class="muted">${label}</figcaption></figure>`).join("")}</div>
+    <div class="nine-previews">${PREVIEWS.map(([label]) => `<figure><div class="nine-box checker"></div><figcaption class="muted">${t(`nine.${label}`)}</figcaption></figure>`).join("")}</div>
   </div>`;
 }
 
@@ -41,9 +42,9 @@ export function load(a) {
     // Unset: start from the detected band, else a quarter of each side (a common panel border).
     const suggestion = a.nineSlice ? null : await detect(a.id).catch(() => null);
     if (!form.isConnected) return;
-    if (suggestion) form.closest(".nine").querySelector(".nine-status").textContent = "未设置，已填入自动检测的建议";
+    if (suggestion) form.closest(".nine").querySelector(".nine-status").textContent = t("nine.suggested");
     const quarter = { left: Math.round(size.w / 4), top: Math.round(size.h / 4), right: Math.round(size.w / 4), bottom: Math.round(size.h / 4) };
-    for (const [s] of SIDES) form.elements[s].max = (s === "left" || s === "right" ? size.w : size.h) - 1;
+    for (const s of SIDES) form.elements[s].max = (s === "left" || s === "right" ? size.w : size.h) - 1;
     fill(form, a, a.nineSlice ?? suggestion ?? quarter);
   };
   img.src = fileUrl(a.file);
@@ -52,16 +53,16 @@ export function load(a) {
 const detect = async (id) => (await api(`/api/projects/${state.project.id}/assets/${id}/nine-slice`)).suggestion;
 
 function fill(form, a, m) {
-  for (const [s] of SIDES) form.elements[s].value = m[s];
+  for (const s of SIDES) form.elements[s].value = m[s];
   update(form, fileUrl(a.file));
 }
 
 /** Margins from the form, or an error message. */
 function read(form) {
-  const m = Object.fromEntries(SIDES.map(([s]) => [s, Number(form.elements[s].value)]));
-  if (SIDES.some(([s]) => !Number.isInteger(m[s]) || m[s] < 0)) return "边距需为非负整数";
-  if (m.left + m.right >= size.w) return `左右边距之和需小于宽度 ${size.w}px`;
-  if (m.top + m.bottom >= size.h) return `上下边距之和需小于高度 ${size.h}px`;
+  const m = Object.fromEntries(SIDES.map((s) => [s, Number(form.elements[s].value)]));
+  if (SIDES.some((s) => !Number.isInteger(m[s]) || m[s] < 0)) return t("nine.badInt");
+  if (m.left + m.right >= size.w) return t("nine.tooWide", { n: size.w });
+  if (m.top + m.bottom >= size.h) return t("nine.tooTall", { n: size.h });
   return m;
 }
 
@@ -104,16 +105,16 @@ export function bind(root, ctx) {
     const m = read(form);
     if (typeof m === "string") throw new Error(m);
     const asset = await api(`/api/projects/${state.project.id}/assets/${form.dataset.nine}`, { method: "PATCH", body: { nineSlice: m } });
-    ctx.show(asset, "九宫格边距已保存");
+    ctx.show(asset, t("nine.saved"));
   });
   root.addEventListener("click", async (e) => {
     const detectId = e.target.dataset?.nineDetect;
     if (detectId && size) {
       try {
         const m = await detect(detectId);
-        if (!m) return toast("没有找到可拉伸的区域，请手动设置边距");
+        if (!m) return toast(t("nine.notFound"));
         fill(e.target.closest(".nine-form"), state.project.assets.find((x) => x.id === detectId), m);
-        toast("已填入检测结果，确认后保存");
+        toast(t("nine.filled"));
       } catch (err) {
         toast(err.message);
       }
@@ -123,7 +124,7 @@ export function bind(root, ctx) {
     if (!id) return;
     try {
       const asset = await api(`/api/projects/${state.project.id}/assets/${id}`, { method: "PATCH", body: { nineSlice: null } });
-      ctx.show(asset, "已清除九宫格边距");
+      ctx.show(asset, t("nine.cleared"));
     } catch (err) {
       toast(err.message);
     }

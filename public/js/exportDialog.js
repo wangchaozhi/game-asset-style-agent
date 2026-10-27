@@ -1,6 +1,7 @@
 // Export dialog: every option of the ZIP and atlas exports in one place, remembered per browser.
 import { $, esc } from "./lib.js";
 import { state } from "./state.js";
+import { t } from "./i18n.js";
 
 const KEY = "gaa.export";
 const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048" };
@@ -62,9 +63,9 @@ function update() {
   const link = $("#exportGo");
   link.href = exportUrl(state.project.id, o);
   const n = state.project.assets.filter(
-    (a) => (o.scope === "all" || a.status === "approved") && (!o.tag || (a.tags ?? []).some((t) => t.toLowerCase() === o.tag.toLowerCase())),
+    (a) => (o.scope === "all" || a.status === "approved") && (!o.tag || (a.tags ?? []).some((x) => x.toLowerCase() === o.tag.toLowerCase())),
   ).length;
-  $("#exportCount").textContent = n ? `${n} 个素材` : "没有符合条件的素材";
+  $("#exportCount").textContent = n ? t("export.count", { n }) : t("export.none");
   link.classList.toggle("disabled", !n);
   link.setAttribute("aria-disabled", String(!n));
   save(o);
@@ -74,7 +75,7 @@ function open() {
   const o = load();
   const form = $("#exportForm");
   const tags = [...new Set(state.project.assets.flatMap((a) => a.tags ?? []))].sort();
-  form.elements.tag.innerHTML = `<option value="">全部标签</option>${tags.map((t) => `<option value="${esc(t)}">#${esc(t)}</option>`).join("")}`;
+  form.elements.tag.innerHTML = `<option value="">${t("filter.allTags")}</option>${tags.map((tag) => `<option value="${esc(tag)}">#${esc(tag)}</option>`).join("")}`;
   form.elements.kind.value = o.kind;
   form.elements.scope.value = o.scope;
   form.elements.names.value = o.names;

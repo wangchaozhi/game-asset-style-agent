@@ -1,6 +1,7 @@
 // Scene layout preview: place approved assets on a background to judge the set together; download as PNG.
 import { $, esc } from "./lib.js";
 import { fileUrl, state, thumbUrl } from "./state.js";
+import { t } from "./i18n.js";
 
 const W = 1280;
 const H = 720;
@@ -115,8 +116,8 @@ function open() {
   const bgs = usable.filter((a) => a.assetType === "background" || a.assetType === "tile");
   const sprites = usable.filter((a) => a.assetType !== "background");
   $("#sceneBg").innerHTML = [
-    ["color:#9fc6a0", "草地绿"], ["color:#2b2d42", "夜色"], ["color:#f2e8cf", "米白"], ["color:#ffffff", "白色"],
-    ...bgs.map((a) => [`asset:${a.id}`, `${a.assetType === "tile" ? "瓦片平铺" : "背景"}：${a.name}`]),
+    ["color:#9fc6a0", t("scene.grass")], ["color:#2b2d42", t("scene.night")], ["color:#f2e8cf", t("scene.cream")], ["color:#ffffff", t("scene.white")],
+    ...bgs.map((a) => [`asset:${a.id}`, t(a.assetType === "tile" ? "scene.tiled" : "scene.bgAsset", { name: a.name })]),
   ]
     .map(([v, label]) => `<option value="${esc(v)}">${esc(label)}</option>`)
     .join("");
@@ -124,9 +125,9 @@ function open() {
   $("#sceneBg").value = scene.bg;
   $("#scenePalette").innerHTML = sprites.length
     ? sprites
-        .map((a) => `<button type="button" class="checker" data-add="${a.id}" title="放入：${esc(a.name)}"><img src="${thumbUrl(a.frames?.[0] ?? a.file, 160)}" alt="${esc(a.name)}" /></button>`)
+        .map((a) => `<button type="button" class="checker" data-add="${a.id}" title="${t("scene.add", { name: esc(a.name) })}"><img src="${thumbUrl(a.frames?.[0] ?? a.file, 160)}" alt="${esc(a.name)}" /></button>`)
         .join("")
-    : `<p class="muted">还没有已通过的素材</p>`;
+    : `<p class="muted">${t("scene.empty")}</p>`;
   $("#sceneDialog").showModal();
   draw();
 }
@@ -191,7 +192,7 @@ export function bindScene() {
     $("#sceneCanvas").toBlob((blob) => {
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `${state.project.name}_场景预览.png`;
+      a.download = `${state.project.name}_${t("scene.file")}.png`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       selected = was;

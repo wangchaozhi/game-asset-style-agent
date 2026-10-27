@@ -2,11 +2,12 @@
 import { $, api, esc, toast } from "./lib.js";
 import { state } from "./state.js";
 import { renderAssets } from "./assets.js";
+import { t, typeLabel } from "./i18n.js";
 
 function open() {
   const form = $("#importForm");
   const types = Object.entries(state.config.assetTypes);
-  form.elements.assetType.innerHTML = types.map(([k, label]) => `<option value="${k}">${esc(label)}</option>`).join("");
+  form.elements.assetType.innerHTML = types.map(([k, label]) => `<option value="${k}">${esc(typeLabel(k, label))}</option>`).join("");
   form.reset();
   sync();
   $("#importDialog").showModal();
@@ -16,7 +17,7 @@ function sync() {
   const form = $("#importForm");
   form.querySelector("[data-sheet]").hidden = form.elements.assetType.value !== "sprite_sheet";
   const n = form.elements.images.files.length;
-  $("#importCount").textContent = n ? `已选 ${n} 张${n > 20 ? "，一次最多 20 张" : ""}` : "";
+  $("#importCount").textContent = n ? t("import.count", { n }) + (n > 20 ? t("import.max") : "") : "";
 }
 
 export function bindImport() {
@@ -34,7 +35,7 @@ export function bindImport() {
       state.project = r.project;
       renderAssets();
       $("#importDialog").close();
-      toast(`已导入 ${r.imported.length} 个素材`);
+      toast(t("import.done", { n: r.imported.length }));
     } catch (err) {
       toast(err.message);
     } finally {

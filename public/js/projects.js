@@ -4,12 +4,13 @@ import { state } from "./state.js";
 import { renderRefs } from "./refs.js";
 import { renderStyle } from "./styleGuide.js";
 import { renderAssets } from "./assets.js";
+import { has, t } from "./i18n.js";
 
 export async function loadProjects(selectId) {
   const list = await api("/api/projects");
   const sel = $("#projectSelect");
   if (!list.length) {
-    const p = await api("/api/projects", { method: "POST", body: { name: "我的第一个项目" } });
+    const p = await api("/api/projects", { method: "POST", body: { name: t("project.first") } });
     return loadProjects(p.id);
   }
   sel.innerHTML = list.map((p) => `<option value="${p.id}">${esc(p.name)}（${p.assets}）</option>`).join("");
@@ -39,9 +40,9 @@ export async function loadConversationInfo() {
   const bar = $("#convBar");
   bar.hidden = !info.runs.length;
   if (!info.runs.length) return;
-  const recent = info.runs.slice(-3).map((r) => `<li>${esc(r.request || "（按所选类型生成）")}</li>`).join("");
-  bar.innerHTML = `<div class="conv-head"><span>对话已进行 <b>${info.runs.length}</b> 轮 · ${(info.bytes / 1048576).toFixed(1)} MB</span>
-    <button class="btn link" id="newConv">开启新对话</button></div><ol start="${Math.max(1, info.runs.length - 2)}">${recent}</ol>`;
+  const recent = info.runs.slice(-3).map((r) => `<li>${esc(r.request || t("usage.byTypes"))}</li>`).join("");
+  bar.innerHTML = `<div class="conv-head"><span>${t("conv.rounds", { n: `<b>${info.runs.length}</b>` })} · ${(info.bytes / 1048576).toFixed(1)} MB</span>
+    <button class="btn link" id="newConv">${t("conv.new")}</button></div><ol start="${Math.max(1, info.runs.length - 2)}">${recent}</ol>`;
 }
 
 export function renderAll() {
@@ -71,11 +72,12 @@ export function bindProjects(onSwitch) {
   $("#newProject").addEventListener("click", async () => {
     const form = $("#newProjectForm");
     form.reset();
+    form.elements.name.value = t("newProject.default");
     const list = await api("/api/projects");
     const presets = Object.entries(state.config.stylePresets ?? {});
-    form.elements.styleFrom.innerHTML = `<option value="">从零开始（上传新的参考图）</option>
-      ${presets.length ? `<optgroup label="内置风格（不需要参考图）">${presets.map(([k, label]) => `<option value="preset:${esc(k)}">${esc(label)}</option>`).join("")}</optgroup>` : ""}
-      ${list.length ? `<optgroup label="复用已有项目">${list.map((p) => `<option value="${esc(p.id)}">复用「${esc(p.name)}」的风格</option>`).join("")}</optgroup>` : ""}`;
+    form.elements.styleFrom.innerHTML = `<option value="">${t("newProject.scratch")}</option>
+      ${presets.length ? `<optgroup label="${t("newProject.presets")}">${presets.map(([k, label]) => `<option value="preset:${esc(k)}">${esc(has(`preset.${k}`) ? t(`preset.${k}`) : label)}</option>`).join("")}</optgroup>` : ""}
+      ${list.length ? `<optgroup label="${t("newProject.reuse")}">${list.map((p) => `<option value="${esc(p.id)}">${t("newProject.reuseOne", { name: esc(p.name) })}</option>`).join("")}</optgroup>` : ""}`;
     $("#newProjectDialog").showModal();
     form.elements.name.select();
   });
@@ -84,21 +86,21 @@ export function bindProjects(onSwitch) {
     const fd = new FormData(e.target);
     const from = String(fd.get("styleFrom") ?? "");
     const body = {
-      name: String(fd.get("name")).trim() || "新项目",
+      name: String(fd.get("name")).trim() || t("newProject.default"),
       ...(from.startsWith("preset:") ? { preset: from.slice(7) } : from ? { styleFrom: from } : {}),
     };
     try {
       const p = await api("/api/projects", { method: "POST", body });
       $("#newProjectDialog").close();
       await loadProjects(p.id);
-      if (body.styleFrom) toast(p.styleGuide ? "已复用风格指南与参考图" : "已复制参考图（源项目还没有风格指南）");
-      if (body.preset) toast("已使用内置风格，可以直接描述需求开始生成");
+      if (body.styleFrom) toast(t(p.styleGuide ? "newProject.reused" : "newProject.refsOnly"));
+      if (body.preset) toast(t("newProject.presetUsed"));
     } catch (err) {
       toast(err.message);
     }
   });
   $("#deleteProject").addEventListener("click", async () => {
-    if (!confirm(`删除项目「${state.project.name}」及其全部素材？此操作不可撤销。`)) return;
+    if (!confirm(t("project.confirmDelete", { name: state.project.name }))) return;
     try {
       await api(`/api/projects/${state.project.id}`, { method: "DELETE" });
     } catch (err) {
@@ -114,20 +116,20 @@ export function bindProjects(onSwitch) {
     if (!file) return;
     const fd = new FormData();
     fd.append("backup", file);
-    toast("正在导入…");
+    toast(t("project.importing"));
     try {
       const { project, skipped } = await api("/api/projects/import", { method: "POST", body: fd });
       await loadProjects(project.id);
-      toast(skipped.length ? `已导入「${project.name}」，跳过：${skipped.slice(0, 3).join("、")}${skipped.length > 3 ? " 等" : ""}` : `已导入「${project.name}」`);
+      toast(skipped.length ? t("project.importedSkipped", { name: project.name, skipped: skipped.slice(0, 3).join(t("tile.and")) + (skipped.length > 3 ? t("project.etc") : "") }) : t("project.imported", { name: project.name }));
     } catch (err) {
       toast(err.message);
     }
   });
   $("#convBar").addEventListener("click", async (e) => {
     if (e.target.id !== "newConv") return;
-    if (!confirm("清空与 Agent 的对话记忆？风格指南和已生成的素材都会保留。")) return;
+    if (!confirm(t("conv.confirmNew"))) return;
     await api(`/api/projects/${state.project.id}/conversation`, { method: "DELETE" });
     loadConversationInfo();
-    toast("已开启新对话");
+    toast(t("conv.started"));
   });
 }

@@ -1,7 +1,7 @@
 // Entry point: load config, wire up every panel, open the last project.
 import { api, toast } from "./lib.js";
 import { state } from "./state.js";
-import { bindProjects, loadProjects } from "./projects.js";
+import { bindProjects, loadConversationInfo, loadProjects } from "./projects.js";
 import { bindRefs } from "./refs.js";
 import { bindViewer, openViewer } from "./viewer/index.js";
 import { bindBatch } from "./batch.js";
@@ -37,6 +37,8 @@ document.addEventListener("gaa:lang", () => {
   if (!state.project) return;
   renderStyle();
   renderAssets();
+  loadConversationInfo().catch(() => {});
+  if (document.querySelector("#viewer").open && state.viewing) openViewer(state.viewing);
 });
 
 async function init() {

@@ -2,6 +2,7 @@
 import { api } from "../lib.js";
 import { state } from "../state.js";
 import { onSubmit } from "./common.js";
+import { t } from "../i18n.js";
 
 const lum = (hex) => {
   const n = parseInt(hex.slice(1), 16);
@@ -17,9 +18,9 @@ const darkest = () => {
 export function html(a) {
   if (a.assetType === "background" || a.assetType === "tile") return "";
   return `<form class="outline-form" data-outline="${a.id}">
-      <label>描边 <select name="width" aria-label="描边宽度">${[1, 2, 3, 4, 6, 8].map((w) => `<option value="${w}" ${w === 2 ? "selected" : ""}>${w}px</option>`).join("")}</select></label>
-      <label>颜色 <input name="color" type="color" value="${darkest()}" aria-label="描边颜色" /></label>
-      <button class="btn ghost" type="submit">加描边（生成新版本）</button>
+      <label>${t("outline.label")} <select name="width" aria-label="${t("outline.width")}">${[1, 2, 3, 4, 6, 8].map((w) => `<option value="${w}" ${w === 2 ? "selected" : ""}>${w}px</option>`).join("")}</select></label>
+      <label>${t("outline.color")} <input name="color" type="color" value="${darkest()}" aria-label="${t("outline.colorLabel")}" /></label>
+      <button class="btn ghost" type="submit">${t("outline.submit")}</button>
     </form>`;
 }
 
@@ -29,6 +30,6 @@ export function bind(root, ctx) {
       method: "POST",
       body: { width: Number(fd.get("width")), color: fd.get("color") },
     });
-    ctx.show(asset, "已加描边，可「对比上一版本」查看差异");
+    ctx.show(asset, t("outline.done"));
   });
 }

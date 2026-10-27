@@ -1,18 +1,19 @@
 // Game sizes: preset downloads with hover preview, custom size, pixel-art kernel toggle.
 import { $, toast } from "../lib.js";
 import { state } from "../state.js";
+import { t } from "../i18n.js";
 
 export function html(a) {
   const presets = state.config.sizePresets[a.assetType] ?? [];
   const base = `/api/projects/${state.project.id}/assets/${a.id}/sized.png`;
   return `<div class="sizes">
-    <div class="sizes-head"><b>游戏尺寸</b>
-      <label class="toggle"><input type="checkbox" id="pixelKernel" ${state.pixelKernel ? "checked" : ""} /> 像素风（最近邻）</label></div>
+    <div class="sizes-head"><b>${t("sizes.title")}</b>
+      <label class="toggle"><input type="checkbox" id="pixelKernel" ${state.pixelKernel ? "checked" : ""} /> ${t("sizes.pixel")}</label></div>
     <div class="size-row">${presets
       .map((s) => `<a class="size-chip" data-size="${s}" href="${base}?size=${s}&kernel=${state.pixelKernel ? "nearest" : "smooth"}&download=1">${s}</a>`)
       .join("")}
-      <input class="size-custom" placeholder="自定义 48 / 300x200" data-base="${base}" /></div>
-    <div class="size-preview checker" hidden><img alt="缩放预览" /></div>
+      <input class="size-custom" placeholder="${t("sizes.custom")}" data-base="${base}" /></div>
+    <div class="size-preview checker" hidden><img alt="${t("sizes.preview")}" /></div>
   </div>`;
 }
 
@@ -36,7 +37,7 @@ export function bind(root, ctx) {
     if (!e.target.classList.contains("size-custom") || e.key !== "Enter") return;
     e.preventDefault();
     const v = e.target.value.trim().toLowerCase().replace("×", "x");
-    if (!/^\d{1,4}(x\d{1,4})?$/.test(v)) return toast("格式：48 或 300x200");
+    if (!/^\d{1,4}(x\d{1,4})?$/.test(v)) return toast(t("sizes.format"));
     location.href = `${e.target.dataset.base}?size=${v}&kernel=${state.pixelKernel ? "nearest" : "smooth"}&download=1`;
   });
 }
