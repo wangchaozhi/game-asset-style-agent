@@ -51,7 +51,7 @@ async function recordDemoTurn(projectId: string, opts: RunOptions, reply: string
 export async function runDemo(job: Job, opts: RunOptions) {
   const provider = getProvider(opts.providerId);
   const project = await loadProject(opts.projectId);
-  if (!project.refs.length) throw new Error("请先上传至少一张风格参考图");
+  if (!project.refs.length && !project.styleGuide) throw new Error("请先上传至少一张风格参考图，或在新建项目时选择风格预设");
   emit(job, { type: "status", text: `演示模式（AGENT_MODE=demo）· 图像通道 ${provider.label}` });
 
   let sg = project.styleGuide;

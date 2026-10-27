@@ -638,6 +638,22 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [newer] } });
   });
 
+  it("starts a project from a built-in style and generates without reference images", async () => {
+    assert.ok("pixel" in (await json("/api/config")).body.stylePresets);
+    const p = (await json("/api/projects", { method: "POST", body: { name: "像素试玩", preset: "pixel" } })).body;
+    assert.deepEqual([p.refs.length, p.styleGuide.rendering.startsWith("16-bit pixel art")], [0, true]);
+    assert.deepEqual((await json(`/api/projects/${p.id}/style-history`)).body.map((h: { source: string }) => h.source), ["preset"]);
+    const run = await json(`/api/projects/${p.id}/run`, { method: "POST", body: { request: "金币", assetTypes: ["item_icon"], provider: "mock" } });
+    const evs = await events(run.body.jobId);
+    assert.ok(evs.some((e: { type: string }) => e.type === "asset"), JSON.stringify(evs.at(-1)));
+    assert.equal((await json("/api/projects", { method: "POST", body: { name: "x", preset: "oil" } })).status, 400);
+    // Without references and without a guide a run still refuses to start.
+    const bare = (await json("/api/projects", { method: "POST", body: { name: "空空" } })).body;
+    const fail = await json(`/api/projects/${bare.id}/run`, { method: "POST", body: { request: "x", provider: "mock" } });
+    const failEvents = await events(fail.body.jobId);
+    assert.match(JSON.stringify(failEvents), /风格预设/);
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

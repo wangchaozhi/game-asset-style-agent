@@ -1,0 +1,75 @@
+import type { StyleGuide } from "../store/types.js";
+
+/** Built-in starting styles for a project without reference images; edit or replace them any time. */
+export const STYLE_PRESETS: Record<string, { label: string; guide: StyleGuide }> = {
+  pixel: {
+    label: "像素风（16-bit）",
+    guide: {
+      summary: "16-bit 像素风：清晰像素、有限色板、1px 深色描边",
+      palette: [
+        { hex: "#1b1b2f", role: "描边 / 最暗" },
+        { hex: "#3e4a89", role: "阴影蓝" },
+        { hex: "#6cb4ee", role: "天空 / 高光" },
+        { hex: "#4e9a51", role: "植被" },
+        { hex: "#e8c170", role: "暖色主体" },
+        { hex: "#c0504d", role: "强调红" },
+        { hex: "#f4f1de", role: "最亮" },
+      ],
+      rendering: "16-bit pixel art, crisp pixels, no anti-aliasing, limited palette",
+      line_and_edges: "1px dark outline (#1b1b2f) around every sprite",
+      lighting_and_shading: "2-3 tone cel shading, light from top-left",
+      perspective: "side view for characters, 3/4 top-down for tiles and props",
+      proportions: "chibi, head about one third of the body",
+      texture_and_detail: "low detail, readable at 32px",
+      mood: "bright, playful, retro",
+      avoid: ["gradients", "blur", "photorealism", "text"],
+      prompt_prefix: "16-bit pixel art, crisp pixels, no anti-aliasing, 1px dark outline, limited palette #1b1b2f #3e4a89 #6cb4ee #4e9a51 #e8c170 #c0504d #f4f1de.",
+    },
+  },
+  flat: {
+    label: "卡通平涂",
+    guide: {
+      summary: "卡通平涂：粗描边、纯色块、两阶阴影，干净可爱",
+      palette: [
+        { hex: "#2d2a32", role: "描边" },
+        { hex: "#ff6b6b", role: "主色红" },
+        { hex: "#ffd93d", role: "主色黄" },
+        { hex: "#6bcb77", role: "主色绿" },
+        { hex: "#4d96ff", role: "主色蓝" },
+        { hex: "#fff4e6", role: "高光 / 底色" },
+      ],
+      rendering: "flat vector cartoon, solid fills, no texture",
+      line_and_edges: "bold rounded dark outline, consistent weight",
+      lighting_and_shading: "two-tone cel shading, light from top-left, no gradients",
+      perspective: "front or 3/4 view",
+      proportions: "chunky, rounded shapes, big heads",
+      texture_and_detail: "low detail, simple shapes",
+      mood: "cheerful, friendly",
+      avoid: ["photorealism", "gradients", "noise texture", "text"],
+      prompt_prefix: "Flat vector cartoon game art, bold rounded dark outline, solid colour fills, two-tone cel shading, palette #2d2a32 #ff6b6b #ffd93d #6bcb77 #4d96ff #fff4e6.",
+    },
+  },
+  watercolor: {
+    label: "手绘水彩",
+    guide: {
+      summary: "手绘水彩：柔和晕染、纸张纹理、细线勾边，温暖治愈",
+      palette: [
+        { hex: "#4a3f35", role: "线稿棕" },
+        { hex: "#a3c4bc", role: "灰绿" },
+        { hex: "#e7d7c1", role: "纸色" },
+        { hex: "#d9a5a0", role: "柔粉" },
+        { hex: "#7a9cc6", role: "雾蓝" },
+        { hex: "#f2c57c", role: "暖黄" },
+      ],
+      rendering: "hand-painted watercolour with soft washes and visible paper grain",
+      line_and_edges: "thin brown ink lines, slightly irregular",
+      lighting_and_shading: "soft wet-on-wet shading, gentle light from top-left",
+      perspective: "front or 3/4 view",
+      proportions: "natural, slightly stylised",
+      texture_and_detail: "medium detail, soft edges, paper texture",
+      mood: "warm, calm, storybook",
+      avoid: ["hard vector edges", "neon colours", "photorealism", "text"],
+      prompt_prefix: "Hand-painted watercolour game art, soft washes, paper grain, thin brown ink lines, palette #4a3f35 #a3c4bc #e7d7c1 #d9a5a0 #7a9cc6 #f2c57c.",
+    },
+  },
+};

@@ -127,7 +127,7 @@ export function finishJob() {
 
 /** Start a run; `redraws` = [{ assetId, feedback }] asks the agent to redraw those assets. */
 export async function run(extraRequest, redraws) {
-  if (!state.project.refs.length) return toast("请先上传至少一张风格参考图");
+  if (!state.project.refs.length && !state.project.styleGuide) return toast("请先上传至少一张风格参考图，或新建项目时选择风格预设");
   const request = extraRequest ?? $("#request").value.trim();
   if (!redraws?.length && !request && !state.selectedTypes.size) return toast("请选择素材类型或描述需求");
   $("#log").innerHTML = "";

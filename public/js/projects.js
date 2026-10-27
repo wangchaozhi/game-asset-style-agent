@@ -72,21 +72,27 @@ export function bindProjects(onSwitch) {
     const form = $("#newProjectForm");
     form.reset();
     const list = await api("/api/projects");
-    form.elements.styleFrom.innerHTML = `<option value="">从零开始（上传新的参考图）</option>${list
-      .map((p) => `<option value="${esc(p.id)}">复用「${esc(p.name)}」的风格</option>`)
-      .join("")}`;
+    const presets = Object.entries(state.config.stylePresets ?? {});
+    form.elements.styleFrom.innerHTML = `<option value="">从零开始（上传新的参考图）</option>
+      ${presets.length ? `<optgroup label="内置风格（不需要参考图）">${presets.map(([k, label]) => `<option value="preset:${esc(k)}">${esc(label)}</option>`).join("")}</optgroup>` : ""}
+      ${list.length ? `<optgroup label="复用已有项目">${list.map((p) => `<option value="${esc(p.id)}">复用「${esc(p.name)}」的风格</option>`).join("")}</optgroup>` : ""}`;
     $("#newProjectDialog").showModal();
     form.elements.name.select();
   });
   $("#newProjectForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    const body = { name: String(fd.get("name")).trim() || "新项目", ...(fd.get("styleFrom") ? { styleFrom: fd.get("styleFrom") } : {}) };
+    const from = String(fd.get("styleFrom") ?? "");
+    const body = {
+      name: String(fd.get("name")).trim() || "新项目",
+      ...(from.startsWith("preset:") ? { preset: from.slice(7) } : from ? { styleFrom: from } : {}),
+    };
     try {
       const p = await api("/api/projects", { method: "POST", body });
       $("#newProjectDialog").close();
       await loadProjects(p.id);
       if (body.styleFrom) toast(p.styleGuide ? "已复用风格指南与参考图" : "已复制参考图（源项目还没有风格指南）");
+      if (body.preset) toast("已使用内置风格，可以直接描述需求开始生成");
     } catch (err) {
       toast(err.message);
     }

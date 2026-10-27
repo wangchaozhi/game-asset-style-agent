@@ -24,7 +24,7 @@ export async function runAgent(job: Job, opts: RunOptions) {
   const client = new Anthropic();
   const provider = getProvider(opts.providerId);
   const project = await loadProject(opts.projectId);
-  if (!project.refs.length) throw new Error("请先上传至少一张风格参考图");
+  if (!project.refs.length && !project.styleGuide) throw new Error("请先上传至少一张风格参考图，或在新建项目时选择风格预设");
   const model = config.model;
 
   const refs = await Promise.all((await refImages(project)).map((r) => shrink(r, 1024)));
@@ -53,7 +53,9 @@ export async function runAgent(job: Job, opts: RunOptions) {
       content: [
         continuing
           ? { type: "text", text: "New request in the same project. The style guide below is current (the user may have edited it since)." }
-          : { type: "text", text: `Style reference images (${refs.length}):` },
+          : refs.length
+            ? { type: "text", text: `Style reference images (${refs.length}):` }
+            : { type: "text", text: "No reference images: this project starts from its style guide (a built-in preset or the user's own). Follow it exactly." },
         // Number the references so notes in the intro ("Reference 2: …") can point at them.
         ...(continuing ? [] : refs.flatMap((r, i) => [{ type: "text" as const, text: `Reference ${i + 1}:` }, jpegBlock(r.data)])),
         ...redraws.flatMap((r, i) => [{ type: "text" as const, text: `Asset to redraw (${r.target.id}):` }, jpegBlock(redrawImages[i].data)]),

@@ -53,7 +53,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:5173/api/projects
 
 ### `POST /api/projects`
 
-请求 `{ "name": "蘑菇森林" }`，返回完整项目对象。加 `"styleFrom": "prj_xxx"` 时复制该项目的风格指南与参考图（含备注），新项目直接沿用同一画风；素材与对话不复制。源项目不存在时返回 404。
+请求 `{ "name": "蘑菇森林" }`，返回完整项目对象。加 `"styleFrom": "prj_xxx"` 时复制该项目的风格指南与参考图（含备注），新项目直接沿用同一画风；素材与对话不复制。源项目不存在时返回 404。不复用时可加 `"preset": "pixel" | "flat" | "watercolor"` 从内置风格开始（`GET /api/config` 的 `stylePresets` 列出可选项），没有参考图也能直接运行。
 
 ### `GET /api/projects/:id`
 

@@ -5,7 +5,7 @@ import { createKeyedQueue, projectDir, readJson, writeAtomic } from "./fs.js";
 export interface StyleVersion {
   at: string;
   /** who produced this version */
-  source: "agent" | "user" | "restore" | "import";
+  source: "agent" | "user" | "restore" | "import" | "preset";
   styleGuide: StyleGuide;
 }
 

@@ -12,6 +12,7 @@ import { THUMB_WIDTHS, getThumb } from "../image/thumbs.js";
 import { isPixelArt } from "../image/sizes.js";
 import type { Project } from "../store/types.js";
 import { buildStyleSheet } from "../export/styleSheet.js";
+import { STYLE_PRESETS } from "../domain/stylePresets.js";
 import { attachment, pid } from "./util.js";
 
 export const projectsRouter = Router();
@@ -24,12 +25,24 @@ projectsRouter.get("/api/projects", async (_req, res) => {
   res.json(all.map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt, assets: p.assets.length, cover: p.refs[0]?.file })));
 });
 
-/** Create a project; { styleFrom: "<projectId>" } copies that project's style guide and reference images (with notes). */
+/**
+ * Create a project; { styleFrom: "<projectId>" } copies that project's style guide and reference images (with notes),
+ * { preset: "pixel" | "flat" | "watercolor" } starts from a built-in style guide instead.
+ */
 projectsRouter.post("/api/projects", async (req, res) => {
+  const preset = req.body?.preset ? String(req.body.preset) : null;
+  if (preset && !Object.hasOwn(STYLE_PRESETS, preset)) return void res.status(400).json({ error: "未知的风格预设" });
   const fromId = req.body?.styleFrom ? String(req.body.styleFrom) : null;
   const source = fromId ? (await listProjects()).find((p) => p.id === fromId) : null;
   if (fromId && !source) return void res.status(404).json({ error: "要复用风格的项目不存在" });
   const created = await createProject(String(req.body?.name ?? "").slice(0, 80));
+  if (!source && preset) {
+    // A built-in style: the project can generate before any reference image is uploaded.
+    const guide = STYLE_PRESETS[preset].guide;
+    const p = await updateProject(created.id, (p) => void (p.styleGuide = guide));
+    await recordStyleVersion(created.id, guide, "preset");
+    return void res.json(p);
+  }
   if (!source) return void res.json(created);
   const refs = await Promise.all(
     source.refs.map(async (r) => {

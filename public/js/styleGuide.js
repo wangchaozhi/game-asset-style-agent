@@ -119,7 +119,7 @@ export function bindStyleGuide() {
 
 // ---------------- history ----------------
 
-const SOURCE = { agent: "Agent 提炼", user: "手动编辑", restore: "恢复", import: "早期版本" };
+const SOURCE = { agent: "Agent 提炼", user: "手动编辑", restore: "恢复", import: "早期版本", preset: "内置预设" };
 const FIELD = Object.fromEntries([["summary", "概述"], ["palette", "色板"], ["avoid", "避免"], ["prompt_prefix", "Prompt 前缀"], ...STYLE_FIELDS]);
 
 /** The versions last shown in the history dialog, for the compare view. */

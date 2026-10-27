@@ -24,7 +24,7 @@ export function bind(root) {
     const actions = fd.getAll("action");
     if (!actions.length) throw new Error("请至少选择一个动作");
     if (state.job) throw new Error("已有任务在运行，请稍候");
-    if (!state.project.refs.length) throw new Error("请先上传至少一张风格参考图");
+    if (!state.project.refs.length && !state.project.styleGuide) throw new Error("请先上传至少一张风格参考图，或新建项目时选择风格预设");
     document.querySelector("#viewer").close();
     await runActionSet(form.dataset.actionSet, actions);
   });
