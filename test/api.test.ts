@@ -533,6 +533,28 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}`, { method: "PATCH", body: { name: project.name } });
   });
 
+  it("post-processes many assets at once, skipping the ones an op doesn't fit", async () => {
+    const assets = (await json(`/api/projects/${id}`)).body.assets;
+    const sheet = assets.find((a: { assetType: string }) => a.assetType === "sprite_sheet");
+    const tile = assets.find((a: { assetType: string }) => a.assetType === "tile");
+    const post = (body: unknown) => json(`/api/projects/${id}/assets/batch-process`, { method: "POST", body });
+    const outlined = await post({ op: "outline", ids: [sheet.id, tile.id, "ast_missing"] });
+    assert.equal(outlined.status, 200, JSON.stringify(outlined.body));
+    assert.deepEqual(outlined.body.done.map((d: { id: string }) => d.id), [sheet.id]);
+    assert.deepEqual(outlined.body.skipped.map((s: { id: string }) => s.id).sort(), ["ast_missing", tile.id].sort());
+    const made = outlined.body.project.assets.find((a: { id: string }) => a.id === outlined.body.done[0].result);
+    assert.equal(made.parentId, sheet.id);
+    const snapped = await post({ op: "snap", ids: [tile.id] });
+    assert.equal(snapped.body.done.length, 1);
+    const cut = await post({ op: "cutout", ids: [tile.id] });
+    assert.deepEqual([cut.body.done.length, cut.body.skipped.length], [0, 1]);
+    assert.equal((await post({ op: "blur", ids: [sheet.id] })).status, 400);
+    assert.equal((await post({ op: "outline", ids: [] })).status, 400);
+    assert.equal((await post({ op: "outline", ids: Array.from({ length: 31 }, (_, i) => `ast_${i}`) })).status, 400);
+    const cleanup = [outlined.body.done[0].result, snapped.body.done[0].result];
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: cleanup } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

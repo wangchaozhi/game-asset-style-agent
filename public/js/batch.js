@@ -1,4 +1,4 @@
-// Batch actions on the selected assets: review, delete, export.
+// Batch actions on the selected assets: review, delete, export, post-process.
 import { $, api, toast } from "./lib.js";
 import { state } from "./state.js";
 import { renderAssets, setSelecting, visibleAssets } from "./assets.js";
@@ -27,6 +27,25 @@ async function apply(action) {
     renderAssets();
     if (REMOVES.has(action)) loadProjectsQuiet();
     toast(`已${VERB[action]} ${affected} 个素材`);
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+const PROCESS = { outline: "加描边", cutout: "去背景", snap: "吸附色板" };
+
+/** Run one post-process over the selection; outline and snap add new versions, cutout works in place. */
+async function postProcess(op) {
+  const ids = [...state.selected];
+  if (!ids.length) return;
+  if (ids.length > 30) return toast("一次最多处理 30 个素材，请减少选择");
+  toast(`正在${PROCESS[op]}（${ids.length} 个）…`);
+  try {
+    const { done, skipped, project } = await api(`/api/projects/${state.project.id}/assets/batch-process`, { method: "POST", body: { op, ids } });
+    state.project = project;
+    renderAssets();
+    const reasons = [...new Set(skipped.map((s) => s.reason))].join("；");
+    toast(`已${PROCESS[op]} ${done.length} 个${skipped.length ? `，跳过 ${skipped.length} 个（${reasons}）` : ""}`);
   } catch (e) {
     toast(e.message);
   }
@@ -85,6 +104,7 @@ export function bindBatch() {
     else if (action === "exit") setSelecting(false);
     else if (action === "empty") emptyTrash();
     else if (action === "redraw") redrawSelected();
+    else if (action.startsWith("process:")) postProcess(action.slice(8));
     else apply(action);
   });
 }

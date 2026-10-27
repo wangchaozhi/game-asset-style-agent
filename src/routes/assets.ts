@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { isAssetType } from "../domain/assetTypes.js";
+import { isAssetType, isOpaqueType } from "../domain/assetTypes.js";
 import { toPng } from "../image/io.js";
 import {
   alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, outlineVersion, recolorVariant, seamsOf, setNineSlice, sliceAssetFrames,
@@ -130,6 +130,43 @@ assetsRouter.post("/api/projects/:id/assets/import", importUpload.array("images"
   }
   const p = await updateProject(project.id, (p) => void p.assets.push(...created));
   res.json({ imported: created.map((a) => a.id), project: p });
+});
+
+/** At most this many assets per batch post-process request. */
+const MAX_BATCH_PROCESS = 30;
+
+/**
+ * Post-process many assets at once: { op: "outline" | "cutout" | "snap", ids, …the op's options }.
+ * Assets the op doesn't apply to are skipped with a reason; outline and snap make new versions, cutout works in place.
+ */
+assetsRouter.post("/api/projects/:id/assets/batch-process", async (req, res) => {
+  const { op, ids } = req.body ?? {};
+  if (!["outline", "cutout", "snap"].includes(op)) return void res.status(400).json({ error: "op 需为 outline / cutout / snap" });
+  if (!Array.isArray(ids) || !ids.length) return void res.status(400).json({ error: "请提供要处理的素材 id 列表" });
+  if (ids.length > MAX_BATCH_PROCESS) return void res.status(400).json({ error: `一次最多处理 ${MAX_BATCH_PROCESS} 个素材` });
+  const project = await loadProject(pid(req));
+  if (op === "snap" && !project.styleGuide?.palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  const done: { id: string; result: string }[] = [];
+  const skipped: { id: string; reason: string }[] = [];
+  for (const id of new Set(ids.map(String))) {
+    const asset = project.assets.find((a) => a.id === id);
+    if (!asset) {
+      skipped.push({ id, reason: "素材不存在" });
+      continue;
+    }
+    if (op === "outline") {
+      const r = await outlineVersion(project, asset, { width: Number(req.body.width ?? 2), color: req.body.color }, { by: "user" });
+      if (typeof r === "string") skipped.push({ id, reason: r });
+      else done.push({ id, result: r.id });
+    } else if (op === "cutout") {
+      if (isOpaqueType(asset.assetType)) skipped.push({ id, reason: "背景和瓦片铺满画面，不需要去背景" });
+      else done.push({ id, result: (await cutoutAsset(project, asset, { tolerance: req.body.tolerance })).id });
+    } else {
+      const dither = req.body.dither === "ordered" ? "ordered" : "none";
+      done.push({ id, result: (await paletteSnapVersion(project, asset, dither, { by: "user" })).asset.id });
+    }
+  }
+  res.json({ done, skipped, project: await loadProject(project.id) });
 });
 
 /** Manual review and edits: any of status, notes, name, tags, nineSlice (ui only; null clears). */

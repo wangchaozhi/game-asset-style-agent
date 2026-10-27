@@ -202,6 +202,10 @@ curl -s -F assetType=item_icon -F images=@sword.png -F images=@shield.png "$BASE
 
 `{ "action": "approve" | "reject" | "pending" | "delete" | "restore" | "purge", "ids": ["ast_…"] }`，返回 `{ affected, project }`。`delete` 移到回收站，`restore` 从回收站恢复，`purge` 彻底删除（素材库或回收站中的都可以）；`"tag"` / `"untag"` 需额外带 `"tags": ["…"]`，为所选素材添加或移除标签。
 
+### `POST /api/projects/:id/assets/batch-process`
+
+批量后处理（最多 30 个）：`{ "op": "outline", "ids": ["ast_…"], "width": 2, "color": "#1a1020" }`；`op` 为 `outline`（加描边，生成新版本）、`cutout`（去背景，原地，可带 `tolerance`）或 `snap`（吸附色板，生成新版本，可带 `dither`）。不适用的素材（如背景、瓦片、不透明素材描边）跳过并给出原因。返回 `{ done: [{ id, result }], skipped: [{ id, reason }], project }`，`result` 为新版本或处理后素材的 id。
+
 ### `POST /api/projects/:id/trash/empty`
 
 清空回收站（彻底删除其中所有素材及文件），返回 `{ affected, project }`。
