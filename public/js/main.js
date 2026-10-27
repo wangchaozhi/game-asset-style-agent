@@ -14,6 +14,16 @@ import { bindImport } from "./importAssets.js";
 import { bindScene } from "./scene.js";
 
 // Safety net: an API failure in any handler that doesn't catch it still reaches the user.
+// "?" anywhere outside a text field shows the shortcut list.
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "?" || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
+  const help = document.querySelector("#shortcutsDialog");
+  if (help.open) return;
+  e.preventDefault();
+  help.showModal();
+});
+
 window.addEventListener("unhandledrejection", (e) => {
   const msg = e.reason?.message ?? String(e.reason ?? "");
   if (msg) toast(msg);

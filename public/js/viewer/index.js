@@ -61,7 +61,7 @@ export function openViewer(id) {
       <button class="btn ghost" data-variant="${a.id}">基于此图继续生成</button>
       <button class="btn ghost danger" data-del-asset="${a.id}" title="移到回收站">删除</button>
     </div>
-    <p class="muted shortcuts"><kbd>←</kbd> <kbd>→</kbd> 切换 · <kbd>A</kbd> 通过 · <kbd>R</kbd> 驳回 · <kbd>Esc</kbd> 关闭</p>`;
+    <p class="muted shortcuts"><kbd>←</kbd> <kbd>→</kbd> 切换 · <kbd>A</kbd> 通过 · <kbd>R</kbd> 驳回 · <kbd>Esc</kbd> 关闭 · <kbd>?</kbd> 全部快捷键</p>`;
   $("#viewer").showModal();
   for (const s of SECTIONS) s.load?.(a);
   showSize(a);
