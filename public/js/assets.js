@@ -61,6 +61,21 @@ function renderTagFilter() {
   sel.value = state.tagFilter;
 }
 
+/** Cards rendered per page of the library. */
+const PAGE = 60;
+let limit = PAGE;
+let pageKey = "";
+/** Loads the next page when the "more" button scrolls into view. */
+const moreObserver = new IntersectionObserver((entries) => {
+  if (entries.some((e) => e.isIntersecting)) showMore();
+});
+
+function showMore() {
+  moreObserver.disconnect();
+  limit += PAGE;
+  renderAssets();
+}
+
 export function renderAssets(newId) {
   const all = state.project.assets;
   // Drop selections that are not on screen any more (deleted, restored, project switched).
@@ -89,10 +104,10 @@ export function renderAssets(newId) {
       a.variantOf && `<span class="mark" title="换色变体">变体</span>`,
       !a.deletedAt && superseded.has(a.id) && `<span class="mark old" title="已有新版本">旧版本</span>`,
     ].filter(Boolean).join("");
-  grid.innerHTML = shown.length
-    ? shown
-        .map(
-          (a) => `<div class="card ${a.status} ${a.id === newId ? "new" : ""} ${state.selected.has(a.id) ? "selected" : ""}" data-asset="${a.id}">
+  // Big libraries render in pages; the count survives re-renders until the filters change.
+  const key = [state.project.id, state.filter, state.typeFilter, state.tagFilter, state.query, state.colorFilter?.hex ?? ""].join("|");
+  if (key !== pageKey) [pageKey, limit] = [key, PAGE];
+  const card = (a) => `<div class="card ${a.status} ${a.id === newId ? "new" : ""} ${state.selected.has(a.id) ? "selected" : ""}" data-asset="${a.id}">
             <span class="tick" aria-hidden="true"></span>
             <div class="checker"><img loading="lazy" decoding="async" src="${thumbUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /><span class="marks">${marks(a)}</span></div>
             <div class="meta"><span class="name">${esc(a.name)}</span>
@@ -102,10 +117,14 @@ export function renderAssets(newId) {
                   ? `<span class="badge trashed" title="删除于 ${esc(new Date(a.deletedAt).toLocaleString())}">${left(a)} 天后清除</span>`
                   : `<span class="badge ${a.status}">${LABEL[a.status]}${a.score ? ` ${a.score}/10` : ""}</span>`
               }</span>
-            </div></div>`,
-        )
-        .join("")
+            </div></div>`;
+  const more = shown.length - limit;
+  grid.innerHTML = shown.length
+    ? shown.slice(0, limit).map(card).join("") +
+      (more > 0 ? `<button type="button" class="btn ghost more" id="assetsMore">加载更多（还有 ${more} 个）</button>` : "")
     : `<p class="empty">${inTrash() ? "回收站是空的" : all.length ? "没有符合筛选的素材" : "生成的素材会出现在这里"}</p>`;
+  const sentinel = $("#assetsMore");
+  if (sentinel) moreObserver.observe(sentinel);
   renderBatchBar();
 }
 
@@ -194,6 +213,7 @@ export function bindAssets({ onOpen }) {
     renderAssets();
   });
   $("#assets").addEventListener("click", (e) => {
+    if (e.target.id === "assetsMore") return showMore();
     const card = e.target.closest(".card");
     if (!card) return;
     if (state.selecting || inTrash()) toggleSelection(card.dataset.asset, e.shiftKey);

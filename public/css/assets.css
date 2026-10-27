@@ -63,3 +63,4 @@
 .color-filter { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); flex-shrink: 0; white-space: nowrap; }
 .color-filter label { display: flex; gap: 4px; align-items: center; }
 .color-filter input[type="color"] { width: 28px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }
+.assets .more { grid-column: 1 / -1; justify-self: center; }
