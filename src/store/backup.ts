@@ -73,6 +73,7 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
     createdAt: new Date().toISOString(),
     refs,
     styleGuide,
+    ...(typeof src.conventions === "string" && src.conventions.trim() ? { conventions: src.conventions.trim().slice(0, 2000) } : {}),
     assets,
     ...(trash.length ? { trash } : {}),
   };

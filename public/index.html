@@ -53,6 +53,12 @@
         </span>
       </div>
       <div id="styleGuide" class="style-guide empty">还没有风格指南，第一次运行时 Agent 会根据参考图自动生成。</div>
+      <details class="conventions" id="conventionsBox">
+        <summary><b>项目约定</b> <span class="muted" id="conventionsState"></span></summary>
+        <label for="conventions" class="muted">团队自己的美术规范，每次运行都会发给 Claude，也会写进风格说明书。</label>
+        <textarea id="conventions" rows="4" maxlength="2000" placeholder="例如：图标统一 2px 深色描边；角色正面 3/4 视角；不要文字和边框；UI 面板中心保持平整，方便九宫格拉伸。"></textarea>
+        <button class="btn ghost small" id="saveConventions" type="button">保存约定</button>
+      </details>
     </section>
 
     <section class="panel" id="runPanel">

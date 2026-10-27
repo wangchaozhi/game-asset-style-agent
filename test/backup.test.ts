@@ -49,6 +49,7 @@ describe("project backup", () => {
     await store.writeProjectFile(p.id, "assets/ast_1_orig.png", await solidPng(8, 8, "#ffffff"));
     await store.updateProject(p.id, (q) => {
       q.styleGuide = validStyleGuide();
+      q.conventions = "图标统一 2px 描边";
       q.refs.push({ id: "ref_1", file: "refs/ref_1.png", mime: "image/png", originalName: "r.png" });
       q.assets.push({ id: "ast_1", name: "剑", assetType: "item_icon", prompt: "p", file: "assets/ast_1.png", mime: "image/png", status: "approved", runId: "job_1", provider: "mock", createdAt: "", originalFile: "assets/ast_1_orig.png" });
     });
@@ -63,6 +64,7 @@ describe("project backup", () => {
     assert.notEqual(project.id, p.id);
     assert.equal(project.name, "原项目（恢复）");
     assert.deepEqual(project.styleGuide, validStyleGuide());
+    assert.equal(project.conventions, "图标统一 2px 描边");
     assert.deepEqual(project.assets.map((a) => a.id), ["ast_1"]);
     const dir = path.join(dataDir, "projects", project.id);
     assert.deepEqual(fs.readdirSync(path.join(dir, "assets")).sort(), ["ast_1.png", "ast_1_orig.png"]);

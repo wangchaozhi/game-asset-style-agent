@@ -61,7 +61,7 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:5173/api/projects
 
 ### `PATCH /api/projects/:id`
 
-`{ "name": "新名字" }` 改名；`{ "resetStyle": true }` 清空风格指南（下次运行重新提炼）。
+`{ "name": "新名字" }` 改名；`{ "resetStyle": true }` 清空风格指南（下次运行重新提炼）；`{ "conventions": "图标统一 2px 描边……" }` 设置项目约定（≤ 2000 字，空字符串清除）：每次运行都随请求发给 Claude，并写进风格说明书；复用风格与项目备份会一并带上。
 
 ### `DELETE /api/projects/:id`
 

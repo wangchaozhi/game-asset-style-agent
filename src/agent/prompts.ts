@@ -44,6 +44,9 @@ export function buildIntro(opts: {
     notes.length
       ? `The user's notes on what to take from each reference image (follow them when building or applying the style guide):\n${notes.join("\n")}`
       : "",
+    project.conventions
+      ? `The team's own conventions for this project (follow them in every asset; they win over your defaults):\n${project.conventions}`
+      : "",
     project.styleGuide
       ? `This project already has a style guide. Reuse it as-is:\n${styleGuideText(project.styleGuide)}`
       : "No style guide yet: create one first from the reference images above.",

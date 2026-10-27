@@ -82,6 +82,7 @@ export async function buildStyleSheet(project: Project): Promise<string> {
   .rules { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
   .rules dt { font-weight: 600; }
   .rules dd { margin: 0; }
+  .conventions { white-space: pre-wrap; margin: 0; }
   pre { white-space: pre-wrap; background: #f6f6f6; border-radius: 8px; padding: 10px 12px; font-size: 13px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
   .refs { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
@@ -96,6 +97,7 @@ export async function buildStyleSheet(project: Project): Promise<string> {
 <body>
 <header><h1>${esc(project.name)} · 风格说明书</h1>${sg ? `<p class="summary">${esc(sg.summary)}</p>` : ""}</header>
 ${section("色板", palette)}
+${project.conventions ? section("项目约定", `<p class="conventions">${esc(project.conventions)}</p>`) : ""}
 ${section("画风规则", rules)}
 ${section("参考图", refHtml)}
 ${section("已通过素材样例", samples)}

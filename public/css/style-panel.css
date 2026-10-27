@@ -55,3 +55,9 @@
 .cmp-palette i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
 /* The history list's item card style must not reach list items inside the compare table. */
 .cmp-table li { border: 0; padding: 0; background: none; border-radius: 0; display: list-item; }
+.conventions { margin-top: 10px; display: grid; gap: 6px; font-size: 13px; }
+.conventions summary { cursor: pointer; }
+.conventions[open] { display: grid; }
+.conventions label { font-size: 12px; }
+.conventions textarea { font-size: 13px; }
+.conventions .btn { justify-self: start; }

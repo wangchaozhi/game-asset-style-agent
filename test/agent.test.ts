@@ -350,6 +350,13 @@ describe("buildIntro", () => {
     assert.doesNotMatch(text, /- Reference 1:/);
   });
 
+  it("passes the team's conventions when set", async () => {
+    const project = await projectWithRef();
+    assert.doesNotMatch(buildIntro({ project, request: "x", assetTypes: [] }), /conventions/);
+    project.conventions = "图标统一 2px 深色描边";
+    assert.match(buildIntro({ project, request: "x", assetTypes: [] }), /team's own conventions[^\n]*\n图标统一 2px 深色描边/);
+  });
+
   it("asks for a style guide when there is none and lists selected types", async () => {
     const project = await projectWithRef();
     const text = buildIntro({ project, request: "做几把剑", assetTypes: ["item_icon", "bogus"] });

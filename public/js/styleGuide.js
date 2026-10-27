@@ -60,7 +60,15 @@ export async function saveStyle(form) {
   }
 }
 
+/** The project conventions box: filled from the project, collapsed state notes whether any are set. */
+function renderConventions() {
+  const text = state.project.conventions ?? "";
+  $("#conventions").value = text;
+  $("#conventionsState").textContent = text ? `已设置（${text.length} 字）` : "未设置";
+}
+
 export function renderStyle() {
+  renderConventions();
   const sg = state.project.styleGuide;
   $("#editStyle").textContent = sg ? "编辑" : "手动填写";
   const box = $("#styleGuide");
@@ -83,6 +91,7 @@ export function renderStyle() {
 
 export function bindStyleGuide() {
   bindStyleHistory();
+  bindConventions();
   $("#editStyle").addEventListener("click", renderStyleEditor);
   const sgBox = $("#styleGuide");
   sgBox.addEventListener("submit", (e) => {
@@ -161,6 +170,18 @@ export async function openStyleHistory() {
   } catch (e) {
     body.innerHTML = `<p class="bad">${esc(e.message)}</p>`;
   }
+}
+
+export function bindConventions() {
+  $("#saveConventions").addEventListener("click", async () => {
+    try {
+      state.project = await api(`/api/projects/${state.project.id}`, { method: "PATCH", body: { conventions: $("#conventions").value } });
+      renderConventions();
+      toast(state.project.conventions ? "已保存项目约定，下次运行生效" : "已清除项目约定");
+    } catch (err) {
+      toast(err.message);
+    }
+  });
 }
 
 export function bindStyleHistory() {

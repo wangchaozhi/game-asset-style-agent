@@ -70,6 +70,8 @@ export interface Project {
   createdAt: string;
   refs: RefImage[];
   styleGuide: StyleGuide | null;
+  /** the team's own art rules in free text, sent to Claude with every run */
+  conventions?: string;
   assets: Asset[];
   /** deleted assets, kept with their files until restored or purged */
   trash?: TrashedAsset[];

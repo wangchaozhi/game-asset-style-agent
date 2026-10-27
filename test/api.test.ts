@@ -576,6 +576,19 @@ describe("HTTP API (demo mode)", () => {
     assert.ok(all.items.length > r.items.length);
   });
 
+  it("stores project conventions, prints them in the style sheet and carries them to reused styles", async () => {
+    const patch = (conventions: unknown) => json(`/api/projects/${id}`, { method: "PATCH", body: { conventions } });
+    assert.equal((await patch("  图标统一 2px 描边  ")).body.conventions, "图标统一 2px 描边");
+    assert.equal((await patch("x".repeat(3000))).body.conventions.length, 2000);
+    await patch("图标统一 2px 描边\n<不要文字>");
+    const html = await (await fetch(`${base}/api/projects/${id}/style-sheet.html`)).text();
+    assert.ok(html.includes("项目约定") && html.includes("&lt;不要文字&gt;"));
+    const copy = (await json("/api/projects", { method: "POST", body: { name: "约定复用", styleFrom: id } })).body;
+    assert.equal(copy.conventions, "图标统一 2px 描边\n<不要文字>");
+    assert.equal((await patch("   ")).body.conventions, undefined, "blank clears");
+    assert.ok(!(await (await fetch(`${base}/api/projects/${id}/style-sheet.html`)).text()).includes("项目约定"));
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

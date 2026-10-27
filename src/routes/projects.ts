@@ -16,6 +16,9 @@ import { attachment, pid } from "./util.js";
 
 export const projectsRouter = Router();
 
+/** Longest project conventions text, in characters. */
+const MAX_CONVENTIONS = 2000;
+
 projectsRouter.get("/api/projects", async (_req, res) => {
   const all = await listProjects();
   res.json(all.map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt, assets: p.assets.length, cover: p.refs[0]?.file })));
@@ -39,6 +42,7 @@ projectsRouter.post("/api/projects", async (req, res) => {
   const p = await updateProject(created.id, (p) => {
     p.refs = refs;
     p.styleGuide = source.styleGuide;
+    if (source.conventions) p.conventions = source.conventions;
   });
   if (source.styleGuide) await recordStyleVersion(created.id, source.styleGuide, "import");
   res.json(p);
@@ -52,6 +56,11 @@ projectsRouter.patch("/api/projects/:id", async (req, res) => {
   let cleared = null as Project["styleGuide"];
   const p = await updateProject(pid(req), (p) => {
     if (typeof req.body?.name === "string") p.name = req.body.name.slice(0, 80);
+    if (typeof req.body?.conventions === "string") {
+      const text = req.body.conventions.trim().slice(0, MAX_CONVENTIONS);
+      if (text) p.conventions = text;
+      else delete p.conventions;
+    }
     if (req.body?.resetStyle) {
       cleared = p.styleGuide;
       p.styleGuide = null;
