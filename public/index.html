@@ -196,6 +196,19 @@
     </div>
   </dialog>
 
+  <dialog id="newProjectDialog" class="usage-dialog export-dialog" aria-labelledby="newProjectTitle">
+    <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
+    <div class="usage-body">
+      <h3 id="newProjectTitle">新建项目</h3>
+      <form id="newProjectForm" class="export-form">
+        <label>名称 <input name="name" maxlength="80" value="新项目" required /></label>
+        <label>风格 <select name="styleFrom"></select></label>
+        <p class="muted">复用风格会复制所选项目的风格指南与参考图（含备注），新项目直接沿用同一画风；素材与对话不复制。</p>
+        <div class="export-go"><span></span><button class="btn primary" type="submit">创建</button></div>
+      </form>
+    </div>
+  </dialog>
+
   <dialog id="exportDialog" class="usage-dialog export-dialog" aria-labelledby="exportTitle">
     <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
     <div class="usage-body">

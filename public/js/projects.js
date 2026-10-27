@@ -65,10 +65,27 @@ export async function loadProjectsQuiet() {
 export function bindProjects(onSwitch) {
   $("#projectSelect").addEventListener("change", (e) => openProject(e.target.value).then(onSwitch));
   $("#newProject").addEventListener("click", async () => {
-    const name = prompt("项目名称", "新项目");
-    if (name === null) return;
-    const p = await api("/api/projects", { method: "POST", body: { name } });
-    await loadProjects(p.id);
+    const form = $("#newProjectForm");
+    form.reset();
+    const list = await api("/api/projects");
+    form.elements.styleFrom.innerHTML = `<option value="">从零开始（上传新的参考图）</option>${list
+      .map((p) => `<option value="${esc(p.id)}">复用「${esc(p.name)}」的风格</option>`)
+      .join("")}`;
+    $("#newProjectDialog").showModal();
+    form.elements.name.select();
+  });
+  $("#newProjectForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = { name: String(fd.get("name")).trim() || "新项目", ...(fd.get("styleFrom") ? { styleFrom: fd.get("styleFrom") } : {}) };
+    try {
+      const p = await api("/api/projects", { method: "POST", body });
+      $("#newProjectDialog").close();
+      await loadProjects(p.id);
+      if (body.styleFrom) toast(p.styleGuide ? "已复用风格指南与参考图" : "已复制参考图（源项目还没有风格指南）");
+    } catch (err) {
+      toast(err.message);
+    }
   });
   $("#deleteProject").addEventListener("click", async () => {
     if (!confirm(`删除项目「${state.project.name}」及其全部素材？此操作不可撤销。`)) return;

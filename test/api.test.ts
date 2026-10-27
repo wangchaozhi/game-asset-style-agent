@@ -459,6 +459,28 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [...r.body.imported, ...sheet.body.imported] } });
   });
 
+  it("creates a project that reuses another project's style and references", async () => {
+    const source = (await json(`/api/projects/${id}`)).body;
+    assert.ok(source.styleGuide && source.refs.length);
+    await json(`/api/projects/${id}/refs/${source.refs[0].id}`, { method: "PATCH", body: { note: "只参考配色" } });
+    const r = await json("/api/projects", { method: "POST", body: { name: "第二章", styleFrom: id } });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const copy = r.body;
+    assert.deepEqual([copy.name, copy.assets.length, copy.styleGuide], ["第二章", 0, source.styleGuide]);
+    assert.equal(copy.refs.length, source.refs.length);
+    assert.equal(copy.refs[0].note, "只参考配色");
+    assert.ok(copy.refs.every((ref: { id: string }) => !source.refs.some((s: { id: string }) => s.id === ref.id)), "new ref ids");
+    const bytes = async (pid: string, file: string) => Buffer.from(await (await fetch(`${base}/api/projects/${pid}/files/${file}`)).arrayBuffer());
+    assert.ok((await bytes(copy.id, copy.refs[0].file)).equals(await bytes(id, source.refs[0].file)), "reference files copied");
+    const hist = (await json(`/api/projects/${copy.id}/style-history`)).body;
+    assert.deepEqual(hist.map((h: { source: string }) => h.source), ["import"]);
+    assert.equal((await json("/api/projects", { method: "POST", body: { name: "x", styleFrom: "prj_missing" } })).status, 404);
+    // A source without a style guide still lends its references.
+    const bare = (await json("/api/projects", { method: "POST", body: { name: "空" } })).body;
+    const fromBare = (await json("/api/projects", { method: "POST", body: { name: "y", styleFrom: bare.id } })).body;
+    assert.deepEqual([fromBare.styleGuide, fromBare.refs.length], [null, 0]);
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

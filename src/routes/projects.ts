@@ -4,7 +4,7 @@ import path from "node:path";
 import { runningJobFor } from "../agent/index.js";
 import { StyleGuideInput } from "../agent/schemas.js";
 import {
-  clearConversation, createProject, deleteProject, listProjects, loadConversation, loadProject, projectDir,
+  clearConversation, createProject, deleteProject, listProjects, loadConversation, loadProject, newId, projectDir, readProjectFile, writeProjectFile,
   buildBackup, importBackup, isProjectFile, loadStyleHistory, projectDiskUsage, recordStyleVersion, removeOrphanFiles, styleDiff,
   updateProject,
 } from "../store/index.js";
@@ -20,8 +20,27 @@ projectsRouter.get("/api/projects", async (_req, res) => {
   res.json(all.map((p) => ({ id: p.id, name: p.name, createdAt: p.createdAt, assets: p.assets.length, cover: p.refs[0]?.file })));
 });
 
+/** Create a project; { styleFrom: "<projectId>" } copies that project's style guide and reference images (with notes). */
 projectsRouter.post("/api/projects", async (req, res) => {
-  res.json(await createProject(String(req.body?.name ?? "").slice(0, 80)));
+  const fromId = req.body?.styleFrom ? String(req.body.styleFrom) : null;
+  const source = fromId ? (await listProjects()).find((p) => p.id === fromId) : null;
+  if (fromId && !source) return void res.status(404).json({ error: "要复用风格的项目不存在" });
+  const created = await createProject(String(req.body?.name ?? "").slice(0, 80));
+  if (!source) return void res.json(created);
+  const refs = await Promise.all(
+    source.refs.map(async (r) => {
+      const id = newId("ref");
+      const file = `refs/${id}.png`;
+      await writeProjectFile(created.id, file, await readProjectFile(source.id, r.file));
+      return { ...r, id, file };
+    }),
+  );
+  const p = await updateProject(created.id, (p) => {
+    p.refs = refs;
+    p.styleGuide = source.styleGuide;
+  });
+  if (source.styleGuide) await recordStyleVersion(created.id, source.styleGuide, "import");
+  res.json(p);
 });
 
 projectsRouter.get("/api/projects/:id", async (req, res) => {
