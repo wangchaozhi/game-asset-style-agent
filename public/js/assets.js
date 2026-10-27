@@ -1,5 +1,5 @@
 // Asset library grid, filters and multi-select.
-import { $, esc } from "./lib.js";
+import { $, api, esc, toast } from "./lib.js";
 import { state, thumbUrl } from "./state.js";
 
 const LABEL = { approved: "✓ 通过", rejected: "✗ 驳回", pending_review: "… 审核中" };
@@ -20,16 +20,17 @@ export const visibleAssets = () => {
       .slice()
       .sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
   }
-  return state.project.assets
-    .filter(
-      (a) =>
-        (state.filter === "all" || a.status === state.filter) &&
-        (!state.typeFilter || a.assetType === state.typeFilter) &&
-        hasTag(a, state.tagFilter) &&
-        matchesQuery(a, q),
-    )
-    .slice()
-    .reverse();
+  const shares = state.colorFilter?.shares;
+  const list = state.project.assets.filter(
+    (a) =>
+      (state.filter === "all" || a.status === state.filter) &&
+      (!state.typeFilter || a.assetType === state.typeFilter) &&
+      hasTag(a, state.tagFilter) &&
+      (!shares || shares.has(a.id)) &&
+      matchesQuery(a, q),
+  );
+  // A colour search lists the assets that use the colour most first; otherwise newest first.
+  return shares ? list.sort((a, b) => shares.get(b.id) - shares.get(a.id)) : list.slice().reverse();
 };
 
 /** Type dropdown lists only types present in the project, with counts. */
@@ -84,6 +85,7 @@ export function renderAssets(newId) {
     [
       a.frames?.length && `<span class="mark" title="精灵表，已切成 ${a.frames.length} 帧">${a.frames.length} 帧</span>`,
       a.nineSlice && `<span class="mark" title="已设置九宫格边距">九宫格</span>`,
+      state.colorFilter?.shares.has(a.id) && `<span class="mark" title="${esc(state.colorFilter.hex)} 附近颜色的像素占比">${Math.round(state.colorFilter.shares.get(a.id) * 100)}%</span>`,
       a.variantOf && `<span class="mark" title="换色变体">变体</span>`,
       !a.deletedAt && superseded.has(a.id) && `<span class="mark old" title="已有新版本">旧版本</span>`,
     ].filter(Boolean).join("");
@@ -169,6 +171,22 @@ export function bindAssets({ onOpen }) {
   });
   $("#typeFilter").addEventListener("change", (e) => {
     state.typeFilter = e.target.value;
+    renderAssets();
+  });
+  $("#colorFilter").addEventListener("change", async (e) => {
+    try {
+      const r = await api(`/api/projects/${state.project.id}/assets-by-color?hex=${encodeURIComponent(e.target.value)}`);
+      state.colorFilter = { hex: r.hex, shares: new Map(r.items.map((i) => [i.id, i.share])) };
+      $("#colorFilterClear").hidden = false;
+      renderAssets();
+      toast(r.items.length ? `${r.items.length} 个素材使用了 ${r.hex} 附近的颜色` : `没有素材明显使用 ${r.hex}`);
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+  $("#colorFilterClear").addEventListener("click", () => {
+    state.colorFilter = null;
+    $("#colorFilterClear").hidden = true;
     renderAssets();
   });
   $("#tagFilter").addEventListener("change", (e) => {

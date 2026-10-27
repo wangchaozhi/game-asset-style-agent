@@ -96,3 +96,25 @@ export async function recolor(data: Buffer, swaps: ColorSwap[], threshold = 20):
   }
   return sharp(px, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer();
 }
+
+/** Share of visible pixels within `threshold` ΔE of `hex` (sampled at up to 128 px per side), 0-1. */
+export async function colorShare(data: Buffer, hex: string, threshold = 20): Promise<number> {
+  const { data: px } = await sharp(data)
+    .ensureAlpha()
+    .resize(128, 128, { fit: "inside", withoutEnlargement: true, kernel: sharp.kernel.nearest })
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const target = rgbToLab(...hexToRgb(hex));
+  const cache = new Map<number, boolean>();
+  let visible = 0;
+  let near = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    if (px[i + 3] < 128) continue;
+    visible++;
+    const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
+    let hit = cache.get(key);
+    if (hit === undefined) cache.set(key, (hit = deltaE(rgbToLab(px[i], px[i + 1], px[i + 2]), target) <= threshold));
+    if (hit) near++;
+  }
+  return visible ? Math.round((near / visible) * 1000) / 1000 : 0;
+}

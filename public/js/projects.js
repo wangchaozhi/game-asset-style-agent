@@ -24,6 +24,9 @@ export async function openProject(id) {
   state.query = "";
   state.typeFilter = "";
   state.tagFilter = "";
+  state.colorFilter = null;
+  const clearColor = $("#colorFilterClear");
+  if (clearColor) clearColor.hidden = true;
   const search = $("#assetSearch");
   if (search) search.value = "";
   try { localStorage.setItem("gaa.project", id); } catch {}

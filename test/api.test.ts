@@ -604,6 +604,22 @@ describe("HTTP API (demo mode)", () => {
     for (const [i, x] of ids.entries()) await json(`/api/projects/${id}/assets/${x}`, { method: "PATCH", body: { name: before[i] } });
   });
 
+  it("finds assets by colour, most first", async () => {
+    const project = (await json(`/api/projects/${id}`)).body;
+    const hex = project.styleGuide.palette[0].hex;
+    const r = (await json(`/api/projects/${id}/assets-by-color?hex=${encodeURIComponent(hex)}`)).body;
+    assert.equal(r.hex, hex.toLowerCase());
+    assert.ok(r.items.length > 0);
+    const shares = r.items.map((i: { share: number }) => i.share);
+    assert.deepEqual(shares, [...shares].sort((a, b) => b - a));
+    assert.ok(shares.every((x: number) => x >= 0.02 && x <= 1));
+    const superseded = new Set(project.assets.map((a: { parentId?: string }) => a.parentId).filter(Boolean));
+    assert.ok(!r.items.some((i: { id: string }) => superseded.has(i.id)));
+    for (const bad of ["hex=red", `hex=${encodeURIComponent(hex)}&threshold=99`, `hex=${encodeURIComponent(hex)}&min=2`]) {
+      assert.equal((await json(`/api/projects/${id}/assets-by-color?${bad}`)).status, 400, bad);
+    }
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

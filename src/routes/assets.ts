@@ -12,7 +12,7 @@ import { loadProject, moveToTrash, newId, readProjectFile, removeAssetFiles, res
 import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
 import { detectNineSlice } from "../image/nineSlice.js";
-import { dominantColors } from "../image/recolor.js";
+import { colorShare, dominantColors } from "../image/recolor.js";
 import { measureConsistency } from "../ops/consistency.js";
 import { attachment, findAsset, pid } from "./util.js";
 
@@ -338,6 +338,26 @@ assetsRouter.get("/api/projects/:id/consistency", async (req, res) => {
   const report = await measureConsistency(await loadProject(pid(req)), { tag });
   if (!report) return void res.status(400).json({ error: "项目还没有风格指南色板" });
   res.json(report);
+});
+
+/**
+ * Assets that use a colour: ?hex=%23rrggbb&threshold=20 (ΔE, 5-60). Current assets (not superseded) whose share
+ * of visible pixels near the colour is at least `min` (default 0.02), most first.
+ */
+assetsRouter.get("/api/projects/:id/assets-by-color", async (req, res) => {
+  const hex = String(req.query.hex ?? "");
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return void res.status(400).json({ error: "hex 需为 #rrggbb" });
+  const threshold = req.query.threshold === undefined ? 20 : Number(req.query.threshold);
+  if (!Number.isFinite(threshold) || threshold < 5 || threshold > 60) return void res.status(400).json({ error: "容差需为 5-60" });
+  const min = req.query.min === undefined ? 0.02 : Number(req.query.min);
+  if (!Number.isFinite(min) || min < 0 || min > 1) return void res.status(400).json({ error: "min 需为 0-1" });
+  const project = await loadProject(pid(req));
+  const superseded = new Set(project.assets.map((a) => a.parentId).filter(Boolean));
+  const current = project.assets.filter((a) => !superseded.has(a.id)).slice(-300);
+  const shares = await Promise.all(
+    current.map(async (a) => ({ id: a.id, share: await colorShare(await readProjectFile(project.id, a.file), hex, threshold) })),
+  );
+  res.json({ hex: hex.toLowerCase(), threshold, items: shares.filter((s) => s.share >= min).sort((a, b) => b.share - a.share) });
 });
 
 /** The asset's main colours, to pick swap sources from. */
