@@ -44,10 +44,6 @@ export async function loadConversationInfo() {
 export function renderAll() {
   loadConversationInfo();
   $("#exportApproved").href = `/api/projects/${state.project.id}/export.zip`;
-  $("#exportAll").href = `/api/projects/${state.project.id}/export.zip?status=all`;
-  $("#exportSized").href = `/api/projects/${state.project.id}/export.zip?sizes=1`;
-  $("#exportUnity").href = `/api/projects/${state.project.id}/export.zip?unity=1`;
-  $("#exportAtlas").href = `/api/projects/${state.project.id}/export-atlas.zip`;
   $("#backupProject").href = `/api/projects/${state.project.id}/backup.zip`;
   state.pixelKernel = /pixel|像素|8-?bit|16-?bit/i.test(JSON.stringify(state.project.styleGuide ?? ""));
   renderRefs();

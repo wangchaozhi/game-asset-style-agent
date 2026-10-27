@@ -8,6 +8,7 @@ import { bindAssets } from "./assets.js";
 import { bindViewer, openViewer } from "./viewer/index.js";
 import { bindBatch } from "./batch.js";
 import { bindRun, resumeJob } from "./run.js";
+import { bindExportDialog } from "./exportDialog.js";
 
 // Safety net: an API failure in any handler that doesn't catch it still reaches the user.
 window.addEventListener("unhandledrejection", (e) => {
@@ -32,6 +33,7 @@ async function init() {
   bindAssets({ onOpen: openViewer });
   bindViewer();
   bindBatch();
+  bindExportDialog();
   await loadProjects();
   resumeJob();
 }

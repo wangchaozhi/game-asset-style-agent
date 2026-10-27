@@ -91,10 +91,7 @@
         <h2>③ 素材库 <span id="assetCount" class="count"></span></h2>
         <div class="export">
           <a class="btn ghost small" id="exportApproved" href="#" download>导出已通过 ZIP</a>
-          <a class="btn ghost small" id="exportAll" href="#" download>导出全部</a>
-          <a class="btn ghost small" id="exportSized" href="#" download title="已通过素材 + 各类型常用尺寸">含多尺寸</a>
-          <a class="btn ghost small" id="exportUnity" href="#" download title="已通过素材，每张图附 Unity .meta（Sprite 导入设置：精灵表切片、九宫格边框、像素风 Point 过滤）">Unity</a>
-          <a class="btn ghost small" id="exportAtlas" href="#" download title="已通过素材打包成图集 PNG + JSON（Phaser / TexturePacker 格式），背景除外">图集</a>
+          <button class="btn ghost small" id="exportMore" type="button">更多导出…</button>
         </div>
         <div class="filters" id="filters">
           <button data-filter="all" class="on">全部</button>
@@ -154,6 +151,35 @@
   <dialog id="historyDialog" class="usage-dialog">
     <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
     <div class="usage-body"><h3>风格指南历史</h3><div id="historyBody"></div></div>
+  </dialog>
+
+  <dialog id="exportDialog" class="usage-dialog export-dialog" aria-labelledby="exportTitle">
+    <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
+    <div class="usage-body">
+      <h3 id="exportTitle">导出</h3>
+      <form id="exportForm" class="export-form">
+        <fieldset><legend>格式</legend>
+          <label><input type="radio" name="kind" value="zip" /> 素材包 ZIP <span class="muted">按类型分目录，含 manifest、Godot .tres、TileSet</span></label>
+          <label><input type="radio" name="kind" value="atlas" /> 图集 <span class="muted">PNG + TexturePacker JSON，Phaser / PixiJS 直接加载</span></label>
+        </fieldset>
+        <fieldset><legend>范围</legend>
+          <label><input type="radio" name="scope" value="approved" /> 只含已通过</label>
+          <label><input type="radio" name="scope" value="all" /> 全部素材</label>
+          <label>标签 <select name="tag"></select></label>
+        </fieldset>
+        <fieldset data-kind="zip"><legend>素材包选项</legend>
+          <label><input type="checkbox" name="sizes" /> 附各类型常用尺寸</label>
+          <label><input type="checkbox" name="unity" /> 附 Unity .meta 与精灵表 AnimationClip</label>
+          <label>Godot 目录 res:// <input name="godot" maxlength="200" placeholder="assets" /></label>
+          <label>TileSet 瓦片尺寸 <select name="tile"><option>16</option><option>32</option><option>64</option><option>128</option></select> px</label>
+        </fieldset>
+        <fieldset data-kind="atlas"><legend>图集选项</legend>
+          <label>单个精灵最长边 <select name="max"><option>64</option><option>128</option><option>256</option><option>512</option><option>1024</option></select> px</label>
+          <label>图集页尺寸 <select name="size"><option>1024</option><option>2048</option><option>4096</option></select> px</label>
+        </fieldset>
+      </form>
+      <div class="export-go"><span id="exportCount" class="muted"></span><a class="btn primary" id="exportGo" href="#" download>下载</a></div>
+    </div>
   </dialog>
 
   <script type="module" src="/js/main.js"></script>
