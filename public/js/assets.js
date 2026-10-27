@@ -65,13 +65,17 @@ function renderTagFilter() {
 const PAGE = 60;
 let limit = PAGE;
 let pageKey = "";
-/** Loads the next page when the "more" button scrolls into view. */
-const moreObserver = new IntersectionObserver((entries) => {
-  if (entries.some((e) => e.isIntersecting)) showMore();
-});
+/** Loads the next page when the "more" button scrolls into view; created on first use. */
+let moreObserver = null;
+const observeMore = (el) => {
+  moreObserver ??= new IntersectionObserver((entries) => {
+    if (entries.some((e) => e.isIntersecting)) showMore();
+  });
+  moreObserver.observe(el);
+};
 
 function showMore() {
-  moreObserver.disconnect();
+  moreObserver?.disconnect();
   limit += PAGE;
   renderAssets();
 }
@@ -124,7 +128,7 @@ export function renderAssets(newId) {
       (more > 0 ? `<button type="button" class="btn ghost more" id="assetsMore">加载更多（还有 ${more} 个）</button>` : "")
     : `<p class="empty">${inTrash() ? "回收站是空的" : all.length ? "没有符合筛选的素材" : "生成的素材会出现在这里"}</p>`;
   const sentinel = $("#assetsMore");
-  if (sentinel) moreObserver.observe(sentinel);
+  if (sentinel) observeMore(sentinel);
   renderBatchBar();
 }
 

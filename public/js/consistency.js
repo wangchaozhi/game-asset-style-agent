@@ -8,7 +8,8 @@ const MAX_REDRAW = 10;
 
 let report = null;
 
-const feedbackOf = (item) => `${item.reasons.join("；")}。请回到风格指南的色板与参考图的画风。`;
+/** Redraw feedback for a drifting asset: its reasons, then the nudge back to the style. */
+export const feedbackOf = (item) => `${item.reasons.join("；")}。请回到风格指南的色板与参考图的画风。`;
 
 function render() {
   const body = $("#consistencyBody");

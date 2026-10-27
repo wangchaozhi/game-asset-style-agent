@@ -7,14 +7,14 @@ const STATUS = { approved: "已通过", rejected: "已驳回", pending_review: "
 const ORIGIN = { postprocess: "后处理", import: "导入", mock: "生成（Mock）" };
 
 /** The root of the asset's version chain, then everything descending from it (new versions and variants). */
-function lineage(a) {
-  const byId = new Map(state.project.assets.map((x) => [x.id, x]));
+export function lineage(a, assets = state.project.assets) {
+  const byId = new Map(assets.map((x) => [x.id, x]));
   let root = a;
   for (let up = byId.get(root.parentId ?? root.variantOf); up; up = byId.get(root.parentId ?? root.variantOf)) root = up;
   const out = [];
   const visit = (x) => {
     out.push(x);
-    for (const c of state.project.assets) if (c.parentId === x.id || c.variantOf === x.id) visit(c);
+    for (const c of assets) if (c.parentId === x.id || c.variantOf === x.id) visit(c);
   };
   visit(root);
   return out.sort((x, y) => x.createdAt.localeCompare(y.createdAt));
