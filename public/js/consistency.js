@@ -16,7 +16,7 @@ function render() {
   const byId = new Map(state.project.assets.map((a) => [a.id, a]));
   const rows = report.items.filter((i) => byId.has(i.id));
   const drifting = rows.filter((i) => i.reasons.length);
-  body.innerHTML = `<p class="muted">项目中位数：色板内 ${pct(report.medianCoverage)} · 平均色差 ΔE ${Math.round(report.medianDeltaE * 10) / 10}。
+  body.innerHTML = `<p class="muted">${$("#consistencyTag").value ? "组内" : "项目"}中位数：色板内 ${pct(report.medianCoverage)} · 平均色差 ΔE ${Math.round(report.medianDeltaE * 10) / 10}。
       ${drifting.length ? `${drifting.length} 个素材明显偏离，已默认勾选（最多 ${MAX_REDRAW} 个）。` : "没有明显偏离的素材。"}</p>
     <ol class="drift-list">${rows
       .map((i, n) => {
@@ -46,19 +46,36 @@ function updatePicked() {
   if (n > MAX_REDRAW) $("#driftPicked").textContent = `已选 ${n} 个，一次最多 ${MAX_REDRAW} 个`;
 }
 
-async function open() {
+/** Fill the tag picker; hidden when the project has no tags. */
+function renderScope() {
+  const tags = [...new Set(state.project.assets.flatMap((a) => a.tags ?? []))].sort();
+  const sel = $("#consistencyTag");
+  const keep = tags.includes(sel.value) ? sel.value : "";
+  sel.innerHTML = `<option value="">全部素材</option>${tags.map((t) => `<option value="${esc(t)}">#${esc(t)}（组内对比）</option>`).join("")}`;
+  sel.value = keep;
+  sel.closest("label").hidden = !tags.length;
+}
+
+async function load() {
+  const tag = $("#consistencyTag").value;
   $("#consistencyBody").innerHTML = `<p class="muted">正在按风格色板测量每个素材…</p>`;
-  $("#consistencyDialog").showModal();
   try {
-    report = await api(`/api/projects/${state.project.id}/consistency`);
+    report = await api(`/api/projects/${state.project.id}/consistency${tag ? `?tag=${encodeURIComponent(tag)}` : ""}`);
     render();
   } catch (err) {
     $("#consistencyBody").innerHTML = `<p class="muted">${esc(err.message)}</p>`;
   }
 }
 
+function open() {
+  renderScope();
+  $("#consistencyDialog").showModal();
+  load();
+}
+
 export function bindConsistency({ onOpen }) {
   $("#consistencyBtn").addEventListener("click", open);
+  $("#consistencyTag").addEventListener("change", load);
   const body = $("#consistencyBody");
   body.addEventListener("change", (e) => e.target.dataset.drift && updatePicked());
   body.addEventListener("click", (e) => {

@@ -63,3 +63,6 @@
 .stat-bar .ok { background: var(--ok); }
 .stat-bar .pending { background: var(--pending); }
 .stat-bar .bad { background: var(--bad); }
+.consistency-scope { display: flex; gap: 6px; align-items: center; font-size: 13px; }
+.consistency-scope[hidden] { display: none; }
+.consistency-scope select { padding: 3px 6px; font-size: 12px; }

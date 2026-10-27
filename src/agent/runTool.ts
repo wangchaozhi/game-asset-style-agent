@@ -212,7 +212,7 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
       const parsed = CheckConsistencyInput.safeParse(block.input ?? {});
       if (!parsed.success) return invalid();
       const project = await loadProject(job.projectId);
-      const report = await measureConsistency(project);
+      const report = await measureConsistency(project, { tag: parsed.data.tag });
       if (!report) return errResult(block.id, "There is no style guide palette yet; call save_style_guide first.");
       const byId = new Map(project.assets.map((a) => [a.id, a]));
       const pct = (x: number) => `${Math.round(x * 100)}%`;
@@ -226,7 +226,7 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
         type: "tool_result",
         tool_use_id: block.id,
         content: [
-          `Measured ${report.items.length} current assets. Project median: on-palette ${pct(report.medianCoverage)}, mean ΔE ${Math.round(report.medianDeltaE * 10) / 10}.`,
+          `Measured ${report.items.length} current assets${parsed.data.tag ? ` tagged "${parsed.data.tag}"` : ""}. ${parsed.data.tag ? "Group" : "Project"} median: on-palette ${pct(report.medianCoverage)}, mean ΔE ${Math.round(report.medianDeltaE * 10) / 10}.`,
           drifting.length ? `Clearly drifting, most first:\n${lines.join("\n")}` : "No asset clearly drifts from the rest of the set.",
         ].join("\n"),
       };

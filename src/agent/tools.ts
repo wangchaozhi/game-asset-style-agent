@@ -207,6 +207,7 @@ export const tools: Anthropic.Beta.BetaTool[] = [
       type: "object",
       properties: {
         limit: { type: "integer", description: "How many of the most drifted assets to list (1-20, default 8)." },
+        tag: { type: "string", description: "Only check assets with this tag (e.g. one character or level), compared with each other." },
       },
     },
   },

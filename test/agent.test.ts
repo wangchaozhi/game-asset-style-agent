@@ -297,6 +297,12 @@ describe("post-processing tools", () => {
     const bare = await store.createProject("no palette");
     assert.match(String((await runTool(fakeJob(bare.id), mock, call("check_consistency", {}))).content), /no style guide palette/);
     assert.match(String((await runTool(fakeJob(p.id), mock, call("check_consistency", { limit: 99 }))).content), /INVALID_JSON/);
+    await store.updateProject(p.id, (q) => {
+      for (const a of q.assets) if (a.id === "ast_ok0" || a.id === "ast_ok1") a.tags = ["盾"];
+    });
+    const group = String((await runTool(fakeJob(p.id), mock, call("check_consistency", { tag: "盾" }))).content);
+    assert.match(group, /^Measured 2 current assets tagged "盾"\. Group median:/);
+    assert.doesNotMatch(group, /ast_pink/);
   });
 
   it("align_sprite_frames removes the mock walk cycle's bobbing", async () => {

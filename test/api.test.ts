@@ -565,6 +565,17 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(st.superseded, assets.length - st.current);
   });
 
+  it("narrows the consistency overview to one tag, ranked within the group", async () => {
+    const assets = (await json(`/api/projects/${id}`)).body.assets as { id: string; tags?: string[]; parentId?: string; variantOf?: string }[];
+    const tag = assets.find((a) => a.tags?.length)!.tags![0];
+    const superseded = new Set(assets.map((a) => a.parentId).filter(Boolean));
+    const expected = assets.filter((a) => a.tags?.includes(tag) && !superseded.has(a.id) && !a.variantOf).map((a) => a.id).sort();
+    const r = (await json(`/api/projects/${id}/consistency?tag=${encodeURIComponent(tag)}`)).body;
+    assert.deepEqual(r.items.map((i: { id: string }) => i.id).sort(), expected);
+    const all = (await json(`/api/projects/${id}/consistency`)).body;
+    assert.ok(all.items.length > r.items.length);
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

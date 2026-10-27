@@ -317,9 +317,10 @@ assetsRouter.post("/api/projects/:id/assets/:assetId/align-frames", async (req, 
   res.json(await alignedVersion(found.project, found.asset, parseAlignMode(req.body?.mode), { by: "user" }));
 });
 
-/** Which assets drift furthest from the project's style (see measureConsistency). */
+/** Which assets drift furthest from the project's style (see measureConsistency); ?tag= narrows it to one group. */
 assetsRouter.get("/api/projects/:id/consistency", async (req, res) => {
-  const report = await measureConsistency(await loadProject(pid(req)));
+  const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
+  const report = await measureConsistency(await loadProject(pid(req)), { tag });
   if (!report) return void res.status(400).json({ error: "项目还没有风格指南色板" });
   res.json(report);
 });

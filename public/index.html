@@ -162,7 +162,9 @@
 
   <dialog id="consistencyDialog" class="usage-dialog" aria-labelledby="consistencyTitle">
     <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
-    <div class="usage-body"><h3 id="consistencyTitle">一致性总览</h3><div id="consistencyBody"></div></div>
+    <div class="usage-body"><h3 id="consistencyTitle">一致性总览</h3>
+      <label class="consistency-scope" hidden>范围 <select id="consistencyTag"></select></label>
+      <div id="consistencyBody"></div></div>
   </dialog>
 
   <dialog id="importDialog" class="usage-dialog export-dialog" aria-labelledby="importTitle">

@@ -244,7 +244,7 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 
 ### `GET /api/projects/:id/consistency`
 
-一致性总览：每个当前素材（不含已被新版本取代的、换色变体和回收站里的）按当前风格色板重新测量，再与项目自己的中位数比较——色板内像素低于中位数、平均色差高于中位数、Agent 一致性评分低于 7 都会增加偏离度。返回 `{ medianCoverage, medianDeltaE, items: [{ id, drift, reasons, coverage, meanDeltaE }] }`，按 `drift` 从大到小排列，`reasons` 是可直接作为重画意见的中文说明。没有色板时返回 400。
+一致性总览：每个当前素材（不含已被新版本取代的、换色变体和回收站里的）按当前风格色板重新测量，再与项目自己的中位数比较——色板内像素低于中位数、平均色差高于中位数、Agent 一致性评分低于 7 都会增加偏离度。返回 `{ medianCoverage, medianDeltaE, items: [{ id, drift, reasons, coverage, meanDeltaE }] }`，按 `drift` 从大到小排列，`reasons` 是可直接作为重画意见的中文说明。`?tag=第一关` 只看带该标签的素材，中位数也只在这组里算（看某个角色或关卡内部是否协调）。没有色板时返回 400。
 
 ### `GET /api/projects/:id/assets/:assetId/colors`
 

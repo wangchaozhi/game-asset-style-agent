@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { type DriftReport, rankDrift } from "../domain/consistency.js";
+import { hasTag } from "../domain/tags.js";
 import { type PaletteReport, analyzePalette } from "../image/palette.js";
 import { projectDir, readProjectFile } from "../store/index.js";
 import type { Project } from "../store/types.js";
@@ -38,14 +39,18 @@ async function measure(projectId: string, file: string, hexes: string[]): Promis
 /**
  * Which assets drift furthest from the project's style: every current asset (not superseded by a newer
  * version, not a colour variant, not in the trash) is measured against the current palette and ranked
- * against the project median. Null when the project has no palette yet.
+ * against the project median (or, with `tag`, only that tag's assets against their own median).
+ * Null when the project has no palette yet.
  */
-export async function measureConsistency(project: Project): Promise<ConsistencyReport | null> {
+export async function measureConsistency(project: Project, opts: { tag?: string } = {}): Promise<ConsistencyReport | null> {
   const hexes = project.styleGuide?.palette.map((p) => p.hex) ?? [];
   if (!hexes.length) return null;
   const superseded = new Set(project.assets.map((a) => a.parentId).filter(Boolean));
   // Colour-swap variants are off-palette on purpose, so they are left out.
-  const current = project.assets.filter((a) => !superseded.has(a.id) && !a.variantOf).slice(-300);
+  // With a tag, the medians come from that group alone: does this character / level hang together?
+  const current = project.assets
+    .filter((a) => !superseded.has(a.id) && !a.variantOf && (!opts.tag || hasTag(a.tags, opts.tag)))
+    .slice(-300);
   const measured = await Promise.all(
     current.map(async (a) => {
       const r = await measure(project.id, a.file, hexes);
