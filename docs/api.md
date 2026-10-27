@@ -200,7 +200,7 @@ curl -s -F assetType=item_icon -F images=@sword.png -F images=@shield.png "$BASE
 
 ### `POST /api/projects/:id/assets/batch`
 
-`{ "action": "approve" | "reject" | "pending" | "delete" | "restore" | "purge", "ids": ["ast_…"] }`，返回 `{ affected, project }`。`delete` 移到回收站，`restore` 从回收站恢复，`purge` 彻底删除（素材库或回收站中的都可以）；`"tag"` / `"untag"` 需额外带 `"tags": ["…"]`，为所选素材添加或移除标签。
+`{ "action": "approve" | "reject" | "pending" | "delete" | "restore" | "purge", "ids": ["ast_…"] }`，返回 `{ affected, project }`。`delete` 移到回收站，`restore` 从回收站恢复，`purge` 彻底删除（素材库或回收站中的都可以）；`"tag"` / `"untag"` 需额外带 `"tags": ["…"]`，为所选素材添加或移除标签；`"rename"` 需带 `"prefix": "coin_"`（可选 `"start": 1`），按 `ids` 的顺序改名为 `coin_01`、`coin_02`…（位数随最大序号补零）。
 
 ### `POST /api/projects/:id/assets/batch-process`
 

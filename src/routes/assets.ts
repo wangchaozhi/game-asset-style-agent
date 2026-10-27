@@ -21,13 +21,13 @@ export const assetsRouter = Router();
 const STATUSES = ["approved", "rejected", "pending_review"];
 
 const REVIEW_ACTIONS = { approve: "approved", reject: "rejected", pending: "pending_review" } as const;
-const BATCH_ACTIONS = ["approve", "reject", "pending", "delete", "restore", "purge", "tag", "untag"] as const;
+const BATCH_ACTIONS = ["approve", "reject", "pending", "delete", "restore", "purge", "tag", "untag", "rename"] as const;
 type BatchAction = (typeof BATCH_ACTIONS)[number];
 
 /**
  * Apply one action to many assets: approve / reject / pending (review), delete (to the trash),
  * restore (from the trash), purge (permanently, from the library or the trash),
- * tag / untag (add or remove `tags`).
+ * tag / untag (add or remove `tags`), rename (`prefix` + number from `start`, in the given order).
  */
 assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
   const action = req.body?.action as BatchAction;
@@ -39,13 +39,28 @@ assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
   const wanted = new Set(ids as string[]);
   const tags = normalizeTags(req.body?.tags);
   if ((action === "tag" || action === "untag") && !tags.length) return void res.status(400).json({ error: "请提供标签" });
+  const prefix = typeof req.body?.prefix === "string" ? req.body.prefix.trim().slice(0, 60) : "";
+  if (action === "rename" && !prefix) return void res.status(400).json({ error: "请提供名称前缀" });
+  const start = req.body?.start === undefined ? 1 : Number(req.body.start);
+  if (action === "rename" && !(Number.isInteger(start) && start >= 0 && start <= 9999)) return void res.status(400).json({ error: "起始序号需为 0-9999 的整数" });
   let affected = 0;
   let purged: string[] = [];
   const project = await updateProject(pid(req), (p) => {
     if (action === "delete") affected = moveToTrash(p, wanted);
     else if (action === "restore") affected = restoreFromTrash(p, wanted);
     else if (action === "purge") affected = (purged = takeForPurge(p, wanted)).length;
-    else if (action === "tag" || action === "untag") {
+    else if (action === "rename") {
+      // Numbered in the order the ids were given (the library's order), zero-padded to the widest number.
+      const order = (ids as string[]).filter((id, i, all) => all.indexOf(id) === i);
+      const width = Math.max(2, String(start + order.length - 1).length);
+      let n = start;
+      for (const id of order) {
+        const a = p.assets.find((x) => x.id === id);
+        if (!a) continue;
+        a.name = `${prefix}${String(n++).padStart(width, "0")}`;
+        affected++;
+      }
+    } else if (action === "tag" || action === "untag") {
       for (const a of p.assets) {
         if (!wanted.has(a.id)) continue;
         const next =

@@ -589,6 +589,21 @@ describe("HTTP API (demo mode)", () => {
     assert.ok(!(await (await fetch(`${base}/api/projects/${id}/style-sheet.html`)).text()).includes("项目约定"));
   });
 
+  it("batch-renames in the given order with a zero-padded number", async () => {
+    const ids = (await json(`/api/projects/${id}`)).body.assets.slice(0, 3).map((a: { id: string }) => a.id);
+    const before = (await json(`/api/projects/${id}`)).body.assets.slice(0, 3).map((a: { name: string }) => a.name);
+    const post = (body: object) => json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "rename", ...body } });
+    const r = await post({ ids: [ids[2], ids[0], ids[1], ids[0]], prefix: " coin_ " });
+    assert.equal(r.body.affected, 3, "duplicates count once");
+    const name = (x: string) => r.body.project.assets.find((a: { id: string }) => a.id === x).name;
+    assert.deepEqual([name(ids[2]), name(ids[0]), name(ids[1])], ["coin_01", "coin_02", "coin_03"]);
+    const wide = await post({ ids, prefix: "x", start: 98 });
+    assert.deepEqual(ids.map((x: string) => wide.body.project.assets.find((a: { id: string }) => a.id === x).name), ["x098", "x099", "x100"]);
+    assert.equal((await post({ ids, prefix: "  " })).status, 400);
+    assert.equal((await post({ ids, prefix: "a", start: -1 })).status, 400);
+    for (const [i, x] of ids.entries()) await json(`/api/projects/${id}/assets/${x}`, { method: "PATCH", body: { name: before[i] } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

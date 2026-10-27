@@ -5,14 +5,22 @@ import { renderAssets, setSelecting, visibleAssets } from "./assets.js";
 import { loadProjectsQuiet } from "./projects.js";
 import { run } from "./run.js";
 
-const VERB = { approve: "通过", reject: "驳回", pending: "设为待审核", delete: "移到回收站", restore: "恢复", purge: "彻底删除", tag: "添加标签到", untag: "移除标签自" };
+const VERB = { approve: "通过", reject: "驳回", pending: "设为待审核", delete: "移到回收站", restore: "恢复", purge: "彻底删除", tag: "添加标签到", untag: "移除标签自", rename: "改名" };
 const splitTags = (s) => s.split(/[,，、\s]+/).map((t) => t.trim()).filter(Boolean);
 const REMOVES = new Set(["delete", "restore", "purge"]);
 
 async function apply(action) {
-  const ids = [...state.selected];
+  // Library order, so a rename numbers the assets the way they are shown.
+  const shown = visibleAssets().map((a) => a.id).filter((id) => state.selected.has(id));
+  const ids = [...shown, ...[...state.selected].filter((id) => !shown.includes(id))];
   if (!ids.length) return;
   let tags;
+  let rename;
+  if (action === "rename") {
+    const prefix = prompt(`把所选 ${ids.length} 个素材按顺序改名为「前缀 + 序号」，例如 coin_ → coin_01、coin_02…\n名称前缀：`, "");
+    if (!prefix?.trim()) return;
+    rename = { prefix: prefix.trim(), start: 1 };
+  }
   if (action === "tag" || action === "untag") {
     const input = prompt(action === "tag" ? "要添加的标签（多个用逗号或空格分隔）" : "要移除的标签（多个用逗号或空格分隔）", "");
     if (!input) return;
@@ -21,7 +29,7 @@ async function apply(action) {
   }
   if (action === "purge" && !confirm(`彻底删除所选的 ${ids.length} 个素材及其文件？此操作不可撤销。`)) return;
   try {
-    const { affected, project } = await api(`/api/projects/${state.project.id}/assets/batch`, { method: "POST", body: { action, ids, ...(tags ? { tags } : {}) } });
+    const { affected, project } = await api(`/api/projects/${state.project.id}/assets/batch`, { method: "POST", body: { action, ids, ...(tags ? { tags } : {}), ...(rename ?? {}) } });
     state.project = project;
     if (REMOVES.has(action)) state.selected.clear();
     renderAssets();
