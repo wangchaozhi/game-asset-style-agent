@@ -431,6 +431,34 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(usage.request, `动作套装「${hero.name}」：待机、行走`);
   });
 
+  it("imports the user's own images as approved assets", async () => {
+    const form = (type: string, files: [string, Buffer][], frames?: string) => {
+      const fd = new FormData();
+      fd.append("assetType", type);
+      if (frames) fd.append("frames", frames);
+      for (const [name, data] of files) fd.append("images", new Blob([new Uint8Array(data)], { type: "image/png" }), name);
+      return json(`/api/projects/${id}/assets/import`, { method: "POST", body: fd });
+    };
+    const icon = await solidPng(48, 48, "#7848d8");
+    const r = await form("item_icon", [["火焰剑.png", icon], ["shield.webp.png", icon]]);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const made = r.body.project.assets.filter((a: { id: string }) => r.body.imported.includes(a.id));
+    assert.deepEqual(made.map((a: { name: string }) => a.name), ["火焰剑", "shield.webp"]);
+    assert.deepEqual([made[0].status, made[0].reviewer, made[0].provider, made[0].assetType], ["approved", "user", "import", "item_icon"]);
+    assert.ok(made[0].palette, "palette check when the project has a style guide");
+    // A strip of 3 frames, sliced as asked.
+    const strip = await sharp({ create: { width: 96, height: 32, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([0, 1, 2].map((i) => ({ input: { create: { width: 20, height: 20, channels: 4 as const, background: { r: 200, g: 50, b: 50, alpha: 1 } } }, left: i * 32 + 6, top: 6 })))
+      .png().toBuffer();
+    const sheet = await form("sprite_sheet", [["walk.png", strip]], "3");
+    const imported = sheet.body.project.assets.find((a: { id: string }) => a.id === sheet.body.imported[0]);
+    assert.equal(imported.frames.length, 3);
+    assert.equal((await form("dragon", [["x.png", icon]])).status, 400, "unknown type");
+    assert.equal((await form("item_icon", [])).status, 400, "no files");
+    assert.equal((await form("sprite_sheet", [["x.png", icon]], "99")).status, 400, "bad frame count");
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [...r.body.imported, ...sheet.body.imported] } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

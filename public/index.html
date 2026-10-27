@@ -92,6 +92,7 @@
         <div class="export">
           <a class="btn ghost small" id="exportApproved" href="#" download>导出已通过 ZIP</a>
           <button class="btn ghost small" id="exportMore" type="button">更多导出…</button>
+          <button class="btn ghost small" id="importBtn" type="button" title="上传自己的图片作为素材，可用全部后处理与导出">导入素材…</button>
           <button class="btn ghost small" id="consistencyBtn" type="button" title="按风格色板测量所有素材，找出最跑偏的">一致性总览</button>
         </div>
         <div class="filters" id="filters">
@@ -157,6 +158,20 @@
   <dialog id="consistencyDialog" class="usage-dialog" aria-labelledby="consistencyTitle">
     <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
     <div class="usage-body"><h3 id="consistencyTitle">一致性总览</h3><div id="consistencyBody"></div></div>
+  </dialog>
+
+  <dialog id="importDialog" class="usage-dialog export-dialog" aria-labelledby="importTitle">
+    <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
+    <div class="usage-body">
+      <h3 id="importTitle">导入素材</h3>
+      <form id="importForm" class="export-form">
+        <label>素材类型 <select name="assetType" required></select></label>
+        <label data-sheet hidden>帧数 <input name="frames" type="number" min="1" max="32" placeholder="自动检测" /> <span class="muted">精灵表为一行等宽帧</span></label>
+        <label>图片 <input name="images" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple required /></label>
+        <p class="muted">最多 20 张，名称取自文件名。导入的素材视为已通过，可用后处理、换色、九宫格与全部导出。</p>
+        <div class="export-go"><span class="muted" id="importCount"></span><button class="btn primary" type="submit">导入</button></div>
+      </form>
+    </div>
   </dialog>
 
   <dialog id="exportDialog" class="usage-dialog export-dialog" aria-labelledby="exportTitle">

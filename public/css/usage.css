@@ -46,3 +46,6 @@
 .drift-info { display: flex; flex-direction: column; gap: 2px; font-size: 13px; min-width: 0; }
 .drift-info .muted { font-size: 12px; }
 .drift-reasons { font-size: 12px; color: var(--bad); }
+.export-form label[hidden] { display: none; }
+.export-form input[type="file"] { font: inherit; font-size: 12px; max-width: 100%; }
+.export-form input[name="frames"] { width: 90px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }

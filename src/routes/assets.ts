@@ -1,11 +1,14 @@
 import { Router } from "express";
+import multer from "multer";
+import { isAssetType } from "../domain/assetTypes.js";
+import { toPng } from "../image/io.js";
 import {
   alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, outlineVersion, recolorVariant, seamsOf, setNineSlice, sliceAssetFrames,
 } from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { tilePreview } from "../image/tiles.js";
-import { loadProject, moveToTrash, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject } from "../store/index.js";
+import { loadProject, moveToTrash, newId, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject, writeProjectFile } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
 import { rankDrift } from "../domain/consistency.js";
@@ -70,6 +73,63 @@ assetsRouter.post("/api/projects/:id/trash/empty", async (req, res) => {
   const project = await updateProject(pid(req), (p) => void (purged = takeForPurge(p, new Set((p.trash ?? []).map((a) => a.id)))));
   if (purged.length) await removeAssetFiles(project.id, purged);
   res.json({ affected: purged.length, project });
+});
+
+const importUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024, files: 20 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(png|jpeg|webp|gif)$/.test(file.mimetype)),
+});
+
+/** Multipart file names arrive as latin1; re-read them as UTF-8 (Chinese names stay readable). */
+const fileName = (raw: string) => {
+  const utf8 = Buffer.from(raw, "latin1").toString("utf8");
+  const name = (utf8.includes("\uFFFD") ? raw : utf8).replace(/\.[a-z0-9]+$/i, "").trim();
+  return name.slice(0, 80) || "导入的素材";
+};
+
+/**
+ * Import the user's own images as assets (multipart "images", up to 20; fields: assetType, frames for sprite sheets).
+ * They count as approved by the user, so every post-process and export applies to them.
+ */
+assetsRouter.post("/api/projects/:id/assets/import", importUpload.array("images", 20), async (req, res) => {
+  const files = (req.files as Express.Multer.File[] | undefined) ?? [];
+  const assetType = String(req.body?.assetType ?? "");
+  if (!isAssetType(assetType)) return void res.status(400).json({ error: "请选择素材类型" });
+  if (!files.length) return void res.status(400).json({ error: "没有可用的图片（支持 png/jpg/webp/gif）" });
+  const frames = req.body?.frames ? Number(req.body.frames) : undefined;
+  if (frames !== undefined && !(Number.isInteger(frames) && frames >= 1 && frames <= 32)) return void res.status(400).json({ error: "帧数需在 1-32 之间" });
+  const project = await loadProject(pid(req));
+  const hexes = project.styleGuide?.palette.map((p) => p.hex) ?? [];
+  const created: Asset[] = [];
+  for (const f of files) {
+    const id = newId("ast");
+    const file = `assets/${id}.png`;
+    const png = await toPng(f.buffer);
+    await writeProjectFile(project.id, file, png);
+    const asset: Asset = {
+      id,
+      name: fileName(f.originalname),
+      assetType,
+      prompt: "",
+      file,
+      mime: "image/png",
+      status: "approved",
+      reviewer: "user",
+      notes: "导入的素材",
+      runId: "import",
+      provider: "import",
+      createdAt: new Date().toISOString(),
+    };
+    if (assetType === "sprite_sheet") Object.assign(asset, await sliceAssetFrames(project.id, asset, png, frames));
+    if (hexes.length) {
+      const r = await analyzePalette(png, hexes);
+      asset.palette = { coverage: r.coverage, meanDeltaE: r.meanDeltaE, offPalette: r.offPalette };
+    }
+    created.push(asset);
+  }
+  const p = await updateProject(project.id, (p) => void p.assets.push(...created));
+  res.json({ imported: created.map((a) => a.id), project: p });
 });
 
 /** Manual review and edits: any of status, notes, name, tags, nineSlice (ui only; null clears). */

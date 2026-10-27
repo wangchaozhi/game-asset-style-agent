@@ -10,6 +10,7 @@ import { bindBatch } from "./batch.js";
 import { bindRun, resumeJob } from "./run.js";
 import { bindExportDialog } from "./exportDialog.js";
 import { bindConsistency } from "./consistency.js";
+import { bindImport } from "./importAssets.js";
 
 // Safety net: an API failure in any handler that doesn't catch it still reaches the user.
 window.addEventListener("unhandledrejection", (e) => {
@@ -36,6 +37,7 @@ async function init() {
   bindBatch();
   bindExportDialog();
   bindConsistency({ onOpen: openViewer });
+  bindImport();
   await loadProjects();
   resumeJob();
 }

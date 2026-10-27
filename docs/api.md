@@ -178,6 +178,14 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ## 素材
 
+### `POST /api/projects/:id/assets/import`
+
+导入自己的图片作为素材（multipart）：字段 `images`（最多 20 张，png/jpg/webp/gif，每张 ≤ 20 MB）、`assetType`（必填，素材类型）、`frames`（精灵表可选，省略时自动检测）。名称取自文件名；状态为「已通过」（由用户导入），可使用全部后处理、换色、九宫格与导出。有风格指南时附色板检测。返回 `{ imported: [id…], project }`。
+
+```bash
+curl -s -F assetType=item_icon -F images=@sword.png -F images=@shield.png "$BASE/api/projects/$P/assets/import"
+```
+
 ### `PATCH /api/projects/:id/assets/:assetId`
 
 人工审核与编辑，字段任选：`{ "status": "approved" | "rejected" | "pending_review", "notes": "意见", "name": "新名称", "tags": ["第一关"], "nineSlice": { "left": 24, "top": 24, "right": 24, "bottom": 24 } }`（标签最多 10 个、每个 ≤ 20 字，空数组清除）。`nineSlice` 只用于 UI 素材：九宫格边距，单位为原图像素，左右之和 / 上下之和需小于图片宽 / 高，`null` 清除；通过后处理生成的新版本会沿用边距。返回更新后的素材。
