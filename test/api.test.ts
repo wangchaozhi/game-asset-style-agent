@@ -384,6 +384,26 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(JSON.parse(withoutTiles["manifest.json"].data.toString()).tileset, null, "no TileSet without tiles");
   });
 
+  it("ranks current assets by drift from the style", async () => {
+    const r = await json(`/api/projects/${id}/consistency`);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    const assets = (await json(`/api/projects/${id}`)).body.assets as { id: string; parentId?: string; variantOf?: string }[];
+    const superseded = new Set(assets.map((a) => a.parentId).filter(Boolean));
+    const ids = r.body.items.map((i: { id: string }) => i.id);
+    assert.equal(ids.length, assets.filter((a) => !superseded.has(a.id) && !a.variantOf).length);
+    assert.ok(!ids.some((i: string) => superseded.has(i)), "superseded versions are left out");
+    // A colour variant is off-palette on purpose: it doesn't show up as drift.
+    const sheet = assets.find((a) => !superseded.has(a.id) && !a.variantOf && ids.includes(a.id))!;
+    const variant = (await json(`/api/projects/${id}/assets/${sheet.id}/recolor`, { method: "POST", body: { swaps: [{ from: "#000000", to: "#ff00ff" }], threshold: 60 } })).body;
+    assert.ok(!(await json(`/api/projects/${id}/consistency`)).body.items.some((i: { id: string }) => i.id === variant.id));
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [variant.id] } });
+    const drifts = r.body.items.map((i: { drift: number }) => i.drift);
+    assert.deepEqual(drifts, [...drifts].sort((a, b) => b - a));
+    assert.ok(r.body.items.every((i: { coverage: number; reasons: unknown[] }) => i.coverage >= 0 && i.coverage <= 1 && Array.isArray(i.reasons)));
+    const bare = (await json("/api/projects", { method: "POST", body: { name: "无色板" } })).body;
+    assert.equal((await json(`/api/projects/${bare.id}/consistency`)).status, 400);
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

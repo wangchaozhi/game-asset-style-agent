@@ -92,6 +92,7 @@
         <div class="export">
           <a class="btn ghost small" id="exportApproved" href="#" download>导出已通过 ZIP</a>
           <button class="btn ghost small" id="exportMore" type="button">更多导出…</button>
+          <button class="btn ghost small" id="consistencyBtn" type="button" title="按风格色板测量所有素材，找出最跑偏的">一致性总览</button>
         </div>
         <div class="filters" id="filters">
           <button data-filter="all" class="on">全部</button>
@@ -151,6 +152,11 @@
   <dialog id="historyDialog" class="usage-dialog">
     <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
     <div class="usage-body"><h3>风格指南历史</h3><div id="historyBody"></div></div>
+  </dialog>
+
+  <dialog id="consistencyDialog" class="usage-dialog" aria-labelledby="consistencyTitle">
+    <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
+    <div class="usage-body"><h3 id="consistencyTitle">一致性总览</h3><div id="consistencyBody"></div></div>
   </dialog>
 
   <dialog id="exportDialog" class="usage-dialog export-dialog" aria-labelledby="exportTitle">

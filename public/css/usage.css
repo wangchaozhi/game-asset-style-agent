@@ -38,3 +38,11 @@
 .export-form select { padding: 3px 6px; font-size: 12px; }
 .export-go { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .export-go .disabled { opacity: 0.45; cursor: not-allowed; }
+.drift-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 60vh; overflow-y: auto; }
+.drift-row { display: grid; grid-template-columns: auto 56px 1fr; gap: 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; }
+.drift-row.off { border-color: var(--bad); }
+.drift-thumb { width: 56px; height: 56px; padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; cursor: zoom-in; }
+.drift-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.drift-info { display: flex; flex-direction: column; gap: 2px; font-size: 13px; min-width: 0; }
+.drift-info .muted { font-size: 12px; }
+.drift-reasons { font-size: 12px; color: var(--bad); }

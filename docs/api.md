@@ -222,6 +222,10 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 
 色板一致性：`?threshold=20`（ΔE）。返回 `{ coverage, meanDeltaE, usage, offPalette, pixels, threshold }`。
 
+### `GET /api/projects/:id/consistency`
+
+一致性总览：每个当前素材（不含已被新版本取代的、换色变体和回收站里的）按当前风格色板重新测量，再与项目自己的中位数比较——色板内像素低于中位数、平均色差高于中位数、Agent 一致性评分低于 7 都会增加偏离度。返回 `{ medianCoverage, medianDeltaE, items: [{ id, drift, reasons, coverage, meanDeltaE }] }`，按 `drift` 从大到小排列，`reasons` 是可直接作为重画意见的中文说明。没有色板时返回 400。
+
 ### `GET /api/projects/:id/assets/:assetId/colors`
 
 素材的主要颜色（可见像素，相近色合并）：`{ "colors": [{ "hex": "#7848d8", "share": 0.42 }, …] }`，最多 8 个，用来挑换色的源颜色。

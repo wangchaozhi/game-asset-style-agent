@@ -5,9 +5,10 @@ import {
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { tilePreview } from "../image/tiles.js";
-import { moveToTrash, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject } from "../store/index.js";
+import { loadProject, moveToTrash, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
+import { rankDrift } from "../domain/consistency.js";
 import { detectNineSlice } from "../image/nineSlice.js";
 import { dominantColors } from "../image/recolor.js";
 import { attachment, findAsset, pid } from "./util.js";
@@ -220,6 +221,32 @@ assetsRouter.post("/api/projects/:id/assets/:assetId/align-frames", async (req, 
 });
 
 /** Snap colours to the style palette; the result is a new version. Body: { dither: "none" | "ordered" }. */
+/**
+ * Which assets drift furthest from the project's style: every current asset (not superseded by a newer
+ * version, not a colour variant, not in the trash) is measured against the current palette and ranked against the project median.
+ */
+assetsRouter.get("/api/projects/:id/consistency", async (req, res) => {
+  const project = await loadProject(pid(req));
+  const hexes = project.styleGuide?.palette.map((p) => p.hex) ?? [];
+  if (!hexes.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  const superseded = new Set(project.assets.map((a) => a.parentId).filter(Boolean));
+  // Colour-swap variants are off-palette on purpose, so they are left out.
+  const current = project.assets.filter((a) => !superseded.has(a.id) && !a.variantOf).slice(-300);
+  const measured = await Promise.all(
+    current.map(async (a) => {
+      const r = await analyzePalette(await readProjectFile(project.id, a.file), hexes);
+      return { id: a.id, coverage: r.coverage, meanDeltaE: r.meanDeltaE, score: a.reviewer === "agent" ? a.score : undefined, offPalette: r.offPalette };
+    }),
+  );
+  const ranked = rankDrift(measured);
+  const byId = new Map(measured.map((m) => [m.id, m]));
+  res.json({
+    medianCoverage: ranked.medianCoverage,
+    medianDeltaE: ranked.medianDeltaE,
+    items: ranked.items.map((r) => ({ ...r, coverage: byId.get(r.id)!.coverage, meanDeltaE: byId.get(r.id)!.meanDeltaE })),
+  });
+});
+
 /** The asset's main colours, to pick swap sources from. */
 assetsRouter.get("/api/projects/:id/assets/:assetId/colors", async (req, res) => {
   const found = await findAsset(req, res);
