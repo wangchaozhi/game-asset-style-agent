@@ -23,7 +23,7 @@ export function html(a) {
       </form>
       <form class="align-form" data-align="${a.id}">
         <span class="jitter muted">帧抖动检测中…</span>
-        <select name="mode"><option value="bottom">底边居中（角色）</option><option value="center">中心（特效 / 漂浮物）</option></select>
+        <select name="mode" aria-label="对齐方式"><option value="bottom">底边居中（角色）</option><option value="center">中心（特效 / 漂浮物）</option></select>
         <button class="btn ghost" type="submit">对齐帧（生成新版本）</button>
       </form>
     </div>`;

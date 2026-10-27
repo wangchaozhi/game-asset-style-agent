@@ -233,8 +233,24 @@ export function bindScene() {
     { passive: false },
   );
   $("#sceneDialog").addEventListener("keydown", (e) => {
-    if (selected < 0 || e.target.closest("select, input")) return;
-    if (e.key === "Delete" || e.key === "Backspace") act("remove");
+    if (e.target.closest("select, input")) return;
+    if (selected < 0 && (e.key === "[" || e.key === "]") && scene.items.length) {
+      selected = 0;
+      draw();
+      return e.preventDefault();
+    }
+    if (selected < 0) return;
+    const step = e.shiftKey ? 32 : 4;
+    const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    if (moves[e.key]) {
+      const item = scene.items[selected];
+      item.x = Math.max(0, Math.min(W, item.x + moves[e.key][0]));
+      item.y = Math.max(0, Math.min(H, item.y + moves[e.key][1]));
+      changed();
+    } else if (e.key === "[" || e.key === "]") {
+      selected = (selected + (e.key === "]" ? 1 : scene.items.length - 1)) % scene.items.length;
+      draw();
+    } else if (e.key === "Delete" || e.key === "Backspace") act("remove");
     else if (e.key === "+" || e.key === "=") act("bigger");
     else if (e.key === "-") act("smaller");
     else if (e.key.toLowerCase() === "f") act("flip");
