@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 import type Anthropic from "@anthropic-ai/sdk";
-import { solidPng, useTempDataDir, validStyleGuide } from "./helpers.js";
+import { panel, solidPng, useTempDataDir, validStyleGuide } from "./helpers.js";
 
 useTempDataDir();
 const store = await import("../src/store/index.js");
@@ -33,6 +33,7 @@ describe("tool definitions", () => {
   it("every tool has a schema whose required fields are declared", () => {
     assert.deepEqual(tools.map((t) => t.name), [
       "save_style_guide", "generate_image", "review_asset", "fix_tile_seams", "align_sprite_frames", "remove_background", "snap_to_palette",
+      "set_nine_slice",
     ]);
     for (const t of tools) {
       const props = Object.keys(t.input_schema.properties ?? {});
@@ -190,6 +191,38 @@ describe("post-processing tools", () => {
     assert.deepEqual([created.parentId, created.reviewer, created.runId, created.status], [id, "agent", "job_test", "pending_review"]);
     assert.deepEqual(created.tags, ["草地"], "post-processed versions keep tags");
     assert.ok(job.events.some((e) => e.type === "asset"));
+  });
+
+  it("set_nine_slice detects or takes margins, saves them in place and shows a stretched preview", async () => {
+    const add = async (name: string, png: Buffer, assetType = "ui") => {
+      const id = `ast_${name}`;
+      await store.writeProjectFile(projectId, `assets/${id}.png`, png);
+      await store.updateProject(projectId, (p) => void p.assets.push({
+        id, name, assetType, prompt: "panel", file: `assets/${id}.png`, mime: "image/png", status: "approved", runId: "r", provider: "mock", createdAt: new Date().toISOString(),
+      }));
+      return id;
+    };
+    const id = await add("panel", await panel(100, 60));
+    const job = fakeJob(projectId);
+    const detected = await runTool(job, mock, call("set_nine_slice", { asset_id: id }));
+    assert.notEqual(detected.is_error, true);
+    assert.match(textOf(detected), /\(detected\): left 12, top 12, right 12, bottom 12 of 100×60/);
+    assert.ok((detected.content as { type: string }[]).some((c) => c.type === "image"), "returns the stretched preview");
+    const saved = () => store.loadProject(projectId).then((p) => p.assets.find((a) => a.id === id)!.nineSlice);
+    assert.deepEqual(await saved(), { left: 12, top: 12, right: 12, bottom: 12 });
+    assert.ok(job.events.some((e) => e.type === "asset"));
+
+    const manual = await runTool(fakeJob(projectId), mock, call("set_nine_slice", { asset_id: id, left: 20, top: 10, right: 20, bottom: 10 }));
+    assert.doesNotMatch(textOf(manual), /detected/);
+    assert.deepEqual(await saved(), { left: 20, top: 10, right: 20, bottom: 10 });
+
+    const err = async (input: object) => textOf(await runTool(fakeJob(projectId), mock, call("set_nine_slice", input)));
+    assert.match(await err({ asset_id: id, left: 5 }), /all four margins/);
+    assert.match(await err({ asset_id: id, left: 60, top: 1, right: 50, bottom: 1 }), /100px.*\(image 100×60\)/);
+    assert.match(await err({ asset_id: await add("flat", await solidPng(40, 40, "#336699")) }), /No stretchable band found automatically \(image 40×40\)/);
+    assert.match(await err({ asset_id: await add("rock", await panel(100, 60), "prop") }), /only applies to ui/);
+    assert.match(await err({ asset_id: "ast_nope" }), /Unknown asset_id/);
+    assert.match(await err({ asset_id: id, left: -1 }), /INVALID_JSON/);
   });
 
   it("align_sprite_frames removes the mock walk cycle's bobbing", async () => {

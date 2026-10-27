@@ -146,4 +146,20 @@ export const tools: Anthropic.Beta.BetaTool[] = [
       required: ["asset_id"],
     },
   },
+  {
+    name: "set_nine_slice",
+    description:
+      "Save 9-slice margins on a ui asset that will be stretched in-game (panels, dialog frames, buttons, bars), so exports carry them for Godot and Phaser. Omit the margins to detect the stretchable centre automatically; give them (pixels of the full image) to set them yourself. Saves in place (no new version, no cost) and returns the asset stretched wider and taller: check that corners and ornaments stay intact and only flat areas stretch.",
+    input_schema: {
+      type: "object",
+      properties: {
+        asset_id: { type: "string" },
+        left: { type: "integer", description: "Pixels from the left edge that never stretch (corner width)." },
+        top: { type: "integer" },
+        right: { type: "integer" },
+        bottom: { type: "integer" },
+      },
+      required: ["asset_id"],
+    },
+  },
 ];

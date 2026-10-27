@@ -3,9 +3,9 @@ import { describe, it } from "node:test";
 import sharp from "sharp";
 import { fitNineSlice, parseNineSlice, scaleNineSlice } from "../src/domain/nineSlice.js";
 import { buildAtlas } from "../src/export/atlas.js";
-import { detectNineSlice } from "../src/image/nineSlice.js";
+import { detectNineSlice, stretchNineSlice } from "../src/image/nineSlice.js";
 import { styleBoxTextureTres } from "../src/export/godot.js";
-import { solidPng } from "./helpers.js";
+import { panel, pixel, solidPng } from "./helpers.js";
 
 describe("parseNineSlice", () => {
   it("accepts margins that leave a stretchable centre", () => {
@@ -65,25 +65,6 @@ describe("9-slice exports", () => {
   });
 });
 
-/** A w×h panel: border and 12px corner ornaments around a flat (or vertically graded) fill. */
-async function panel(w: number, h: number, opts: { gradient?: boolean; noise?: number } = {}) {
-  const raw = Buffer.alloc(w * h * 4);
-  let seed = 7;
-  const rand = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff - 0.5) * 2;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const corner = (x < 12 || x >= w - 12) && (y < 12 || y >= h - 12);
-      const border = x < 6 || x >= w - 6 || y < 6 || y >= h - 6;
-      const fill = opts.gradient ? 120 + Math.round((y / h) * 60) : 140;
-      const [r, g, b] = corner ? [230, 190, 40] : border ? [60, 30, 90] : [fill, 90, 60];
-      const n = () => Math.round(rand() * (opts.noise ?? 0));
-      const clamp = (v: number) => Math.max(0, Math.min(255, v));
-      raw.set([clamp(r + n()), clamp(g + n()), clamp(b + n()), 255], (y * w + x) * 4);
-    }
-  }
-  return sharp(raw, { raw: { width: w, height: h, channels: 4 } }).png().toBuffer();
-}
-
 describe("detectNineSlice", () => {
   const corners = { left: 12, top: 12, right: 12, bottom: 12 };
 
@@ -116,5 +97,23 @@ describe("detectNineSlice", () => {
     const checker = await sharp(raw, { raw: { width: 64, height: 64, channels: 4 } }).png().toBuffer();
     assert.equal(await detectNineSlice(checker), null);
     assert.equal(await detectNineSlice(await solidPng(32, 32, "#336699")), null);
+  });
+});
+
+describe("stretchNineSlice", () => {
+  it("keeps corners and stretches the rest to the requested size", async () => {
+    const m = { left: 12, top: 12, right: 12, bottom: 12 };
+    const out = await stretchNineSlice(await panel(100, 60), m, 250, 90);
+    const meta = await sharp(out).metadata();
+    assert.deepEqual([meta.width, meta.height], [250, 90]);
+    const ornament = { r: 230, g: 190, b: 40, a: 255 };
+    for (const [x, y] of [[2, 2], [247, 2], [2, 87], [247, 87], [11, 11], [238, 78]]) assert.deepEqual(await pixel(out, x, y), ornament, `${x},${y}`);
+    assert.deepEqual(await pixel(out, 125, 3), { r: 60, g: 30, b: 90, a: 255 }, "top border stretched");
+    assert.deepEqual(await pixel(out, 125, 45), { r: 140, g: 90, b: 60, a: 255 }, "centre fill");
+  });
+
+  it("skips empty bands when a margin is 0", async () => {
+    const out = await stretchNineSlice(await solidPng(20, 20, "#336699"), { left: 0, top: 5, right: 0, bottom: 5 }, 40, 30);
+    assert.deepEqual(await pixel(out, 0, 15), { r: 0x33, g: 0x66, b: 0x99, a: 255 });
   });
 });

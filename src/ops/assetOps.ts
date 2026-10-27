@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { fitNineSlice } from "../domain/nineSlice.js";
+import { type NineSlice, fitNineSlice, parseNineSlice } from "../domain/nineSlice.js";
 import { removeBackground } from "../image/background.js";
 import { imageSize } from "../image/io.js";
 import { analyzePalette, snapToPalette } from "../image/palette.js";
@@ -79,6 +79,29 @@ export async function cutoutAsset(project: Project, asset: Asset, opts: { tolera
     await fs.rm(path.join(projectDir(project.id), asset.file), { force: true });
   }
   return p.assets.find((a) => a.id === asset.id)!;
+}
+
+/**
+ * Save (or with null, clear) a UI asset's 9-slice margins, validated against its image.
+ * Returns the updated asset, or an error message.
+ */
+export async function setNineSlice(project: Project, asset: Asset, input: unknown): Promise<Asset | string> {
+  if (asset.assetType !== "ui") return "只有 UI 素材可以设置九宫格";
+  let slice: NineSlice | null = null;
+  if (input !== null) {
+    const { width, height } = await imageSize(await readProjectFile(project.id, asset.file));
+    const parsed = parseNineSlice(input, width, height);
+    if (typeof parsed === "string") return parsed;
+    slice = parsed;
+  }
+  let updated: Asset | undefined;
+  await updateProject(project.id, (p) => {
+    updated = p.assets.find((a) => a.id === asset.id);
+    if (!updated) return;
+    if (slice) updated.nineSlice = slice;
+    else delete updated.nineSlice;
+  });
+  return updated ?? "素材不存在";
 }
 
 /** Save `png` as a new pending version of `asset` (parentId links them). */

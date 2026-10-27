@@ -56,3 +56,12 @@ export const SnapPaletteInput = z.object({
   asset_id: z.string(),
   dither: z.enum(["none", "ordered"]).optional(),
 });
+
+/** Margins are optional: without them the tool detects the stretchable band itself. */
+export const NineSliceToolInput = z.object({
+  asset_id: z.string(),
+  left: z.number().int().min(0).optional(),
+  top: z.number().int().min(0).optional(),
+  right: z.number().int().min(0).optional(),
+  bottom: z.number().int().min(0).optional(),
+});

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-  alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, seamsOf, sliceAssetFrames,
+  alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, seamsOf, setNineSlice, sliceAssetFrames,
 } from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
@@ -8,8 +8,6 @@ import { tilePreview } from "../image/tiles.js";
 import { moveToTrash, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
-import { type NineSlice, parseNineSlice } from "../domain/nineSlice.js";
-import { imageSize } from "../image/io.js";
 import { detectNineSlice } from "../image/nineSlice.js";
 import { attachment, findAsset, pid } from "./util.js";
 
@@ -81,17 +79,11 @@ assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
   if (status === undefined && name === undefined && tags === undefined && nineSlice === undefined && typeof notes !== "string") {
     return void res.status(400).json({ error: "没有要修改的内容" });
   }
-  let slice: NineSlice | null | undefined;
   if (nineSlice !== undefined) {
     const found = await findAsset(req, res);
     if (!found) return;
-    if (found.asset.assetType !== "ui") return void res.status(400).json({ error: "只有 UI 素材可以设置九宫格" });
-    if (nineSlice !== null) {
-      const { width, height } = await imageSize(await readProjectFile(found.project.id, found.asset.file));
-      const parsed = parseNineSlice(nineSlice, width, height);
-      if (typeof parsed === "string") return void res.status(400).json({ error: parsed });
-      slice = parsed;
-    } else slice = null;
+    const r = await setNineSlice(found.project, found.asset, nineSlice);
+    if (typeof r === "string") return void res.status(400).json({ error: r });
   }
   let asset: Asset | undefined;
   await updateProject(pid(req), (p) => {
@@ -111,8 +103,6 @@ assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
       if (clean.length) asset.tags = clean;
       else delete asset.tags;
     }
-    if (slice) asset.nineSlice = slice;
-    else if (slice === null) delete asset.nineSlice;
   });
   if (!asset) return void res.status(404).json({ error: "素材不存在" });
   res.json(asset);

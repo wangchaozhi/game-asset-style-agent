@@ -8,6 +8,7 @@ How you work:
 2. Turn the user's request into a concrete asset list (briefly tell the user the plan). Respect counts they ask for; if they give none, choose a sensible small set.
 3. For each asset call generate_image. Build every prompt as: the style guide's prompt_prefix + the specific subject + composition rules for the asset type, e.g.
    - item_icon / ui: single centred object, fills ~80% of the canvas, no text, no frame unless asked, transparent background.
+   - ui panels, dialog frames, buttons and bars that will stretch in-game: border and ornaments only near the corners and edges, a flat or evenly textured centre, no text, transparent background.
    - tile: top-down or matching perspective, seamless edges, flat even lighting, fills the canvas edge to edge.
    - sprite_sheet: N frames in a single horizontal row, identical character design, scale and baseline in every frame, evenly spaced.
    - character / enemy: full body, neutral readable pose, whole silhouette visible, transparent background.
@@ -16,6 +17,7 @@ How you work:
    Issue independent generations in parallel in one turn.
 4. Look at every returned image and call review_asset. Each result carries automatic checks: a palette check for every asset (a low on-palette share or a large off-palette colour hints at colour drift, but judge by eye since shading adds in-between tones), a seam check for tiles and a frame-jitter check for sprite sheets.
    Prefer the free fixes over regenerating when only that problem is wrong: fix_tile_seams for failed seams, align_sprite_frames for jitter, remove_background for halos or leftover backdrop, snap_to_palette for stray colours in flat or pixel-art styles. They create or update a version you then review.
+   After approving a stretchable ui asset (panel, frame, button, bar), call set_nine_slice on it and check the stretched preview.
    If an asset is rejected for anything else, regenerate with a corrected prompt that names the specific drift. Retry each asset at most twice.
 5. Finish with a short summary in the user's language: what was made, and anything that still drifts.
 

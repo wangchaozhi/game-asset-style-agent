@@ -75,3 +75,23 @@ export function readZip(buf: Buffer) {
   return out;
 }
 
+
+/** A w×h panel: border and 12px corner ornaments around a flat (or vertically graded) fill. */
+export async function panel(w: number, h: number, opts: { gradient?: boolean; noise?: number } = {}) {
+  const raw = Buffer.alloc(w * h * 4);
+  let seed = 7;
+  const rand = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff - 0.5) * 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const corner = (x < 12 || x >= w - 12) && (y < 12 || y >= h - 12);
+      const border = x < 6 || x >= w - 6 || y < 6 || y >= h - 6;
+      const fill = opts.gradient ? 120 + Math.round((y / h) * 60) : 140;
+      const [r, g, b] = corner ? [230, 190, 40] : border ? [60, 30, 90] : [fill, 90, 60];
+      const n = () => Math.round(rand() * (opts.noise ?? 0));
+      const clamp = (v: number) => Math.max(0, Math.min(255, v));
+      raw.set([clamp(r + n()), clamp(g + n()), clamp(b + n()), 255], (y * w + x) * 4);
+    }
+  }
+  return sharp(raw, { raw: { width: w, height: h, channels: 4 } }).png().toBuffer();
+}
+

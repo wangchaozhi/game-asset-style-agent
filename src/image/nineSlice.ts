@@ -1,4 +1,4 @@
-import sharp from "sharp";
+import sharp, { type OverlayOptions } from "sharp";
 import { type NineSlice, fitNineSlice } from "../domain/nineSlice.js";
 
 /** A pixel pair counts as different above this (max over premultiplied RGB and alpha, 0-255). */
@@ -37,6 +37,33 @@ export async function detectNineSlice(data: Buffer): Promise<NineSlice | null> {
   const v = lines(height, width, (y, x) => [at(x, y), at(x, y + 1)]);
   if (!h || !v) return null;
   return fitNineSlice({ left: h[0], top: v[0], right: h[1], bottom: v[1] }, width, height);
+}
+
+/**
+ * Render the image stretched to width×height the way an engine draws a 9-slice: corners kept,
+ * edges stretched along one axis, centre along both. Used to show the agent how its margins behave.
+ */
+export async function stretchNineSlice(data: Buffer, s: NineSlice, width: number, height: number, pixel = false): Promise<Buffer> {
+  const src = sharp(data).ensureAlpha();
+  const { width: w = 0, height: h = 0 } = await src.metadata();
+  /** [offset, length] of the before / middle / after bands along one axis */
+  const bands = (a: number, b: number, n: number) => [[0, a], [a, n - a - b], [n - b, b]] as const;
+  const [sx, sy] = [bands(s.left, s.right, w), bands(s.top, s.bottom, h)];
+  const [tx, ty] = [bands(s.left, s.right, width), bands(s.top, s.bottom, height)];
+  const parts: OverlayOptions[] = [];
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      if (!sx[c][1] || !sy[r][1] || !tx[c][1] || !ty[r][1]) continue;
+      const input = await src
+        .clone()
+        .extract({ left: sx[c][0], top: sy[r][0], width: sx[c][1], height: sy[r][1] })
+        .resize(tx[c][1], ty[r][1], { fit: "fill", kernel: pixel ? sharp.kernel.nearest : sharp.kernel.lanczos3 })
+        .png()
+        .toBuffer();
+      parts.push({ input, left: tx[c][0], top: ty[r][0] });
+    }
+  }
+  return sharp({ create: { width, height, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).composite(parts).png().toBuffer();
 }
 
 /**

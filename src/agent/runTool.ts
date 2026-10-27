@@ -1,16 +1,20 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { shrink } from "../image/io.js";
+import { imageSize, shrink } from "../image/io.js";
+import { detectNineSlice, stretchNineSlice } from "../image/nineSlice.js";
+import { isPixelArt } from "../image/sizes.js";
 import { describePalette } from "../image/palette.js";
 import type { Jitter } from "../image/spriteSheet.js";
 import type { SeamReport } from "../image/tiles.js";
-import { alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, seamlessVersion, seamsOf } from "../ops/assetOps.js";
+import { alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, seamlessVersion, seamsOf, setNineSlice } from "../ops/assetOps.js";
 import type { ImageProvider } from "../providers/types.js";
 import { loadProject, readProjectFile, recordStyleVersion, updateProject } from "../store/index.js";
 import type { Asset, Project } from "../store/types.js";
 import { generateAsset } from "./assets.js";
 import { BudgetExceededError } from "./budget.js";
 import { type Job, emit } from "./events.js";
-import { AlignFramesInput, FixSeamsInput, GenerateInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput } from "./schemas.js";
+import {
+  AlignFramesInput, FixSeamsInput, GenerateInput, NineSliceToolInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput,
+} from "./schemas.js";
 
 type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
 
@@ -167,6 +171,36 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
         `New version asset_id=${r.asset.id} (from ${found.asset.id}). On-palette pixels ${pct(r.before.coverage)} → ${pct(r.after.coverage)}. Check for banding or lost detail, then review the new version.`,
         await readProjectFile(found.project.id, r.asset.file),
         r.asset.mime,
+      );
+    }
+    case "set_nine_slice": {
+      const parsed = NineSliceToolInput.safeParse(block.input);
+      if (!parsed.success) return invalid();
+      const found = await findAssetFor(job, parsed.data.asset_id);
+      if (!found) return errResult(block.id, `Unknown asset_id ${parsed.data.asset_id}`);
+      if (found.asset.assetType !== "ui") return errResult(block.id, "set_nine_slice only applies to ui assets.");
+      const data = await readProjectFile(found.project.id, found.asset.file);
+      const size = await imageSize(data);
+      const { left, top, right, bottom } = parsed.data;
+      const given = [left, top, right, bottom].filter((v) => v !== undefined).length;
+      if (given && given < 4) return errResult(block.id, "Give all four margins, or none to detect them.");
+      const margins = given ? { left: left!, top: top!, right: right!, bottom: bottom! } : await detectNineSlice(data);
+      if (!margins) {
+        return errResult(
+          block.id,
+          `No stretchable band found automatically (image ${size.width}×${size.height}). If this asset should stretch, look at it and pass the four margins yourself; if its centre isn't flat enough to stretch, regenerate it with a plain centre.`,
+        );
+      }
+      const updated = await setNineSlice(found.project, found.asset, margins);
+      if (typeof updated === "string") return errResult(block.id, `${updated} (image ${size.width}×${size.height}).`);
+      emit(job, { type: "asset", asset: updated });
+      const m = updated.nineSlice!;
+      const preview = await stretchNineSlice(data, m, size.width * 2, Math.round(size.height * 1.5), isPixelArt(found.project.styleGuide));
+      return withImage(
+        block.id,
+        `Saved 9-slice margins on asset_id=${updated.id}${given ? "" : " (detected)"}: left ${m.left}, top ${m.top}, right ${m.right}, bottom ${m.bottom} of ${size.width}×${size.height}. The image below is the asset stretched to 2× width and 1.5× height; if corners or ornaments got distorted, call again with corrected margins.`,
+        preview,
+        "image/png",
       );
     }
     default:
