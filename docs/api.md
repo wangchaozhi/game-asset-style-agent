@@ -192,7 +192,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ### `POST /api/projects/:id/assets/:assetId/slice`
 
-精灵表切帧：`{ "frames": 6, "fps": 10 }`（帧数省略时自动检测）。返回更新后的素材（含 `frames`、`gif`）。
+精灵表切帧 / 改帧率：`{ "frames": 6, "fps": 10 }`（帧数省略时自动检测；`fps` 1-30，省略时沿用当前帧率）。GIF 预览按新帧率重做，之后的 Godot / Unity / Phaser 导出都用这个帧率。返回更新后的素材（含 `frames`、`gif`、`fps`）。
 
 ### `POST /api/projects/:id/assets/:assetId/cutout`
 

@@ -102,12 +102,13 @@ async function generateReserved(job: Job, provider: ImageProvider, input: Genera
     originalFile,
     parentId: input.replaces_asset_id,
   };
-  // A redraw keeps its predecessor's tags; tags given now are added.
-  const inherited = input.replaces_asset_id ? project.assets.find((a) => a.id === input.replaces_asset_id)?.tags : undefined;
+  // A redraw keeps its predecessor's tags (tags given now are added) and frame rate.
+  const predecessor = input.replaces_asset_id ? project.assets.find((a) => a.id === input.replaces_asset_id) : undefined;
+  const inherited = predecessor?.tags;
   const tags = normalizeTags([...(inherited ?? []), ...(input.tags ?? [])]);
   if (tags.length) asset.tags = tags;
   if (input.asset_type === "sprite_sheet") {
-    Object.assign(asset, await sliceAssetFrames(project.id, asset, img.data, input.frames).catch(() => ({})));
+    Object.assign(asset, await sliceAssetFrames(project.id, asset, img.data, input.frames, input.fps ?? predecessor?.fps ?? 8).catch(() => ({})));
   }
   if (project.styleGuide?.palette.length) {
     const r = await analyzePalette(img.data, project.styleGuide.palette.map((p) => p.hex)).catch(() => null);

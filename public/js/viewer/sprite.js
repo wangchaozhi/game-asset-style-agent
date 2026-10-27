@@ -7,12 +7,18 @@ export function html(a) {
   if (a.assetType !== "sprite_sheet") return "";
   const frameFiles = a.frames ?? [];
   return `<div class="sprite">
-      ${a.gif ? `<div class="checker sprite-gif"><img src="${fileUrl(a.gif)}?t=${Date.now()}" alt="动画预览" /></div>` : ""}
+      ${
+        frameFiles.length
+          ? `<div class="checker sprite-gif"><img class="sprite-live" src="${fileUrl(frameFiles[0])}?t=${Date.now()}" alt="动画预览" /></div>`
+          : a.gif
+            ? `<div class="checker sprite-gif"><img src="${fileUrl(a.gif)}?t=${Date.now()}" alt="动画预览" /></div>`
+            : ""
+      }
       ${frameFiles.length ? `<div class="frame-strip">${frameFiles.map((f, i) => `<a class="checker" href="${fileUrl(f)}" download="${esc(a.name)}_${i}.png" title="下载第 ${i + 1} 帧"><img src="${fileUrl(f)}?t=${Date.now()}" alt="帧 ${i + 1}" /></a>`).join("")}</div>` : ""}
       <form class="slice-form" data-slice="${a.id}">
         <label>帧数 <input name="frames" type="number" min="1" max="32" value="${frameFiles.length || 4}" /></label>
-        <label>FPS <input name="fps" type="number" min="1" max="30" value="${a.fps ?? 8}" /></label>
-        <button class="btn ghost" type="submit">${frameFiles.length ? "重新切帧" : "切帧"}</button>
+        <label>FPS <input name="fps" type="number" min="1" max="30" step="1" value="${a.fps ?? 8}" /></label>
+        <button class="btn ghost" type="submit">${frameFiles.length ? "保存（重新切帧 / 帧率）" : "切帧"}</button>
         ${a.gif ? `<a class="btn ghost" href="${fileUrl(a.gif)}" download="${esc(a.name)}.gif">下载 GIF</a>` : ""}
       </form>
       <form class="align-form" data-align="${a.id}">
@@ -23,7 +29,29 @@ export function html(a) {
     </div>`;
 }
 
-export const load = (a) => a.assetType === "sprite_sheet" && loadJitter(a.id);
+export function load(a) {
+  if (a.assetType !== "sprite_sheet") return;
+  loadJitter(a.id);
+  if (a.frames?.length) play(a, a.fps ?? 8);
+}
+
+/** Preview loop in the browser, so a new FPS can be judged before it is saved. */
+let player = 0;
+function play(a, fps) {
+  clearTimeout(player);
+  const img = $("#viewerMeta .sprite-live");
+  if (!img) return;
+  // Preload so frames don't flicker on the first loop.
+  const urls = a.frames.map((f) => `${fileUrl(f)}?t=${Date.now()}`);
+  for (const u of urls) new Image().src = u;
+  let i = 0;
+  const tick = () => {
+    if (!img.isConnected) return;
+    img.src = urls[(i = (i + 1) % urls.length)];
+    player = setTimeout(tick, 1000 / fps);
+  };
+  player = setTimeout(tick, 1000 / fps);
+}
 
 /** How far the content drifts between frames; > 2px is visible as jitter. */
 export async function loadJitter(id, mode = "bottom") {
@@ -45,7 +73,7 @@ export function bind(root, ctx) {
       method: "POST",
       body: { frames: Number(fd.get("frames")), fps: Number(fd.get("fps")) },
     });
-    ctx.show(asset, `已切成 ${asset.frames.length} 帧`);
+    ctx.show(asset, `已保存：${asset.frames.length} 帧 · ${asset.fps} FPS`);
   });
   onSubmit(root, "form[data-align]", async (form, fd) => {
     const { asset, before, after } = await api(`/api/projects/${state.project.id}/assets/${form.dataset.align}/align-frames`, {
@@ -53,6 +81,13 @@ export function bind(root, ctx) {
       body: { mode: fd.get("mode") },
     });
     ctx.show(asset, `已对齐：水平 ${before.horizontal}→${after.horizontal}px，垂直 ${before.vertical}→${after.vertical}px`);
+  });
+  root.addEventListener("input", (e) => {
+    const form = e.target.closest("form[data-slice]");
+    if (!form || e.target.name !== "fps") return;
+    const fps = Number(e.target.value);
+    const a = state.project.assets.find((x) => x.id === form.dataset.slice);
+    if (a?.frames?.length && fps >= 1 && fps <= 30) play(a, fps);
   });
   root.addEventListener("change", (e) => {
     const form = e.target.closest("form[data-align]");

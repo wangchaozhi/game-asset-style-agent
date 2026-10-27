@@ -182,6 +182,16 @@ describe("post-processing tools", () => {
     assert.match(textOf(sheet), /Frame jitter check: the character drifts \d+(\.\d+)?px horizontally and \d+(\.\d+)?px vertically/);
   });
 
+  it("generate_image takes a sprite sheet's fps, and a redraw keeps it", async () => {
+    const job = fakeJob(projectId);
+    await runTool(job, mock, call("generate_image", { name: "奔跑", asset_type: "sprite_sheet", prompt: "Run cycle in one row, 4 frames", aspect: "landscape", transparent_background: true, frames: 4, fps: 12 }));
+    const run = (await store.loadProject(projectId)).assets.at(-1)!;
+    assert.equal(run.fps, 12);
+    await runTool(job, mock, call("generate_image", { name: "奔跑", asset_type: "sprite_sheet", prompt: "Run cycle in one row, 4 frames, longer stride", aspect: "landscape", transparent_background: true, frames: 4, replaces_asset_id: run.id }));
+    assert.equal((await store.loadProject(projectId)).assets.at(-1)!.fps, 12);
+    assert.match(textOf(await runTool(job, mock, call("generate_image", { name: "x", asset_type: "sprite_sheet", prompt: "Run cycle in one row", aspect: "landscape", transparent_background: true, fps: 99 }))), /INVALID_JSON/);
+  });
+
   it("fix_tile_seams makes a seamless new version owned by the run", async () => {
     const id = await addSeamyTile();
     const job = fakeJob(projectId);

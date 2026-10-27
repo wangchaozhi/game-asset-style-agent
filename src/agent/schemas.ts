@@ -25,6 +25,7 @@ export const GenerateInput = z.object({
   transparent_background: z.boolean(),
   consistency_asset_ids: z.array(z.string()).max(4).optional(),
   frames: z.number().int().min(2).max(16).optional(),
+  fps: z.number().int().min(1).max(30).optional(),
   replaces_asset_id: z.string().optional(),
   tags: z.array(z.string()).max(10).optional(),
 });

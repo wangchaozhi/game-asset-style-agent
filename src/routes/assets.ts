@@ -127,8 +127,10 @@ assetsRouter.post("/api/projects/:id/assets/:assetId/slice", async (req, res) =>
   if (!found) return;
   const { project, asset } = found;
   const frames = req.body?.frames ? Number(req.body.frames) : undefined;
-  const fps = req.body?.fps ? Number(req.body.fps) : 8;
+  // Without fps the sheet keeps its current rate.
+  const fps = req.body?.fps !== undefined ? Number(req.body.fps) : (asset.fps ?? 8);
   if (frames !== undefined && !(frames >= 1 && frames <= 32)) return void res.status(400).json({ error: "帧数需在 1-32 之间" });
+  if (!Number.isInteger(fps) || fps < 1 || fps > 30) return void res.status(400).json({ error: "帧率需为 1-30 的整数" });
   const sliced = await sliceAssetFrames(project.id, asset, await readProjectFile(project.id, asset.file), frames, fps);
   const p = await updateProject(project.id, (p) => {
     const a = p.assets.find((x) => x.id === asset.id);

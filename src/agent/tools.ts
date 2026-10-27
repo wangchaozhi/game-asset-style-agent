@@ -69,6 +69,10 @@ export const tools: Anthropic.Beta.BetaTool[] = [
           type: "integer",
           description: "sprite_sheet only: number of animation frames in the single horizontal row (2-16). The sheet is sliced into frames and a GIF preview automatically.",
         },
+        fps: {
+          type: "integer",
+          description: "sprite_sheet only: playback speed in frames per second (1-30, default 8), used by the preview and engine exports. Match the motion: idle ~6, walk ~8-10, run / attack ~12.",
+        },
         tags: {
           type: "array",
           items: { type: "string" },

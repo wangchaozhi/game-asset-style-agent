@@ -503,6 +503,17 @@ describe("HTTP API (demo mode)", () => {
     const sliced = await json(`/api/projects/${id}/assets/${sheet.id}/slice`, { method: "POST", body: { frames: 6, fps: 12 } });
     assert.deepEqual([sliced.body.frames.length, sliced.body.fps], [6, 12]);
     assert.equal((await json(`/api/projects/${id}/assets/${sheet.id}/slice`, { method: "POST", body: { frames: 40 } })).status, 400);
+    // Without fps the current rate is kept; bad rates are refused.
+    const kept = await json(`/api/projects/${id}/assets/${sheet.id}/slice`, { method: "POST", body: { frames: 6 } });
+    assert.equal(kept.body.fps, 12);
+    for (const fps of [0, 31, 1.5, "fast"]) {
+      assert.equal((await json(`/api/projects/${id}/assets/${sheet.id}/slice`, { method: "POST", body: { frames: 6, fps } })).status, 400, String(fps));
+    }
+    // Exports use the saved rate.
+    const bundle = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?ids=${sheet.id}&unity=1`)).arrayBuffer()));
+    const godot = Object.entries(bundle).find(([n]) => n.endsWith(".tres"))![1].data.toString();
+    assert.match(godot, /"speed": 12\.0/);
+    assert.match(Object.entries(bundle).find(([n]) => n.endsWith(".anim"))![1].data.toString(), /m_SampleRate: 12/);
     const tile = assets.findLast((a: { assetType: string }) => a.assetType === "tile");
     const tiled = await fetch(`${base}/api/projects/${id}/assets/${tile.id}/tiled.png?n=2`);
     const { default: sharp } = await import("sharp");
