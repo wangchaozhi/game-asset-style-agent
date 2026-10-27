@@ -1,12 +1,38 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { type DriftReport, rankDrift } from "../domain/consistency.js";
-import { analyzePalette } from "../image/palette.js";
-import { readProjectFile } from "../store/index.js";
+import { type PaletteReport, analyzePalette } from "../image/palette.js";
+import { projectDir, readProjectFile } from "../store/index.js";
 import type { Project } from "../store/types.js";
 
 export interface ConsistencyReport {
   medianCoverage: number;
   medianDeltaE: number;
   items: (DriftReport & { coverage: number; meanDeltaE: number })[];
+}
+
+/** Palette measurements by project, file, file size + mtime and palette; oldest dropped past CACHE_MAX. */
+const cache = new Map<string, PaletteReport>();
+const CACHE_MAX = 5000;
+const stats = { hits: 0, misses: 0 };
+
+/** Cache counters, for tests. */
+export const consistencyCacheStats = () => ({ ...stats, size: cache.size });
+
+/** analyzePalette, remembered until the file or the palette changes. */
+async function measure(projectId: string, file: string, hexes: string[]): Promise<PaletteReport> {
+  const st = await fs.stat(path.join(projectDir(projectId), file));
+  const key = `${projectId}/${file}|${st.size}|${st.mtimeMs}|${hexes.join(",").toLowerCase()}`;
+  const hit = cache.get(key);
+  if (hit) {
+    stats.hits++;
+    return hit;
+  }
+  stats.misses++;
+  const r = await analyzePalette(await readProjectFile(projectId, file), hexes);
+  cache.set(key, r);
+  if (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value!);
+  return r;
 }
 
 /**
@@ -22,7 +48,7 @@ export async function measureConsistency(project: Project): Promise<ConsistencyR
   const current = project.assets.filter((a) => !superseded.has(a.id) && !a.variantOf).slice(-300);
   const measured = await Promise.all(
     current.map(async (a) => {
-      const r = await analyzePalette(await readProjectFile(project.id, a.file), hexes);
+      const r = await measure(project.id, a.file, hexes);
       return { id: a.id, coverage: r.coverage, meanDeltaE: r.meanDeltaE, score: a.reviewer === "agent" ? a.score : undefined, offPalette: r.offPalette };
     }),
   );
