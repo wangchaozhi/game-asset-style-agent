@@ -49,3 +49,12 @@
 .export-form label[hidden] { display: none; }
 .export-form input[type="file"] { font: inherit; font-size: 12px; max-width: 100%; }
 .export-form input[name="frames"] { width: 90px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+.scene-dialog { max-width: min(1040px, 96vw); }
+.scene-bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: 13px; }
+.scene-bar select { padding: 3px 6px; font-size: 12px; }
+.scene-tools { display: flex; flex-wrap: wrap; gap: 6px; }
+.scene-tools[hidden] { display: none; }
+#sceneCanvas { width: 100%; aspect-ratio: 16 / 9; border-radius: 8px; border: 1px solid var(--line); touch-action: none; cursor: grab; background: var(--bg); }
+.scene-palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; max-height: 160px; overflow-y: auto; }
+.scene-palette button { aspect-ratio: 1; padding: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; cursor: copy; }
+.scene-palette img { width: 100%; height: 100%; object-fit: contain; display: block; }

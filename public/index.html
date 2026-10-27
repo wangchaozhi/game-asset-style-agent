@@ -93,6 +93,7 @@
           <a class="btn ghost small" id="exportApproved" href="#" download>导出已通过 ZIP</a>
           <button class="btn ghost small" id="exportMore" type="button">更多导出…</button>
           <button class="btn ghost small" id="importBtn" type="button" title="上传自己的图片作为素材，可用全部后处理与导出">导入素材…</button>
+          <button class="btn ghost small" id="sceneBtn" type="button" title="把已通过的素材摆到背景上，看整体是否协调">场景拼版</button>
           <button class="btn ghost small" id="consistencyBtn" type="button" title="按风格色板测量所有素材，找出最跑偏的">一致性总览</button>
         </div>
         <div class="filters" id="filters">
@@ -171,6 +172,27 @@
         <p class="muted">最多 20 张，名称取自文件名。导入的素材视为已通过，可用后处理、换色、九宫格与全部导出。</p>
         <div class="export-go"><span class="muted" id="importCount"></span><button class="btn primary" type="submit">导入</button></div>
       </form>
+    </div>
+  </dialog>
+
+  <dialog id="sceneDialog" class="usage-dialog scene-dialog" aria-labelledby="sceneTitle">
+    <form method="dialog"><button class="close" aria-label="关闭">×</button></form>
+    <div class="usage-body">
+      <h3 id="sceneTitle">场景拼版</h3>
+      <div class="scene-bar">
+        <label>背景 <select id="sceneBg"></select></label>
+        <div id="sceneTools" class="scene-tools" hidden>
+          <button type="button" class="btn ghost small" data-act="smaller" title="缩小（-）">缩小</button>
+          <button type="button" class="btn ghost small" data-act="bigger" title="放大（+）">放大</button>
+          <button type="button" class="btn ghost small" data-act="flip" title="水平翻转（F）">翻转</button>
+          <button type="button" class="btn ghost small" data-act="copy">复制</button>
+          <button type="button" class="btn ghost small danger" data-act="remove" title="移除（Delete）">移除</button>
+        </div>
+      </div>
+      <canvas id="sceneCanvas" width="1280" height="720" tabindex="0" aria-label="场景画布：点选素材后拖动摆放，滚轮缩放"></canvas>
+      <p class="muted">点下方素材放入场景；拖动摆放，滚轮或 +/- 缩放，F 翻转，Delete 移除。越靠下的素材画在越前面。</p>
+      <div class="scene-palette" id="scenePalette"></div>
+      <div class="export-go"><button type="button" class="btn ghost" id="sceneClear">清空</button><button type="button" class="btn primary" id="sceneDownload">下载 PNG</button></div>
     </div>
   </dialog>
 
