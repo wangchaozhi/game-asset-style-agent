@@ -65,17 +65,20 @@ describe("server process", () => {
     // A leftover "running" run from a previous process, to be marked on startup.
     const p = await store.createProject("proc");
     await store.saveRunUsage(p.id, newRunUsage("job_left", "", "agent"));
-    const port = 5600 + Math.floor(Math.random() * 300);
+    // PORT=0: the OS picks a free port, read back from the startup log, so parallel runs can't collide.
     const child = spawn(process.execPath, ["--import", "tsx", "src/server.ts"], {
       cwd: path.join(import.meta.dirname, ".."),
-      env: { ...process.env, PORT: String(port), DATA_DIR: dataDir, AGENT_MODE: "demo" },
+      env: { ...process.env, PORT: "0", DATA_DIR: dataDir, AGENT_MODE: "demo" },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let log = "";
     child.stdout.on("data", (d) => (log += d));
     child.stderr.on("data", (d) => (log += d));
     const exited = new Promise<number | null>((r) => child.on("exit", (code) => r(code)));
-    for (let i = 0; i < 100 && !log.includes("http://localhost"); i++) await new Promise((r) => setTimeout(r, 100));
+    // Allow a slow start on a loaded machine (tsx compiles the server first).
+    for (let i = 0; i < 300 && !/http:\/\/localhost:\d+/.test(log); i++) await new Promise((r) => setTimeout(r, 100));
+    const port = Number(/http:\/\/localhost:(\d+)/.exec(log)?.[1]);
+    assert.ok(port > 0, log);
     assert.match(log, /已标记为「已中断」/);
     assert.equal((await fetch(`http://127.0.0.1:${port}/healthz`)).status, 200);
     child.kill("SIGTERM");

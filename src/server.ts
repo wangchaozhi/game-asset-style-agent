@@ -1,4 +1,5 @@
 import "dotenv/config";
+import type { AddressInfo } from "node:net";
 import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { cleanOrphanFiles, installShutdownHandlers, purgeExpiredTrash, recoverInterruptedRuns } from "./lifecycle.js";
@@ -13,5 +14,6 @@ const orphans = await cleanOrphanFiles().catch(() => ({ removed: 0, bytes: 0 }))
 if (orphans.removed) console.log(`已清理 ${orphans.removed} 个无主文件（${(orphans.bytes / 1048576).toFixed(1)} MB）`);
 
 const port = config.port;
-const server = createApp().listen(port, () => console.log(`Game Asset Agent → http://localhost:${port}`));
+// Log the bound port, not the requested one: PORT=0 picks a free port (used by the process test).
+const server = createApp().listen(port, () => console.log(`Game Asset Agent → http://localhost:${(server.address() as AddressInfo).port}`));
 installShutdownHandlers(server);
