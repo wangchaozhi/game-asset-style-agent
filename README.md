@@ -138,6 +138,7 @@ Agent 工具：
 | `remove_background` | 换个容差重新抠背景（不调用图像模型） |
 | `snap_to_palette` | 平涂 / 像素风素材出现色板外颜色时，把颜色吸附到风格色板（不调用图像模型） |
 | `set_nine_slice` | 可拉伸的 UI（面板、按钮、条）自动检测或手动给出九宫格边距并保存，返回拉伸预览供检查（不调用图像模型） |
+| `add_outline` | 风格要求描边而素材缺描边或粗细不匀时，统一加外描边（颜色默认取色板最深色，不调用图像模型） |
 
 默认模型 `claude-opus-5-5`（adaptive thinking，effort 可通过 `CLAUDE_EFFORT` 调整），已开启服务端 refusal fallback（`fallbacks: "default"`）和 prompt caching。
 

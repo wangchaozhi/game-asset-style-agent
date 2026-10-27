@@ -65,3 +65,9 @@ export const NineSliceToolInput = z.object({
   right: z.number().int().min(0).optional(),
   bottom: z.number().int().min(0).optional(),
 });
+
+export const OutlineInput = z.object({
+  asset_id: z.string(),
+  width: z.number().int().min(1).max(16).optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+});

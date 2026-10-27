@@ -323,6 +323,22 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/${ui.id}`, { method: "PATCH", body: { nineSlice: null } });
   });
 
+  it("outlines an asset as a new version and validates the options", async () => {
+    const assets = (await json(`/api/projects/${id}`)).body.assets;
+    const sheet = assets.find((a: { assetType: string }) => a.assetType === "sprite_sheet");
+    const tile = assets.find((a: { assetType: string }) => a.assetType === "tile");
+    const post = (assetId: string, body: unknown) => json(`/api/projects/${id}/assets/${assetId}/outline`, { method: "POST", body });
+    const r = await post(sheet.id, { width: 2 });
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+    assert.deepEqual([r.body.parentId, r.body.frames.length, r.body.status], [sheet.id, sheet.frames.length, "pending_review"]);
+    assert.match(r.body.notes, /2px 描边/);
+    assert.equal((await post(tile.id, {})).status, 400);
+    assert.equal((await post(sheet.id, { width: 0 })).status, 400);
+    assert.equal((await post(sheet.id, { width: 2, color: "blue" })).status, 400);
+    assert.equal((await post("ast_missing", {})).status, 404);
+    await json(`/api/projects/${id}/assets/${r.body.id}`, { method: "DELETE" });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

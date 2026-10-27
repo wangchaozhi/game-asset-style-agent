@@ -5,7 +5,7 @@ import { isPixelArt } from "../image/sizes.js";
 import { describePalette } from "../image/palette.js";
 import type { Jitter } from "../image/spriteSheet.js";
 import type { SeamReport } from "../image/tiles.js";
-import { alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, seamlessVersion, seamsOf, setNineSlice } from "../ops/assetOps.js";
+import { alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, outlineVersion, seamlessVersion, seamsOf, setNineSlice } from "../ops/assetOps.js";
 import type { ImageProvider } from "../providers/types.js";
 import { loadProject, readProjectFile, recordStyleVersion, updateProject } from "../store/index.js";
 import type { Asset, Project } from "../store/types.js";
@@ -13,7 +13,7 @@ import { generateAsset } from "./assets.js";
 import { BudgetExceededError } from "./budget.js";
 import { type Job, emit } from "./events.js";
 import {
-  AlignFramesInput, FixSeamsInput, GenerateInput, NineSliceToolInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput,
+  AlignFramesInput, FixSeamsInput, GenerateInput, NineSliceToolInput, OutlineInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput,
 } from "./schemas.js";
 
 type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
@@ -171,6 +171,22 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
         `New version asset_id=${r.asset.id} (from ${found.asset.id}). On-palette pixels ${pct(r.before.coverage)} → ${pct(r.after.coverage)}. Check for banding or lost detail, then review the new version.`,
         await readProjectFile(found.project.id, r.asset.file),
         r.asset.mime,
+      );
+    }
+    case "add_outline": {
+      const parsed = OutlineInput.safeParse(block.input);
+      if (!parsed.success) return invalid();
+      const found = await findAssetFor(job, parsed.data.asset_id);
+      if (!found) return errResult(block.id, `Unknown asset_id ${parsed.data.asset_id}`);
+      const width = parsed.data.width ?? 2;
+      const r = await outlineVersion(found.project, found.asset, { width, color: parsed.data.color }, { by: "agent", runId: job.id });
+      if (typeof r === "string") return errResult(block.id, r);
+      emit(job, { type: "asset", asset: r });
+      return withImage(
+        block.id,
+        `New version asset_id=${r.id} (from ${found.asset.id}) with a ${width}px outline. Check it is even and doesn't swallow small details, then review the new version.`,
+        await readProjectFile(found.project.id, r.file),
+        r.mime,
       );
     }
     case "set_nine_slice": {

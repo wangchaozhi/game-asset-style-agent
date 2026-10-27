@@ -24,8 +24,8 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .frame-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 6px; }
 .frame-strip a { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px solid var(--line); overflow: hidden; }
 .frame-strip img { max-width: 100%; max-height: 100%; }
-.slice-form, .cutout-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.slice-form label, .cutout-form label { display: flex; gap: 4px; align-items: center; color: var(--muted); }
+.slice-form, .cutout-form, .outline-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.slice-form label, .cutout-form label, .outline-form label { display: flex; gap: 4px; align-items: center; color: var(--muted); }
 .slice-form input { width: 56px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
 .cutout-form input[type="range"] { width: 110px; accent-color: var(--accent); }
 .cutout-form output { min-width: 2ch; color: var(--ink); }
@@ -108,3 +108,5 @@ kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5p
 .nine-previews { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
 .nine-previews figure { margin: 0; display: grid; gap: 4px; justify-items: center; font-size: 12px; }
 .nine-box { box-sizing: border-box; border-style: solid; border-color: transparent; border-image-repeat: stretch; }
+.outline-form select { padding: 3px 6px; font-size: 12px; }
+.outline-form input[type="color"] { width: 32px; height: 24px; padding: 0; border: 1px solid var(--line); border-radius: 4px; background: none; }

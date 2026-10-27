@@ -222,6 +222,10 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 
 色板一致性：`?threshold=20`（ΔE）。返回 `{ coverage, meanDeltaE, usage, offPalette, pixels, threshold }`。
 
+### `POST /api/projects/:id/assets/:assetId/outline`
+
+加外描边，生成新版本（待审核）：`{ "width": 2, "color": "#1a1020" }`。`width` 1-16 像素（默认 2）；`color` 默认取风格色板里最深的颜色。像素风用方形笔刷保持边角清晰，其他风格用圆形笔刷；图片尺寸不变，贴边的描边会被裁掉。精灵表重新切帧，九宫格边距与标签沿用。背景、瓦片和没有透明背景的素材返回 400。返回新素材。
+
 ### `POST /api/projects/:id/assets/:assetId/snap-palette`
 
 把每个像素换成最接近的风格色板颜色（Lab 色差），生成新版本：`{ "dither": "none" | "ordered" }`（有序抖动保留渐变感）。返回 `{ asset, before, after }`，后两者为吸附前后的色板检测结果。

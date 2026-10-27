@@ -162,4 +162,18 @@ export const tools: Anthropic.Beta.BetaTool[] = [
       required: ["asset_id"],
     },
   },
+  {
+    name: "add_outline",
+    description:
+      "Add a uniform outer outline around a transparent-background asset (no image-model call, no cost). Use it when the style guide calls for outlines and an asset's outline is missing, too thin or uneven, so every sprite in the set reads the same against the game background. Creates a new version (pending review); review it.",
+    input_schema: {
+      type: "object",
+      properties: {
+        asset_id: { type: "string" },
+        width: { type: "integer", description: "Outline width in pixels of the full image, 1-16 (default 2). Scale with the image: ~1px per 64px of sprite for pixel art." },
+        color: { type: "string", description: "#rrggbb; defaults to the darkest style-palette colour, usually the outline colour." },
+      },
+      required: ["asset_id"],
+    },
+  },
 ];

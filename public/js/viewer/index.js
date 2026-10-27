@@ -11,10 +11,11 @@ import * as nineSlice from "./nineSlice.js";
 import * as palette from "./palette.js";
 import * as sizes from "./sizes.js";
 import * as cutout from "./cutout.js";
+import * as outline from "./outline.js";
 import * as promptSection from "./prompt.js";
 
 /** Rendered in this order below the review box; each may render nothing for a given asset. */
-const SECTIONS = [sprite, tile, nineSlice, palette, sizes, cutout, promptSection];
+const SECTIONS = [sprite, tile, nineSlice, palette, sizes, cutout, outline, promptSection];
 
 function versionLinks(a) {
   const parent = a.parentId && state.project.assets.find((x) => x.id === a.parentId);

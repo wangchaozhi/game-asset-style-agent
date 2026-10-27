@@ -112,6 +112,7 @@ The agent is a hand-written tool-use loop on the Anthropic TypeScript SDK (`src/
 | `remove_background` | Re-cut the background with another tolerance (no image-model call) |
 | `snap_to_palette` | Recolour a flat / pixel-art asset to the style palette when stray colours appear (no image-model call) |
 | `set_nine_slice` | Detect (or take) 9-slice margins for stretchable UI — panels, buttons, bars — save them and return a stretched preview to check (no image-model call) |
+| `add_outline` | Add a uniform outer outline when the style calls for one and an asset lacks it (colour defaults to the darkest palette colour; no image-model call) |
 
 See the architecture section of the [Chinese README](README.md#架构) for the source layout.
 

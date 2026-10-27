@@ -1,7 +1,9 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { type NineSlice, fitNineSlice, parseNineSlice } from "../domain/nineSlice.js";
-import { removeBackground } from "../image/background.js";
+import { isOpaque, removeBackground } from "../image/background.js";
+import { isOpaqueType } from "../domain/assetTypes.js";
+import { addOutline, darkestColor } from "../image/outline.js";
 import { imageSize } from "../image/io.js";
 import { analyzePalette, snapToPalette } from "../image/palette.js";
 import { isPixelArt } from "../image/sizes.js";
@@ -173,4 +175,28 @@ export async function paletteSnapVersion(project: Project, asset: Asset, dither:
     ...(asset.frames?.length ? await sliceAssetFrames(project.id, a, png, asset.frames.length, asset.fps ?? 8) : {}),
   }));
   return { asset: created, before, after };
+}
+
+export interface OutlineOptions {
+  /** px, 1-16 */
+  width: number;
+  /** #rrggbb; default: the darkest style-palette colour */
+  color?: string;
+}
+
+/**
+ * Add an outer outline as a new version. Returns an error message for assets with nothing to outline
+ * (drawn edge to edge, or no transparency) or bad options.
+ */
+export async function outlineVersion(project: Project, asset: Asset, opts: OutlineOptions, actor: Actor): Promise<Asset | string> {
+  if (isOpaqueType(asset.assetType)) return "背景和瓦片铺满画面，不需要描边";
+  if (!Number.isInteger(opts.width) || opts.width < 1 || opts.width > 16) return "描边宽度需为 1-16 像素";
+  if (opts.color !== undefined && !/^#[0-9a-f]{6}$/i.test(opts.color)) return "描边颜色需为 #rrggbb";
+  const src = await readProjectFile(project.id, asset.file);
+  if (await isOpaque(src)) return "素材没有透明背景，先去背景再描边";
+  const color = (opts.color ?? darkestColor(project.styleGuide?.palette.map((p) => p.hex) ?? [])).toLowerCase();
+  const png = await addOutline(src, { width: opts.width, color, square: isPixelArt(project.styleGuide) });
+  return newVersion(project, asset, png, `由「${asset.name}」加 ${opts.width}px 描边（${color}）`, actor, async (a) =>
+    asset.frames?.length ? sliceAssetFrames(project.id, a, png, asset.frames.length, asset.fps ?? 8) : {},
+  );
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 import type Anthropic from "@anthropic-ai/sdk";
+import sharp from "sharp";
 import { panel, solidPng, useTempDataDir, validStyleGuide } from "./helpers.js";
 
 useTempDataDir();
@@ -33,7 +34,7 @@ describe("tool definitions", () => {
   it("every tool has a schema whose required fields are declared", () => {
     assert.deepEqual(tools.map((t) => t.name), [
       "save_style_guide", "generate_image", "review_asset", "fix_tile_seams", "align_sprite_frames", "remove_background", "snap_to_palette",
-      "set_nine_slice",
+      "set_nine_slice", "add_outline",
     ]);
     for (const t of tools) {
       const props = Object.keys(t.input_schema.properties ?? {});
@@ -223,6 +224,31 @@ describe("post-processing tools", () => {
     assert.match(await err({ asset_id: await add("rock", await panel(100, 60), "prop") }), /only applies to ui/);
     assert.match(await err({ asset_id: "ast_nope" }), /Unknown asset_id/);
     assert.match(await err({ asset_id: id, left: -1 }), /INVALID_JSON/);
+  });
+
+  it("add_outline makes an outlined new version, and refuses opaque or tile assets", async () => {
+    const add = async (name: string, png: Buffer, assetType: string) => {
+      const id = `ast_${name}`;
+      await store.writeProjectFile(projectId, `assets/${id}.png`, png);
+      await store.updateProject(projectId, (p) => void p.assets.push({
+        id, name, assetType, prompt: "x", file: `assets/${id}.png`, mime: "image/png", status: "approved", runId: "r", provider: "mock", createdAt: new Date().toISOString(),
+      }));
+      return id;
+    };
+    const sword = await add("sword", await sharp({ create: { width: 32, height: 32, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+      .composite([{ input: { create: { width: 8, height: 20, channels: 4, background: { r: 200, g: 200, b: 220, alpha: 1 } } }, left: 12, top: 6 }])
+      .png().toBuffer(), "item_icon");
+    const job = fakeJob(projectId);
+    const r = await runTool(job, mock, call("add_outline", { asset_id: sword, width: 1, color: "#000000" }));
+    assert.match(textOf(r), /with a 1px outline/);
+    const created = (await store.loadProject(projectId)).assets.at(-1)!;
+    assert.deepEqual([created.parentId, created.reviewer, created.status], [sword, "agent", "pending_review"]);
+    assert.ok(job.events.some((e) => e.type === "asset"));
+    const err = async (input: object) => textOf(await runTool(fakeJob(projectId), mock, call("add_outline", input)));
+    assert.match(await err({ asset_id: await add("solid", await solidPng(16, 16, "#336699"), "item_icon") }), /没有透明背景/);
+    assert.match(await err({ asset_id: await add("ground", await solidPng(16, 16, "#336699"), "tile") }), /不需要描边/);
+    assert.match(await err({ asset_id: "ast_nope" }), /Unknown asset_id/);
+    assert.match(await err({ asset_id: sword, color: "red" }), /INVALID_JSON/);
   });
 
   it("align_sprite_frames removes the mock walk cycle's bobbing", async () => {

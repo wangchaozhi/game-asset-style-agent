@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-  alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, seamsOf, setNineSlice, sliceAssetFrames,
+  alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, outlineVersion, seamsOf, setNineSlice, sliceAssetFrames,
 } from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
 import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
@@ -217,6 +217,16 @@ assetsRouter.post("/api/projects/:id/assets/:assetId/align-frames", async (req, 
 });
 
 /** Snap colours to the style palette; the result is a new version. Body: { dither: "none" | "ordered" }. */
+/** Outer outline as a new version: { width: 1-16, color?: "#rrggbb" } (default colour: darkest palette colour). */
+assetsRouter.post("/api/projects/:id/assets/:assetId/outline", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  const { width, color } = req.body ?? {};
+  const r = await outlineVersion(found.project, found.asset, { width: Number(width ?? 2), color }, { by: "user" });
+  if (typeof r === "string") return void res.status(400).json({ error: r });
+  res.json(r);
+});
+
 assetsRouter.post("/api/projects/:id/assets/:assetId/snap-palette", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
