@@ -42,6 +42,7 @@ export function openViewer(id) {
   $("#viewerMeta").innerHTML = `
     <h3 class="viewer-title">${esc(a.name)} <button class="btn link rename" data-rename="${a.id}" title="改名" aria-label="改名">✎</button></h3>
     <div class="muted">${esc(state.config.assetTypes[a.assetType] ?? a.assetType)} · ${esc(a.provider)} · ${new Date(a.createdAt).toLocaleString()}</div>
+    <div class="muted file-size" aria-live="polite"></div>
     ${a.notes ? `<div><b>${a.reviewer === "user" ? "我的意见" : "Agent 审核"}：</b>${esc(a.notes)}${a.score && a.reviewer !== "user" ? `（一致性 ${a.score}/10）` : ""}</div>` : ""}
     <div class="viewer-tags">${(a.tags ?? []).map((t) => `<span class="tag">#${esc(t)}</span>`).join("")}
       <button class="btn link" data-edit-tags="${a.id}">${a.tags?.length ? "编辑标签" : "+ 标签"}</button></div>
@@ -63,6 +64,27 @@ export function openViewer(id) {
     <p class="muted shortcuts"><kbd>←</kbd> <kbd>→</kbd> 切换 · <kbd>A</kbd> 通过 · <kbd>R</kbd> 驳回 · <kbd>Esc</kbd> 关闭</p>`;
   $("#viewer").showModal();
   for (const s of SECTIONS) s.load?.(a);
+  showSize(a);
+}
+
+const fmtBytes = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+/** Pixel size (and per-frame size for sprite sheets) plus file size, to judge export weight. */
+async function showSize(a) {
+  const img = $("#viewerImg");
+  if (!img.complete || !img.naturalWidth) await new Promise((r) => img.addEventListener("load", r, { once: true }));
+  const el = $("#viewerMeta .file-size");
+  if (!el?.isConnected || state.viewing !== a.id) return;
+  const { naturalWidth: w, naturalHeight: h } = img;
+  const frameCount = a.frames?.length;
+  const parts = [`${w}×${h} px`];
+  if (frameCount) parts.push(`每帧 ${Math.floor(w / frameCount)}×${h}`);
+  try {
+    const res = await fetch(fileUrl(a.file), { method: "HEAD" });
+    const bytes = Number(res.headers.get("content-length"));
+    if (bytes) parts.push(fmtBytes(bytes));
+  } catch {}
+  if (el.isConnected && state.viewing === a.id) el.textContent = parts.join(" · ");
 }
 
 /** Set a verdict for the asset in the viewer (keeps any feedback typed so far as the note). */
