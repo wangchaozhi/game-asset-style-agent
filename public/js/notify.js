@@ -1,5 +1,6 @@
 // Tell the user a run finished when they are looking elsewhere: tab title, and optionally a system notification.
 import { $ } from "./lib.js";
+import { t } from "./i18n.js";
 
 const BASE_TITLE = document.title;
 const KEY = "gaa.notify";
@@ -14,16 +15,16 @@ function restoreTitle() {
 }
 
 export function jobStarted() {
-  document.title = `⏳ 生成中 · ${BASE_TITLE}`;
+  document.title = `⏳ ${t("notify.running")} · ${BASE_TITLE}`;
 }
 
-/** Progress in the title, e.g. "(3) 生成中". */
+/** Progress in the title, e.g. "(3) Generating". */
 export function jobProgress(assetsMade) {
-  if (assetsMade) document.title = `⏳ (${assetsMade}) 生成中 · ${BASE_TITLE}`;
+  if (assetsMade) document.title = `⏳ (${assetsMade}) ${t("notify.running")} · ${BASE_TITLE}`;
 }
 
 export function jobFinished({ ok, made, message }) {
-  const text = ok ? `生成完成${made ? `：${made} 个新素材` : ""}` : `运行出错：${message ?? ""}`;
+  const text = ok ? (made ? t("notify.doneN", { n: made }) : t("notify.done")) : t("notify.error", { message: message ?? "" });
   if (!document.hidden) {
     document.title = BASE_TITLE;
     return;

@@ -1,4 +1,8 @@
 // Access-token login: exchange the token for a session cookie, then go back to the app.
+import { applyI18n, t } from "./i18n.js";
+
+applyI18n();
+document.title = `${t("login.title")} · Game Asset Agent`;
 const form = document.querySelector("#loginForm");
 const error = document.querySelector("#loginError");
 
@@ -11,7 +15,7 @@ form.addEventListener("submit", async (e) => {
     body: JSON.stringify({ token: form.token.value }),
   });
   if (res.ok) return location.replace("/");
-  error.textContent = (await res.json().catch(() => ({}))).error || `登录失败（HTTP ${res.status}）`;
+  error.textContent = (await res.json().catch(() => ({}))).error || t("login.failed", { status: res.status });
   error.hidden = false;
   form.token.select();
 });

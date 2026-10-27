@@ -5,6 +5,8 @@ import { describe, it } from "node:test";
 // doesn't need types. A few read the document at load time (notify.js keeps the page title), so a
 // minimal stand-in is installed first; everything tested here is pure.
 (globalThis as { document?: unknown }).document ??= { title: "Game Asset Agent", hidden: false, addEventListener() {}, querySelector: () => null };
+// The interface language comes from saved choice, else the browser; pin Chinese so assertions are stable.
+Object.defineProperty(globalThis, "localStorage", { value: { getItem: () => "zh", setItem() {}, removeItem() {} }, configurable: true });
 const load = (path: string) => import(path);
 const { exportUrl } = await load("../public/js/exportDialog.js");
 const { esc } = await load("../public/js/lib.js");
@@ -12,7 +14,7 @@ const { feedbackOf } = await load("../public/js/consistency.js");
 const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
 const { visibleAssets } = await load("../public/js/assets.js");
-const { DICT, LANGS, getLang, t, typeLabel } = await load("../public/js/i18n.js");
+const { DICT, LANGS, defaultLang, getLang, t, typeLabel } = await load("../public/js/i18n.js");
 
 const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048" };
 
@@ -104,5 +106,52 @@ describe("front end: i18n", () => {
     assert.equal(typeLabel("tile"), "地图瓦片 / 地形");
     assert.equal(typeLabel("custom", "自定义"), "自定义");
     assert.equal(typeLabel("constructor", "x"), "x");
+  });
+
+  it("defaults to the first supported browser language, else English", () => {
+    assert.equal(defaultLang(["zh-CN", "en"]), "zh");
+    assert.equal(defaultLang(["fr-FR", "zh-TW"]), "zh");
+    assert.equal(defaultLang(["en-GB"]), "en");
+    assert.equal(defaultLang(["ja"]), "en");
+    assert.equal(defaultLang([]), "en");
+  });
+
+  it("keeps interface text out of the scripts: Chinese appears only in the dictionaries", async () => {
+    const { readdir, readFile } = await import("node:fs/promises");
+    const root = new URL("../public/js/", import.meta.url);
+    // Style-guide sniffing for pixel art matches Chinese words in user data, not interface text.
+    const allowed = [/state\.pixelKernel = /];
+    const offenders: string[] = [];
+    for (const f of await readdir(root, { recursive: true })) {
+      if (!f.endsWith(".js") || f.startsWith("i18n/")) continue;
+      const lines = (await readFile(new URL(f, root), "utf8")).split("\n");
+      lines.forEach((l, i) => {
+        if (/[\u4e00-\u9fa5]/.test(l) && !allowed.some((r) => r.test(l))) offenders.push(`${f}:${i + 1}`);
+      });
+    }
+    assert.deepEqual(offenders, []);
+  });
+
+  it("marks every piece of Chinese text in the pages for translation", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const zh = /[\u4e00-\u9fa5]/;
+    // Filled by scripts with t() at render time, so their markup text is only a placeholder.
+    const scripted = new Set(["editStyle", "styleGuide", "runBtn", "trashFilter", "selectToggle"]);
+    const ATTRS: [string, string][] = [["title", "title"], ["aria-label", "aria"], ["placeholder", "placeholder"]];
+    for (const page of ["index.html", "login.html"]) {
+      const html = (await readFile(new URL(`../public/${page}`, import.meta.url), "utf8")).replace(/<title>[^<]*<\/title>/, "");
+      const missing: string[] = [];
+      // Each tag, then the text right after it (up to the next tag): attributes need data-i18n-<attr>, text needs data-i18n.
+      for (const m of html.matchAll(/<(\w+)([^>]*)>([^<]*)/g)) {
+        const [, , attrs, text] = m;
+        for (const [attr, key] of ATTRS) {
+          const v = attrs.match(new RegExp(`\\s${attr}="([^"]*)"`))?.[1];
+          if (v && zh.test(v) && !attrs.includes(`data-i18n-${key}=`)) missing.push(`${attr}: ${v}`);
+        }
+        const id = attrs.match(/\sid="([^"]*)"/)?.[1];
+        if (zh.test(text) && !/\sdata-i18n="/.test(attrs) && !scripted.has(id ?? "")) missing.push(text.trim());
+      }
+      assert.deepEqual(missing, [], page);
+    }
   });
 });

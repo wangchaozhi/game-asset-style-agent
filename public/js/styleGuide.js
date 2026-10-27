@@ -1,46 +1,40 @@
 // Style guide panel: read-only view and the inline editor.
 import { $, api, esc, toast } from "./lib.js";
 import { state } from "./state.js";
-import { t } from "./i18n.js";
+import { has, t } from "./i18n.js";
 
-const STYLE_FIELDS = [
-  ["rendering", "技法"],
-  ["line_and_edges", "线条"],
-  ["lighting_and_shading", "光影"],
-  ["perspective", "视角"],
-  ["proportions", "比例"],
-  ["texture_and_detail", "细节"],
-  ["mood", "氛围"],
-];
+/** Free-text style guide fields, labelled by sg.<field>. */
+const STYLE_FIELDS = ["rendering", "line_and_edges", "lighting_and_shading", "perspective", "proportions", "texture_and_detail", "mood"];
 
-const EMPTY_STYLE = {
-  summary: "", palette: [{ hex: "#222222", role: "描边" }, { hex: "#ffffff", role: "高光" }, { hex: "#e2562b", role: "主色" }],
+const emptyStyle = () => ({
+  summary: "",
+  palette: [{ hex: "#222222", role: t("sg.roleOutline") }, { hex: "#ffffff", role: t("sg.roleHighlight") }, { hex: "#e2562b", role: t("sg.roleMain") }],
   rendering: "", line_and_edges: "", lighting_and_shading: "", perspective: "", proportions: "",
   texture_and_detail: "", mood: "", avoid: [], prompt_prefix: "",
-};
+});
 
 export function paletteRow(c) {
   return `<div class="pal-row">
-    <input type="color" value="${esc(c.hex)}" data-pal="pick" aria-label="选择颜色" />
-    <input type="text" value="${esc(c.hex)}" data-pal="hex" maxlength="7" aria-label="颜色值（#RRGGBB）" />
-    <input type="text" value="${esc(c.role)}" data-pal="role" placeholder="用途" aria-label="颜色用途" />
-    <button type="button" class="btn link" data-pal="del" title="删除" aria-label="删除这个颜色">×</button>
+    <input type="color" value="${esc(c.hex)}" data-pal="pick" aria-label="${t("sg.pick")}" />
+    <input type="text" value="${esc(c.hex)}" data-pal="hex" maxlength="7" aria-label="${t("sg.hex")}" />
+    <input type="text" value="${esc(c.role)}" data-pal="role" placeholder="${t("sg.role")}" aria-label="${t("sg.roleLabel")}" />
+    <button type="button" class="btn link" data-pal="del" title="${t("batch.delete")}" aria-label="${t("sg.delColor")}">×</button>
   </div>`;
 }
 
 export function renderStyleEditor() {
-  const sg = state.project.styleGuide ?? EMPTY_STYLE;
+  const sg = state.project.styleGuide ?? emptyStyle();
   const box = $("#styleGuide");
   box.className = "style-guide editing";
   box.innerHTML = `<form id="styleForm">
-    <label>概述<textarea name="summary" rows="2">${esc(sg.summary)}</textarea></label>
-    <div class="field-label">色板</div>
+    <label>${t("sg.summary")}<textarea name="summary" rows="2">${esc(sg.summary)}</textarea></label>
+    <div class="field-label">${t("sg.palette")}</div>
     <div id="palRows">${sg.palette.map(paletteRow).join("")}</div>
-    <button type="button" class="btn link" id="addColor">+ 添加颜色</button>
-    ${STYLE_FIELDS.map(([k, l]) => `<label>${l}<textarea name="${k}" rows="2">${esc(sg[k])}</textarea></label>`).join("")}
-    <label>避免（每行一条）<textarea name="avoid" rows="2">${esc((sg.avoid ?? []).join("\n"))}</textarea></label>
-    <label>Prompt 前缀（英文，生成时拼在每条 prompt 前）<textarea name="prompt_prefix" rows="4">${esc(sg.prompt_prefix)}</textarea></label>
-    <div class="form-actions"><button class="btn primary" type="submit">保存</button><button class="btn ghost" type="button" id="cancelStyle">取消</button></div>
+    <button type="button" class="btn link" id="addColor">${t("sg.addColor")}</button>
+    ${STYLE_FIELDS.map((k) => `<label>${t(`sg.${k}`)}<textarea name="${k}" rows="2">${esc(sg[k])}</textarea></label>`).join("")}
+    <label>${t("sg.avoidEdit")}<textarea name="avoid" rows="2">${esc((sg.avoid ?? []).join("\n"))}</textarea></label>
+    <label>${t("sg.prefixEdit")}<textarea name="prompt_prefix" rows="4">${esc(sg.prompt_prefix)}</textarea></label>
+    <div class="form-actions"><button class="btn primary" type="submit">${t("sg.save")}</button><button class="btn ghost" type="button" id="cancelStyle">${t("sg.cancel")}</button></div>
   </form>`;
 }
 
@@ -51,11 +45,11 @@ export async function saveStyle(form) {
     role: r.querySelector('[data-pal="role"]').value.trim(),
   }));
   const body = { palette, avoid: String(fd.get("avoid")).split("\n").map((s) => s.trim()).filter(Boolean) };
-  for (const k of ["summary", "prompt_prefix", ...STYLE_FIELDS.map(([field]) => field)]) body[k] = String(fd.get(k)).trim();
+  for (const k of ["summary", "prompt_prefix", ...STYLE_FIELDS]) body[k] = String(fd.get(k)).trim();
   try {
     state.project = await api(`/api/projects/${state.project.id}/style-guide`, { method: "PUT", body });
     renderStyle();
-    toast("风格指南已保存，之后的生成都会使用它");
+    toast(t("sg.saved"));
   } catch (e) {
     toast(e.message);
   }
@@ -65,7 +59,7 @@ export async function saveStyle(form) {
 function renderConventions() {
   const text = state.project.conventions ?? "";
   $("#conventions").value = text;
-  $("#conventionsState").textContent = text ? `已设置（${text.length} 字）` : "未设置";
+  $("#conventionsState").textContent = text ? t("sg.conventionsSet", { n: text.length }) : t("nine.unset");
 }
 
 export function renderStyle() {
@@ -85,8 +79,8 @@ export function renderStyle() {
     <div class="palette">${sg.palette
       .map((c) => `<div class="swatch" title="${esc(c.role)}"><i style="background:${esc(c.hex)}"></i>${esc(c.hex)}</div>`)
       .join("")}</div>
-    <dl>${STYLE_FIELDS.map(([k, l]) => `<dt>${l}</dt><dd>${esc(sg[k])}</dd>`).join("")}
-      ${sg.avoid?.length ? `<dt>避免</dt><dd>${esc(sg.avoid.join("；"))}</dd>` : ""}</dl>`;
+    <dl>${STYLE_FIELDS.map((k) => `<dt>${t(`sg.${k}`)}</dt><dd>${esc(sg[k])}</dd>`).join("")}
+      ${sg.avoid?.length ? `<dt>${t("sg.avoid")}</dt><dd>${esc(sg.avoid.join(t("drift.sep")))}</dd>` : ""}</dl>`;
 }
 
 
@@ -111,7 +105,7 @@ export function bindStyleGuide() {
     if (e.target.dataset.pal === "hex" && /^#[0-9a-fA-F]{6}$/.test(e.target.value)) row.querySelector('[data-pal="pick"]').value = e.target.value;
   });
   $("#resetStyle").addEventListener("click", async () => {
-    if (!confirm("清空当前风格指南？下次运行时 Agent 会重新从参考图提炼。")) return;
+    if (!confirm(t("sg.confirmReset"))) return;
     state.project = await api(`/api/projects/${state.project.id}`, { method: "PATCH", body: { resetStyle: true } });
     renderStyle();
   });
@@ -120,8 +114,9 @@ export function bindStyleGuide() {
 
 // ---------------- history ----------------
 
-const SOURCE = { agent: "Agent 提炼", user: "手动编辑", restore: "恢复", import: "早期版本", preset: "内置预设" };
-const FIELD = Object.fromEntries([["summary", "概述"], ["palette", "色板"], ["avoid", "避免"], ["prompt_prefix", "Prompt 前缀"], ...STYLE_FIELDS]);
+/** Where a style guide version came from (sg.source.*), and a field's label (sg.*). */
+const source = (s) => (has(`sg.source.${s}`) ? t(`sg.source.${s}`) : s);
+const fieldName = (k) => (has(`sg.${k}`) ? t(`sg.${k}`) : k);
 
 /** The versions last shown in the history dialog, for the compare view. */
 let history = [];
@@ -131,23 +126,23 @@ function fieldValue(k, v) {
   if (k === "palette") {
     return `<span class="cmp-palette">${(v ?? []).map((c) => `<span><i style="background:${/^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : "transparent"}"></i>${esc(c.hex)} ${esc(c.role)}</span>`).join("")}</span>`;
   }
-  if (Array.isArray(v)) return v.length ? `<ul>${v.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<span class="muted">（空）</span>`;
-  return v ? esc(v) : `<span class="muted">（空）</span>`;
+  if (Array.isArray(v)) return v.length ? `<ul>${v.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<span class="muted">${t("sg.empty")}</span>`;
+  return v ? esc(v) : `<span class="muted">${t("sg.empty")}</span>`;
 }
 
 /** Field-by-field table of what differs between a past version and the current guide. */
 function compareHtml(v) {
   const cur = state.project.styleGuide;
-  if (!cur) return `<p class="muted">当前没有风格指南。</p>`;
-  return `<table class="cmp-table"><thead><tr><th scope="col">字段</th><th scope="col">此版本</th><th scope="col">当前</th></tr></thead><tbody>${v.changed
-    .map((k) => `<tr><th scope="row">${esc(FIELD[k] ?? k)}</th><td class="old">${fieldValue(k, v.styleGuide[k])}</td><td class="new">${fieldValue(k, cur[k])}</td></tr>`)
+  if (!cur) return `<p class="muted">${t("sg.none")}</p>`;
+  return `<table class="cmp-table"><thead><tr><th scope="col">${t("sg.field")}</th><th scope="col">${t("sg.thisVersion")}</th><th scope="col">${t("usage.currentCol")}</th></tr></thead><tbody>${v.changed
+    .map((k) => `<tr><th scope="row">${esc(fieldName(k))}</th><td class="old">${fieldValue(k, v.styleGuide[k])}</td><td class="new">${fieldValue(k, cur[k])}</td></tr>`)
     .join("")}</tbody></table>`;
 }
 
 export async function openStyleHistory() {
   const dlg = $("#historyDialog");
   const body = $("#historyBody");
-  body.innerHTML = `<p class="muted">加载中…</p>`;
+  body.innerHTML = `<p class="muted">${t("common.loading")}</p>`;
   dlg.showModal();
   try {
     const list = await api(`/api/projects/${state.project.id}/style-history`);
@@ -158,16 +153,16 @@ export async function openStyleHistory() {
             const same = !v.changed.length;
             return `<li class="${same ? "current" : ""}">
               <div class="history-head">
-                <span><b>${esc(SOURCE[v.source] ?? v.source)}</b> <span class="muted">${v.source === "import" ? "" : new Date(v.at).toLocaleString()}</span></span>
-                ${same ? `<span class="muted">当前使用中</span>` : `<span class="history-actions"><button class="btn ghost small" data-compare-style="${v.index}" aria-expanded="false">对比当前</button><button class="btn ghost small" data-restore-style="${v.index}">恢复此版本</button></span>`}
+                <span><b>${esc(source(v.source))}</b> <span class="muted">${v.source === "import" ? "" : new Date(v.at).toLocaleString()}</span></span>
+                ${same ? `<span class="muted">${t("sg.inUse")}</span>` : `<span class="history-actions"><button class="btn ghost small" data-compare-style="${v.index}" aria-expanded="false">${t("sg.compare")}</button><button class="btn ghost small" data-restore-style="${v.index}">${t("sg.restore")}</button></span>`}
               </div>
               <p class="history-summary">${esc(v.styleGuide.summary)}</p>
               <div class="history-palette">${v.styleGuide.palette.map((c) => `<i title="${esc(c.hex)} ${esc(c.role)}" style="background:${esc(c.hex)}"></i>`).join("")}</div>
-              ${same ? "" : `<p class="muted history-diff">与当前不同：${v.changed.map((k) => esc(FIELD[k] ?? k)).join("、")}</p><div class="style-compare" data-compare-body="${v.index}" hidden></div>`}
+              ${same ? "" : `<p class="muted history-diff">${t("sg.differs", { fields: v.changed.map((k) => esc(fieldName(k))).join(t("tile.and")) })}</p><div class="style-compare" data-compare-body="${v.index}" hidden></div>`}
             </li>`;
           })
           .join("")}</ol>`
-      : `<p class="muted">还没有历史版本。Agent 提炼或手动保存风格指南后会记录在这里。</p>`;
+      : `<p class="muted">${t("sg.noHistory")}</p>`;
   } catch (e) {
     body.innerHTML = `<p class="bad">${esc(e.message)}</p>`;
   }
@@ -178,7 +173,7 @@ export function bindConventions() {
     try {
       state.project = await api(`/api/projects/${state.project.id}`, { method: "PATCH", body: { conventions: $("#conventions").value } });
       renderConventions();
-      toast(state.project.conventions ? "已保存项目约定，下次运行生效" : "已清除项目约定");
+      toast(t(state.project.conventions ? "sg.conventionsSaved" : "sg.conventionsCleared"));
     } catch (err) {
       toast(err.message);
     }
@@ -196,7 +191,7 @@ export function bindStyleHistory() {
       if (box.hidden) box.innerHTML = compareHtml(v);
       box.hidden = !box.hidden;
       cmp.setAttribute("aria-expanded", String(!box.hidden));
-      cmp.textContent = box.hidden ? "对比当前" : "收起对比";
+      cmp.textContent = t(box.hidden ? "sg.compare" : "sg.collapse");
       return;
     }
     const index = e.target.closest("[data-restore-style]")?.dataset.restoreStyle;
@@ -204,7 +199,7 @@ export function bindStyleHistory() {
     try {
       state.project = await api(`/api/projects/${state.project.id}/style-history/${index}/restore`, { method: "POST" });
       renderStyle();
-      toast("已恢复该版本的风格指南");
+      toast(t("sg.restored"));
       openStyleHistory();
     } catch (err) {
       toast(err.message);

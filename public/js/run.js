@@ -1,7 +1,7 @@
 // Starting runs, the live SSE event stream and the agent log.
 import { $, api, esc, toast } from "./lib.js";
 import { state } from "./state.js";
-import { t, typeLabel } from "./i18n.js";
+import { has, t, typeLabel } from "./i18n.js";
 import { upsertAsset } from "./assets.js";
 import { renderStyle } from "./styleGuide.js";
 import { loadConversationInfo, loadProjectsQuiet } from "./projects.js";
@@ -19,26 +19,20 @@ export function logEntry(cls, html) {
   return el;
 }
 
-const TOOL_LABEL = {
-  save_style_guide: "提炼风格指南",
-  generate_image: "生成",
-  review_asset: "审核",
-  fix_tile_seams: "瓦片无缝化",
-  align_sprite_frames: "对齐帧",
-  remove_background: "重新去背景",
-};
+/** Tool names shown in the log (tool.*); unknown tools show their own name. */
+const toolLabel = (name) => (has(`tool.${name}`) ? t(`tool.${name}`) : esc(name));
 
 export function describeTool(name, input) {
-  if (name === "generate_image") return `<b>${TOOL_LABEL[name]}</b> ${esc(input.name)} <span class="muted">[${esc(input.asset_type)}]</span>`;
+  if (name === "generate_image") return `<b>${toolLabel(name)}</b> ${esc(input.name)} <span class="muted">[${esc(input.asset_type)}]</span>`;
   if (name === "review_asset") {
     const a = state.project.assets.find((x) => x.id === input.asset_id);
-    return `<b>${TOOL_LABEL[name]}</b> ${esc(a?.name ?? input.asset_id)} → ${input.verdict === "approved" ? "通过" : "驳回"} ${input.consistency_score}/10 <span class="muted">${esc(input.notes)}</span>`;
+    return `<b>${toolLabel(name)}</b> ${esc(a?.name ?? input.asset_id)} → ${t(input.verdict === "approved" ? "compare.approved" : "compare.rejected")} ${input.consistency_score}/10 <span class="muted">${esc(input.notes)}</span>`;
   }
   if (input?.asset_id) {
     const a = state.project.assets.find((x) => x.id === input.asset_id);
-    return `<b>${TOOL_LABEL[name] ?? esc(name)}</b> ${esc(a?.name ?? input.asset_id)} <span class="muted">（后处理，不调用图像模型）</span>`;
+    return `<b>${toolLabel(name)}</b> ${esc(a?.name ?? input.asset_id)} <span class="muted">${t("tool.postprocess")}</span>`;
   }
-  return `<b>${TOOL_LABEL[name] ?? esc(name)}</b>`;
+  return `<b>${toolLabel(name)}</b>`;
 }
 
 export function handleEvent(e) {
@@ -107,7 +101,7 @@ export function detachJob() {
   $("#stopBtn").hidden = true;
   renderLiveUsage(null);
   $("#log").innerHTML = "";
-  document.title = document.title.replace(/^⏳ (\(\d+\) )?生成中 · /, "");
+  document.title = document.title.replace(/^⏳ (\(\d+\) )?[^·]+ · /, "");
 }
 
 export function finishJob() {
@@ -128,9 +122,9 @@ export function finishJob() {
 
 /** Start a run; `redraws` = [{ assetId, feedback }] asks the agent to redraw those assets. */
 export async function run(extraRequest, redraws) {
-  if (!state.project.refs.length && !state.project.styleGuide) return toast("请先上传至少一张风格参考图，或新建项目时选择风格预设");
+  if (!state.project.refs.length && !state.project.styleGuide) return toast(t("action.noStyle"));
   const request = extraRequest ?? $("#request").value.trim();
-  if (!redraws?.length && !request && !state.selectedTypes.size) return toast("请选择素材类型或描述需求");
+  if (!redraws?.length && !request && !state.selectedTypes.size) return toast(t("run.needInput"));
   $("#log").innerHTML = "";
   renderLiveUsage(null);
   try {
@@ -187,28 +181,30 @@ function readBudget() {
   return out;
 }
 
-function bindBudget() {
+/** Budget placeholders (the server defaults) and the summary line, in the current language. */
+function renderBudget() {
   const d = state.config.budget ?? {};
-  $("#budgetImages").placeholder = d.maxImages ? `默认 ${d.maxImages}` : "默认不限";
-  $("#budgetUsd").placeholder = d.maxUsd ? `默认 $${d.maxUsd}` : "默认不限";
+  $("#budgetImages").placeholder = d.maxImages ? t("run.default", { v: d.maxImages }) : t("run.defaultNone");
+  $("#budgetUsd").placeholder = d.maxUsd ? t("run.default", { v: `$${d.maxUsd}` }) : t("run.defaultNone");
+  const b = readBudget();
+  const parts = [
+    b.maxImages !== undefined ? (b.maxImages > 0 ? t("run.nImages", { n: b.maxImages }) : t("run.anyImages")) : "",
+    b.maxUsd !== undefined ? (b.maxUsd > 0 ? `$${b.maxUsd}` : t("run.anyCost")) : "",
+  ].filter(Boolean);
+  $("#budget summary").textContent = parts.length ? t("run.budgetIs", { parts: parts.join(" · ") }) : t("run.budget");
+}
+
+function bindBudget() {
   try {
     const saved = JSON.parse(localStorage.getItem("gaa.budget") ?? "{}");
     if (saved.images !== undefined) $("#budgetImages").value = saved.images;
     if (saved.usd !== undefined) $("#budgetUsd").value = saved.usd;
   } catch {}
-  const summary = () => {
-    const b = readBudget();
-    const parts = [
-      b.maxImages !== undefined ? (b.maxImages > 0 ? `${b.maxImages} 张` : "不限张数") : "",
-      b.maxUsd !== undefined ? (b.maxUsd > 0 ? `$${b.maxUsd}` : "不限费用") : "",
-    ].filter(Boolean);
-    $("#budget summary").textContent = parts.length ? `预算：${parts.join(" · ")}` : "预算";
-  };
   $("#budget").addEventListener("input", () => {
     try { localStorage.setItem("gaa.budget", JSON.stringify({ images: $("#budgetImages").value, usd: $("#budgetUsd").value })); } catch {}
-    summary();
+    renderBudget();
   });
-  summary();
+  renderBudget();
 }
 
 /** Asset-type chips, provider picker and run controls. */
@@ -226,14 +222,15 @@ export function bindRun() {
       .join("");
     const picked = ps.value;
     ps.innerHTML = state.config.providers
-      .map((p) => `<option value="${p.id}" ${p.available ? "" : "disabled"}>${esc(p.label)}${p.available ? "" : esc(t("run.unconfigured"))}</option>`)
+      .map((p) => `<option value="${p.id}" ${p.available ? "" : "disabled"}>${esc(has(`provider.${p.id}`) ? t(`provider.${p.id}`) : p.label)}${p.available ? "" : esc(t("run.unconfigured"))}</option>`)
       .join("");
     ps.value = picked || state.config.providers.find((p) => p.available)?.id;
     $("#runBtn").textContent = t(state.job ? "run.running" : "run.start");
+    renderBudget();
   };
   renderControls();
   document.addEventListener("gaa:lang", renderControls);
-  if (state.config.demo) logEntry("status", "当前为演示模式（AGENT_MODE=demo）：不调用 Claude，仅走一遍流水线。");
+  if (state.config.demo) logEntry("status", esc(t("run.demo")));
 
   chips.addEventListener("click", (e) => {
     const b = e.target.closest(".chip");

@@ -1,4 +1,4 @@
-// Interface language: Chinese (default) and English. Static text in index.html is marked with
+// Interface language: Chinese and English, from the saved choice, else the browser's languages. Static text in index.html is marked with
 // data-i18n (text), data-i18n-title, data-i18n-placeholder and data-i18n-aria (aria-label);
 // scripts use t(key, vars) when they render. The choice is remembered per browser.
 
@@ -20,7 +20,16 @@ function saved() {
   }
 }
 
-let lang = saved() ?? "zh";
+/** First language in the browser's list we have: Chinese for any zh-*, else English. */
+export function defaultLang(languages = []) {
+  for (const l of languages) {
+    const base = String(l).toLowerCase().split("-")[0];
+    if (LANGS.includes(base)) return base;
+  }
+  return "en";
+}
+
+let lang = saved() ?? defaultLang(globalThis.navigator?.languages ?? []);
 
 export const getLang = () => lang;
 

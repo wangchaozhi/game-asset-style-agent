@@ -2,7 +2,7 @@
 import { api, toast } from "./lib.js";
 import { state } from "./state.js";
 import { bindProjects, loadConversationInfo, loadProjects } from "./projects.js";
-import { bindRefs } from "./refs.js";
+import { bindRefs, renderRefs } from "./refs.js";
 import { bindViewer, openViewer } from "./viewer/index.js";
 import { bindBatch } from "./batch.js";
 import { bindRun, resumeJob } from "./run.js";
@@ -35,6 +35,7 @@ applyI18n();
 document.querySelector("#langToggle").addEventListener("click", () => setLang(getLang() === "zh" ? "en" : "zh"));
 document.addEventListener("gaa:lang", () => {
   if (!state.project) return;
+  renderRefs();
   renderStyle();
   renderAssets();
   loadConversationInfo().catch(() => {});

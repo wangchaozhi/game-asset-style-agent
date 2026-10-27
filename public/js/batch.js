@@ -4,9 +4,9 @@ import { fileUrl, state } from "./state.js";
 import { renderAssets, setSelecting, visibleAssets } from "./assets.js";
 import { loadProjectsQuiet } from "./projects.js";
 import { run } from "./run.js";
+import { t } from "./i18n.js";
 
-const VERB = { approve: "通过", reject: "驳回", pending: "设为待审核", delete: "移到回收站", restore: "恢复", purge: "彻底删除", tag: "添加标签到", untag: "移除标签自", rename: "改名" };
-const splitTags = (s) => s.split(/[,，、\s]+/).map((t) => t.trim()).filter(Boolean);
+const splitTags = (s) => s.split(/[,，、\s]+/).map((x) => x.trim()).filter(Boolean);
 const REMOVES = new Set(["delete", "restore", "purge"]);
 
 async function apply(action) {
@@ -17,43 +17,42 @@ async function apply(action) {
   let tags;
   let rename;
   if (action === "rename") {
-    const prefix = prompt(`把所选 ${ids.length} 个素材按顺序改名为「前缀 + 序号」，例如 coin_ → coin_01、coin_02…\n名称前缀：`, "");
+    const prefix = prompt(t("batch.renamePrompt", { n: ids.length }), "");
     if (!prefix?.trim()) return;
     rename = { prefix: prefix.trim(), start: 1 };
   }
   if (action === "tag" || action === "untag") {
-    const input = prompt(action === "tag" ? "要添加的标签（多个用逗号或空格分隔）" : "要移除的标签（多个用逗号或空格分隔）", "");
+    const input = prompt(t(action === "tag" ? "batch.tagPrompt" : "batch.untagPrompt"), "");
     if (!input) return;
     tags = splitTags(input);
     if (!tags.length) return;
   }
-  if (action === "purge" && !confirm(`彻底删除所选的 ${ids.length} 个素材及其文件？此操作不可撤销。`)) return;
+  if (action === "purge" && !confirm(t("batch.confirmPurge", { n: ids.length }))) return;
   try {
     const { affected, project } = await api(`/api/projects/${state.project.id}/assets/batch`, { method: "POST", body: { action, ids, ...(tags ? { tags } : {}), ...(rename ?? {}) } });
     state.project = project;
     if (REMOVES.has(action)) state.selected.clear();
     renderAssets();
     if (REMOVES.has(action)) loadProjectsQuiet();
-    toast(`已${VERB[action]} ${affected} 个素材`);
+    toast(t(`batch.did.${action}`, { n: affected }));
   } catch (e) {
     toast(e.message);
   }
 }
 
-const PROCESS = { outline: "加描边", cutout: "去背景", snap: "吸附色板" };
 
 /** Run one post-process over the selection; outline and snap add new versions, cutout works in place. */
 async function postProcess(op) {
   const ids = [...state.selected];
   if (!ids.length) return;
-  if (ids.length > 30) return toast("一次最多处理 30 个素材，请减少选择");
-  toast(`正在${PROCESS[op]}（${ids.length} 个）…`);
+  if (ids.length > 30) return toast(t("batch.max30"));
+  toast(t(`batch.doing.${op}`, { n: ids.length }));
   try {
     const { done, skipped, project } = await api(`/api/projects/${state.project.id}/assets/batch-process`, { method: "POST", body: { op, ids } });
     state.project = project;
     renderAssets();
     const reasons = [...new Set(skipped.map((s) => s.reason))].join("；");
-    toast(`已${PROCESS[op]} ${done.length} 个${skipped.length ? `，跳过 ${skipped.length} 个（${reasons}）` : ""}`);
+    toast(t(`batch.done.${op}`, { n: done.length }) + (skipped.length ? t("batch.skipped", { n: skipped.length, reasons }) : ""));
   } catch (e) {
     toast(e.message);
   }
@@ -75,23 +74,23 @@ const feedbackOf = (a) => (a.notes && (a.reviewer === "user" || a.status === "re
 function redrawSelected() {
   const picked = state.project.assets.filter((a) => state.selected.has(a.id));
   if (!picked.length) return;
-  if (picked.length > 10) return toast("一次最多重画 10 个素材，请减少选择");
-  if (state.job) return toast("已有任务在运行，请稍候");
+  if (picked.length > 10) return toast(t("batch.max10"));
+  if (state.job) return toast(t("viewer.busy"));
   const missing = picked.filter((a) => !feedbackOf(a)).length;
-  if (missing && !confirm(`${missing} 个素材没有审核意见，Agent 会自行判断哪里跑偏。继续？`)) return;
+  if (missing && !confirm(t("batch.confirmNoNotes", { n: missing }))) return;
   setSelecting(false);
   run("", picked.map((a) => ({ assetId: a.id, feedback: feedbackOf(a) })));
 }
 
 async function emptyTrash() {
   const n = state.project.trash?.length ?? 0;
-  if (!n || !confirm(`彻底删除回收站中的 ${n} 个素材及其文件？此操作不可撤销。`)) return;
+  if (!n || !confirm(t("batch.confirmEmpty", { n }))) return;
   try {
     const { affected, project } = await api(`/api/projects/${state.project.id}/trash/empty`, { method: "POST" });
     state.project = project;
     state.selected.clear();
     renderAssets();
-    toast(`已清空回收站（${affected} 个）`);
+    toast(t("batch.emptied", { n: affected }));
   } catch (e) {
     toast(e.message);
   }
@@ -100,10 +99,10 @@ async function emptyTrash() {
 /** Show 2-6 selected assets side by side at the same scale. */
 function compareSelected() {
   const picked = visibleAssets().filter((a) => state.selected.has(a.id));
-  if (picked.length < 2 || picked.length > 6) return toast("请选择 2-6 个素材进行比较");
+  if (picked.length < 2 || picked.length > 6) return toast(t("batch.compareRange"));
   $("#sideGrid").innerHTML = picked
     .map(
-      (a) => `<figure><button type="button" data-side-open="${a.id}" title="打开查看器"><img src="${fileUrl(a.file)}" alt="${esc(a.name)}" /></button>
+      (a) => `<figure><button type="button" data-side-open="${a.id}" title="${t("drift.open")}"><img src="${fileUrl(a.file)}" alt="${esc(a.name)}" /></button>
         <figcaption>${esc(a.name)}<span class="muted">${esc(state.config.assetTypes[a.assetType] ?? a.assetType)}</span></figcaption></figure>`,
     )
     .join("");
@@ -116,14 +115,14 @@ async function cleanupVersions() {
   const base = `/api/projects/${state.project.id}/cleanup-versions`;
   try {
     const { ids } = await api(`${base}?dryRun=1`, { method: "POST" });
-    if (!ids.length) return toast("没有可清理的旧版本（只清理已有通过新版本的）");
-    if (!confirm(`把 ${ids.length} 个已有通过新版本的旧版本移到回收站？${state.config.trashDays ?? 7} 天内可恢复。`)) return;
+    if (!ids.length) return toast(t("batch.noOld"));
+    if (!confirm(t("batch.confirmCleanup", { n: ids.length, days: state.config.trashDays ?? 7 }))) return;
     const { affected, project } = await api(base, { method: "POST" });
     state.project = project;
     state.selected.clear();
     renderAssets();
     loadProjectsQuiet();
-    toast(`已把 ${affected} 个旧版本移到回收站`);
+    toast(t("batch.cleaned", { n: affected }));
   } catch (e) {
     toast(e.message);
   }

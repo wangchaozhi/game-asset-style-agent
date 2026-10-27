@@ -12,10 +12,10 @@
   <main class="login">
     <form id="loginForm" class="login-card">
       <div class="login-brand"><span class="logo">◆</span><h1>Game Asset Agent</h1></div>
-      <p class="muted">此实例已开启访问保护，请输入访问令牌（ACCESS_TOKEN）。</p>
-      <input type="password" name="token" id="token" placeholder="访问令牌" autocomplete="current-password" required autofocus />
+      <p class="muted" data-i18n="login.hint">此实例已开启访问保护，请输入访问令牌（ACCESS_TOKEN）。</p>
+      <input type="password" name="token" id="token" placeholder="访问令牌" data-i18n-placeholder="login.token" autocomplete="current-password" required autofocus />
       <p class="login-error" id="loginError" hidden></p>
-      <button class="btn primary" type="submit">进入</button>
+      <button class="btn primary" type="submit" data-i18n="login.submit">进入</button>
     </form>
   </main>
   <script type="module" src="/js/login.js"></script>
