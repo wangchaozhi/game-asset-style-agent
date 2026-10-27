@@ -14,10 +14,11 @@ import * as cutout from "./cutout.js";
 import * as outline from "./outline.js";
 import * as recolor from "./recolor.js";
 import * as actionSet from "./actionSet.js";
+import * as history from "./history.js";
 import * as promptSection from "./prompt.js";
 
 /** Rendered in this order below the review box; each may render nothing for a given asset. */
-const SECTIONS = [actionSet, sprite, tile, nineSlice, palette, sizes, cutout, outline, recolor, promptSection];
+const SECTIONS = [actionSet, sprite, tile, nineSlice, palette, sizes, cutout, outline, recolor, promptSection, history];
 
 function versionLinks(a) {
   const parent = a.parentId && state.project.assets.find((x) => x.id === a.parentId);
