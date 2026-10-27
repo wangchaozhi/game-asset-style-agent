@@ -1,0 +1,104 @@
+import { Router } from "express";
+import { jitterOf, parseAlignMode, seamsOf } from "../ops/assetOps.js";
+import { analyzePalette } from "../image/palette.js";
+import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
+import { tilePreview } from "../image/tiles.js";
+import { loadProject, readProjectFile } from "../store/index.js";
+import { detectNineSlice } from "../image/nineSlice.js";
+import { colorShare, dominantColors } from "../image/recolor.js";
+import { measureConsistency } from "../ops/consistency.js";
+import { attachment, findAsset, pid } from "./util.js";
+
+// Read-only checks and previews of assets: nothing here writes to the project.
+export const analysisRouter = Router();
+
+analysisRouter.get("/api/projects/:id/assets/:assetId/seams", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  res.json(await seamsOf(found.project, found.asset));
+});
+
+/** Suggested 9-slice margins for a UI asset (null when no stretchable band is found). */
+analysisRouter.get("/api/projects/:id/assets/:assetId/nine-slice", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  if (found.asset.assetType !== "ui") return void res.status(400).json({ error: "只有 UI 素材可以设置九宫格" });
+  res.json({ suggestion: await detectNineSlice(await readProjectFile(found.project.id, found.asset.file)) });
+});
+
+analysisRouter.get("/api/projects/:id/assets/:assetId/tiled.png", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  const n = Number(req.query.n ?? 3);
+  if (!Number.isInteger(n) || n < 2 || n > 6) return void res.status(400).json({ error: "平铺数需为 2-6 的整数" });
+  res.setHeader("Content-Type", "image/png");
+  res.send(await tilePreview(await readProjectFile(found.project.id, found.asset.file), n));
+});
+
+analysisRouter.get("/api/projects/:id/assets/:assetId/sized.png", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  const { project, asset } = found;
+  const size = parseSize(String(req.query.size ?? ""));
+  if (!size) return void res.status(400).json({ error: "尺寸格式应为 32 或 1280x720（8–4096）" });
+  const pixel = req.query.kernel ? req.query.kernel === "nearest" : isPixelArt(project.styleGuide);
+  const png = await resizeAsset(await readProjectFile(project.id, asset.file), {
+    ...size, assetType: asset.assetType, pixel, frames: asset.frames?.length,
+  });
+  res.setHeader("Content-Type", "image/png");
+  if (req.query.download) res.setHeader("Content-Disposition", attachment("asset.png", `${asset.name}@${req.query.size}.png`));
+  res.send(png);
+});
+
+/** Fresh palette check against the current style guide (it may have been edited since generation). */
+analysisRouter.get("/api/projects/:id/assets/:assetId/palette", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  const palette = found.project.styleGuide?.palette.map((p) => p.hex) ?? [];
+  if (!palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  const threshold = Math.max(2, Math.min(60, Number(req.query.threshold ?? 20)));
+  res.json(await analyzePalette(await readProjectFile(found.project.id, found.asset.file), palette, { threshold }));
+});
+
+/** How much the content wanders between frames (px). */
+analysisRouter.get("/api/projects/:id/assets/:assetId/jitter", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以检测帧抖动" });
+  res.json(await jitterOf(found.project, found.asset, parseAlignMode(req.query.mode)));
+});
+
+/** Which assets drift furthest from the project's style (see measureConsistency); ?tag= narrows it to one group. */
+analysisRouter.get("/api/projects/:id/consistency", async (req, res) => {
+  const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
+  const report = await measureConsistency(await loadProject(pid(req)), { tag });
+  if (!report) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  res.json(report);
+});
+
+/**
+ * Assets that use a colour: ?hex=%23rrggbb&threshold=20 (ΔE, 5-60). Current assets (not superseded) whose share
+ * of visible pixels near the colour is at least `min` (default 0.02), most first.
+ */
+analysisRouter.get("/api/projects/:id/assets-by-color", async (req, res) => {
+  const hex = String(req.query.hex ?? "");
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return void res.status(400).json({ error: "hex 需为 #rrggbb" });
+  const threshold = req.query.threshold === undefined ? 20 : Number(req.query.threshold);
+  if (!Number.isFinite(threshold) || threshold < 5 || threshold > 60) return void res.status(400).json({ error: "容差需为 5-60" });
+  const min = req.query.min === undefined ? 0.02 : Number(req.query.min);
+  if (!Number.isFinite(min) || min < 0 || min > 1) return void res.status(400).json({ error: "min 需为 0-1" });
+  const project = await loadProject(pid(req));
+  const superseded = new Set(project.assets.map((a) => a.parentId).filter(Boolean));
+  const current = project.assets.filter((a) => !superseded.has(a.id)).slice(-300);
+  const shares = await Promise.all(
+    current.map(async (a) => ({ id: a.id, share: await colorShare(await readProjectFile(project.id, a.file), hex, threshold) })),
+  );
+  res.json({ hex: hex.toLowerCase(), threshold, items: shares.filter((s) => s.share >= min).sort((a, b) => b.share - a.share) });
+});
+
+/** The asset's main colours, to pick swap sources from. */
+analysisRouter.get("/api/projects/:id/assets/:assetId/colors", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  res.json({ colors: await dominantColors(await readProjectFile(found.project.id, found.asset.file)) });
+});

@@ -114,7 +114,7 @@ src/
   app.ts                 createApp()：组装中间件与路由（测试可直接挂载）
   config.ts              环境变量配置
   domain/assetTypes.ts   素材类型定义
-  routes/                config · projects · refs · assets · export · jobs（运行/SSE）· usage
+  routes/                config · projects · refs · assets（素材库）· postprocess（后处理）· analysis（检测与预览）· export · jobs（运行/SSE）· usage
   ops/assetOps.ts        后处理（抠图、无缝化、帧对齐、切帧），HTTP 接口与 Agent 工具共用
   agent/                 Claude 智能体
     tools.ts / schemas.ts  工具定义与 zod 输入校验

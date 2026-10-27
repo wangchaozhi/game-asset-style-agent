@@ -1,22 +1,16 @@
 import { Router } from "express";
 import multer from "multer";
-import { isAssetType, isOpaqueType } from "../domain/assetTypes.js";
+import { isAssetType } from "../domain/assetTypes.js";
 import { toPng } from "../image/io.js";
-import {
-  alignedVersion, cutoutAsset, jitterOf, paletteSnapVersion, parseAlignMode, seamlessVersion, outlineVersion, recolorVariant, seamsOf, setNineSlice, sliceAssetFrames,
-} from "../ops/assetOps.js";
+import { setNineSlice, sliceAssetFrames } from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
-import { isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
-import { tilePreview } from "../image/tiles.js";
-import { loadProject, moveToTrash, newId, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject, writeProjectFile } from "../store/index.js";
+import { loadProject, moveToTrash, newId, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject, writeProjectFile } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
-import { detectNineSlice } from "../image/nineSlice.js";
-import { colorShare, dominantColors } from "../image/recolor.js";
-import { measureConsistency } from "../ops/consistency.js";
 import { replaceableVersions } from "../domain/versions.js";
-import { attachment, findAsset, pid } from "./util.js";
+import { findAsset, pid } from "./util.js";
 
+// Asset library routes: review and edits, batch actions, trash, import, version cleanup.
 export const assetsRouter = Router();
 
 const STATUSES = ["approved", "rejected", "pending_review"];
@@ -148,43 +142,6 @@ assetsRouter.post("/api/projects/:id/assets/import", importUpload.array("images"
   res.json({ imported: created.map((a) => a.id), project: p });
 });
 
-/** At most this many assets per batch post-process request. */
-const MAX_BATCH_PROCESS = 30;
-
-/**
- * Post-process many assets at once: { op: "outline" | "cutout" | "snap", ids, …the op's options }.
- * Assets the op doesn't apply to are skipped with a reason; outline and snap make new versions, cutout works in place.
- */
-assetsRouter.post("/api/projects/:id/assets/batch-process", async (req, res) => {
-  const { op, ids } = req.body ?? {};
-  if (!["outline", "cutout", "snap"].includes(op)) return void res.status(400).json({ error: "op 需为 outline / cutout / snap" });
-  if (!Array.isArray(ids) || !ids.length) return void res.status(400).json({ error: "请提供要处理的素材 id 列表" });
-  if (ids.length > MAX_BATCH_PROCESS) return void res.status(400).json({ error: `一次最多处理 ${MAX_BATCH_PROCESS} 个素材` });
-  const project = await loadProject(pid(req));
-  if (op === "snap" && !project.styleGuide?.palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
-  const done: { id: string; result: string }[] = [];
-  const skipped: { id: string; reason: string }[] = [];
-  for (const id of new Set(ids.map(String))) {
-    const asset = project.assets.find((a) => a.id === id);
-    if (!asset) {
-      skipped.push({ id, reason: "素材不存在" });
-      continue;
-    }
-    if (op === "outline") {
-      const r = await outlineVersion(project, asset, { width: Number(req.body.width ?? 2), color: req.body.color }, { by: "user" });
-      if (typeof r === "string") skipped.push({ id, reason: r });
-      else done.push({ id, result: r.id });
-    } else if (op === "cutout") {
-      if (isOpaqueType(asset.assetType)) skipped.push({ id, reason: "背景和瓦片铺满画面，不需要去背景" });
-      else done.push({ id, result: (await cutoutAsset(project, asset, { tolerance: req.body.tolerance })).id });
-    } else {
-      const dither = req.body.dither === "ordered" ? "ordered" : "none";
-      done.push({ id, result: (await paletteSnapVersion(project, asset, dither, { by: "user" })).asset.id });
-    }
-  }
-  res.json({ done, skipped, project: await loadProject(project.id) });
-});
-
 /**
  * Move old versions that have an approved newer version to the trash (restorable). ?dryRun=1 only
  * reports which ones; returns { ids, affected, project? }.
@@ -251,165 +208,4 @@ assetsRouter.delete("/api/projects/:id/assets/:assetId", async (req, res) => {
   });
   if (purged.length) await removeAssetFiles(project.id, purged);
   res.json(project);
-});
-
-/** Re-slice a sprite sheet with a given frame count / fps. */
-assetsRouter.post("/api/projects/:id/assets/:assetId/slice", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  const { project, asset } = found;
-  const frames = req.body?.frames ? Number(req.body.frames) : undefined;
-  // Without fps the sheet keeps its current rate.
-  const fps = req.body?.fps !== undefined ? Number(req.body.fps) : (asset.fps ?? 8);
-  if (frames !== undefined && !(frames >= 1 && frames <= 32)) return void res.status(400).json({ error: "帧数需在 1-32 之间" });
-  if (!Number.isInteger(fps) || fps < 1 || fps > 30) return void res.status(400).json({ error: "帧率需为 1-30 的整数" });
-  const sliced = await sliceAssetFrames(project.id, asset, await readProjectFile(project.id, asset.file), frames, fps);
-  const p = await updateProject(project.id, (p) => {
-    const a = p.assets.find((x) => x.id === asset.id);
-    if (a) Object.assign(a, sliced);
-  });
-  res.json(p.assets.find((a) => a.id === asset.id));
-});
-
-/** Cut out (or restore) the background; the untouched model output is kept as originalFile. */
-assetsRouter.post("/api/projects/:id/assets/:assetId/cutout", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  res.json(await cutoutAsset(found.project, found.asset, { tolerance: req.body?.tolerance, restore: !!req.body?.restore }));
-});
-
-assetsRouter.get("/api/projects/:id/assets/:assetId/seams", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  res.json(await seamsOf(found.project, found.asset));
-});
-
-/** Suggested 9-slice margins for a UI asset (null when no stretchable band is found). */
-assetsRouter.get("/api/projects/:id/assets/:assetId/nine-slice", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  if (found.asset.assetType !== "ui") return void res.status(400).json({ error: "只有 UI 素材可以设置九宫格" });
-  res.json({ suggestion: await detectNineSlice(await readProjectFile(found.project.id, found.asset.file)) });
-});
-
-assetsRouter.get("/api/projects/:id/assets/:assetId/tiled.png", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  const n = Number(req.query.n ?? 3);
-  if (!Number.isInteger(n) || n < 2 || n > 6) return void res.status(400).json({ error: "平铺数需为 2-6 的整数" });
-  res.setHeader("Content-Type", "image/png");
-  res.send(await tilePreview(await readProjectFile(found.project.id, found.asset.file), n));
-});
-
-assetsRouter.get("/api/projects/:id/assets/:assetId/sized.png", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  const { project, asset } = found;
-  const size = parseSize(String(req.query.size ?? ""));
-  if (!size) return void res.status(400).json({ error: "尺寸格式应为 32 或 1280x720（8–4096）" });
-  const pixel = req.query.kernel ? req.query.kernel === "nearest" : isPixelArt(project.styleGuide);
-  const png = await resizeAsset(await readProjectFile(project.id, asset.file), {
-    ...size, assetType: asset.assetType, pixel, frames: asset.frames?.length,
-  });
-  res.setHeader("Content-Type", "image/png");
-  if (req.query.download) res.setHeader("Content-Disposition", attachment("asset.png", `${asset.name}@${req.query.size}.png`));
-  res.send(png);
-});
-
-/** Fresh palette check against the current style guide (it may have been edited since generation). */
-assetsRouter.get("/api/projects/:id/assets/:assetId/palette", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  const palette = found.project.styleGuide?.palette.map((p) => p.hex) ?? [];
-  if (!palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
-  const threshold = Math.max(2, Math.min(60, Number(req.query.threshold ?? 20)));
-  res.json(await analyzePalette(await readProjectFile(found.project.id, found.asset.file), palette, { threshold }));
-});
-
-/** Make a tile seamless. The result is a new version (pending review) linked to the original. */
-assetsRouter.post("/api/projects/:id/assets/:assetId/make-seamless", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  const overlap = Number(req.body?.overlap ?? 0.15);
-  if (!(overlap >= 0.04 && overlap <= 0.4)) return void res.status(400).json({ error: "融合比例需在 0.04-0.4 之间" });
-  res.json((await seamlessVersion(found.project, found.asset, overlap, { by: "user" })).asset);
-});
-
-/** How much the content wanders between frames (px). */
-assetsRouter.get("/api/projects/:id/assets/:assetId/jitter", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以检测帧抖动" });
-  res.json(await jitterOf(found.project, found.asset, parseAlignMode(req.query.mode)));
-});
-
-/** Align frames on a shared anchor; the result is a new version linked to the original. */
-assetsRouter.post("/api/projects/:id/assets/:assetId/align-frames", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以对齐帧" });
-  res.json(await alignedVersion(found.project, found.asset, parseAlignMode(req.body?.mode), { by: "user" }));
-});
-
-/** Which assets drift furthest from the project's style (see measureConsistency); ?tag= narrows it to one group. */
-assetsRouter.get("/api/projects/:id/consistency", async (req, res) => {
-  const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
-  const report = await measureConsistency(await loadProject(pid(req)), { tag });
-  if (!report) return void res.status(400).json({ error: "项目还没有风格指南色板" });
-  res.json(report);
-});
-
-/**
- * Assets that use a colour: ?hex=%23rrggbb&threshold=20 (ΔE, 5-60). Current assets (not superseded) whose share
- * of visible pixels near the colour is at least `min` (default 0.02), most first.
- */
-assetsRouter.get("/api/projects/:id/assets-by-color", async (req, res) => {
-  const hex = String(req.query.hex ?? "");
-  if (!/^#[0-9a-f]{6}$/i.test(hex)) return void res.status(400).json({ error: "hex 需为 #rrggbb" });
-  const threshold = req.query.threshold === undefined ? 20 : Number(req.query.threshold);
-  if (!Number.isFinite(threshold) || threshold < 5 || threshold > 60) return void res.status(400).json({ error: "容差需为 5-60" });
-  const min = req.query.min === undefined ? 0.02 : Number(req.query.min);
-  if (!Number.isFinite(min) || min < 0 || min > 1) return void res.status(400).json({ error: "min 需为 0-1" });
-  const project = await loadProject(pid(req));
-  const superseded = new Set(project.assets.map((a) => a.parentId).filter(Boolean));
-  const current = project.assets.filter((a) => !superseded.has(a.id)).slice(-300);
-  const shares = await Promise.all(
-    current.map(async (a) => ({ id: a.id, share: await colorShare(await readProjectFile(project.id, a.file), hex, threshold) })),
-  );
-  res.json({ hex: hex.toLowerCase(), threshold, items: shares.filter((s) => s.share >= min).sort((a, b) => b.share - a.share) });
-});
-
-/** The asset's main colours, to pick swap sources from. */
-assetsRouter.get("/api/projects/:id/assets/:assetId/colors", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  res.json({ colors: await dominantColors(await readProjectFile(found.project.id, found.asset.file)) });
-});
-
-/** Colour-swap variant as a new sibling asset: { swaps: [{ from, to }], threshold?: 5-60, name? }. */
-assetsRouter.post("/api/projects/:id/assets/:assetId/recolor", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  const r = await recolorVariant(found.project, found.asset, req.body ?? {}, { by: "user" });
-  if (typeof r === "string") return void res.status(400).json({ error: r });
-  res.json(r);
-});
-
-/** Outer outline as a new version: { width: 1-16, color?: "#rrggbb" } (default colour: darkest palette colour). */
-assetsRouter.post("/api/projects/:id/assets/:assetId/outline", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  const { width, color } = req.body ?? {};
-  const r = await outlineVersion(found.project, found.asset, { width: Number(width ?? 2), color }, { by: "user" });
-  if (typeof r === "string") return void res.status(400).json({ error: r });
-  res.json(r);
-});
-
-/** Snap colours to the style palette; the result is a new version. Body: { dither: "none" | "ordered" }. */
-assetsRouter.post("/api/projects/:id/assets/:assetId/snap-palette", async (req, res) => {
-  const found = await findAsset(req, res);
-  if (!found) return;
-  if (!found.project.styleGuide?.palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
-  const dither = req.body?.dither === "ordered" ? "ordered" : "none";
-  res.json(await paletteSnapVersion(found.project, found.asset, dither, { by: "user" }));
 });
