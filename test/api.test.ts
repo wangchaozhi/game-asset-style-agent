@@ -555,6 +555,16 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: cleanup } });
   });
 
+  it("reports project progress stats", async () => {
+    const st = (await json(`/api/projects/${id}/stats`)).body;
+    const assets = (await json(`/api/projects/${id}`)).body.assets as { id: string; parentId?: string }[];
+    const superseded = new Set(assets.map((a) => a.parentId).filter(Boolean));
+    assert.equal(st.current, assets.filter((a) => !superseded.has(a.id)).length);
+    assert.equal(st.byStatus.approved + st.byStatus.pending_review + st.byStatus.rejected, st.current);
+    assert.equal(st.byType.reduce((n: number, t: { current: number }) => n + t.current, 0), st.current);
+    assert.equal(st.superseded, assets.length - st.current);
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

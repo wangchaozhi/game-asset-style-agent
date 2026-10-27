@@ -304,6 +304,11 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 
 `cost` 中为 `null` 的部分表示缺少单价（如未配置 `IMAGE_PRICE_OPENAI`），未计入合计。运行状态：`running`、`ok`、`error`、`stopped`、`interrupted`。
 
+### `GET /api/projects/:id/stats`
+
+项目进度：`{ current, byStatus: { approved, pending_review, rejected }, approvalRate, meanScore, byType: [{ type, current, approved }], variants, superseded, trashed, costPerApproved }`。「当前素材」不含已被新版本取代的旧版本与回收站；`approvalRate` = 通过 /（通过 + 驳回）；`meanScore` 为 Agent 一致性评分均值；`costPerApproved` = 累计估算费用 / 已通过素材数。尚无数据时相应字段为 `null`。
+
+
 ## 示例：脚本批量生成并下载图集
 
 ```bash

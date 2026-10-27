@@ -1,5 +1,6 @@
-// Cost & usage: live numbers for the running job and a per-project history dialog.
+// Cost & usage: live numbers for the running job, and a per-project dialog with progress stats and run history.
 import { $, api, esc, toast } from "./lib.js";
+import { state } from "./state.js";
 
 const fmtTokens = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(2)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : String(n));
 
@@ -70,13 +71,33 @@ export function bindUsageDialog(getProjectId) {
   });
 }
 
+/** Project progress: status split, approval rate, score, per-type counts. */
+function statsHtml(st) {
+  const pct = (x) => (x === null ? "—" : `${Math.round(x * 100)}%`);
+  const seg = (n, cls, label) => (n ? `<i class="${cls}" style="flex:${n}" title="${label} ${n}"></i>` : "");
+  const types = st.byType
+    .map((t) => `<tr><td>${esc(state.config.assetTypes[t.type] ?? t.type)}</td><td>${t.current}</td><td>${t.approved}</td></tr>`)
+    .join("");
+  return `<h4 class="usage-sub">项目进度</h4>
+    <div class="usage-tiles">
+      <div class="tile"><span>当前素材</span><b>${st.current}</b></div>
+      <div class="tile"><span>已通过</span><b>${st.byStatus.approved}</b></div>
+      <div class="tile"><span>通过率</span><b>${pct(st.approvalRate)}</b></div>
+      <div class="tile"><span>平均一致性分</span><b>${st.meanScore ?? "—"}</b></div>
+      <div class="tile"><span>每个通过素材成本</span><b>${st.costPerApproved === null ? "—" : fmtCost(st.costPerApproved)}</b></div>
+    </div>
+    ${st.current ? `<div class="stat-bar" role="img" aria-label="已通过 ${st.byStatus.approved}，待审核 ${st.byStatus.pending_review}，已驳回 ${st.byStatus.rejected}">${seg(st.byStatus.approved, "ok", "已通过")}${seg(st.byStatus.pending_review, "pending", "待审核")}${seg(st.byStatus.rejected, "bad", "已驳回")}</div>
+      <p class="muted usage-foot">已通过 ${st.byStatus.approved} · 待审核 ${st.byStatus.pending_review} · 已驳回 ${st.byStatus.rejected} · 换色变体 ${st.variants} · 旧版本 ${st.superseded} · 回收站 ${st.trashed}</p>` : ""}
+    ${types ? `<div class="usage-table-wrap"><table class="usage-table"><thead><tr><th>类型</th><th>当前</th><th>已通过</th></tr></thead><tbody>${types}</tbody></table></div>` : ""}`;
+}
+
 export async function openUsageDialog(projectId) {
   const dlg = $("#usageDialog");
   const body = $("#usageBody");
   body.innerHTML = `<p class="muted">加载中…</p>`;
   dlg.showModal();
   try {
-    const { summary: s, runs } = await api(`/api/projects/${projectId}/usage`);
+    const [{ summary: s, runs }, st] = await Promise.all([api(`/api/projects/${projectId}/usage`), api(`/api/projects/${projectId}/stats`)]);
     const tiles = [
       ["运行次数", s.runs],
       ["Claude 请求", s.claudeRequests],
@@ -88,6 +109,8 @@ export async function openUsageDialog(projectId) {
     const totalIn = s.tokens.input_tokens + s.tokens.cache_creation_input_tokens + s.tokens.cache_read_input_tokens;
     const hit = totalIn ? Math.round((s.tokens.cache_read_input_tokens / totalIn) * 100) : 0;
     body.innerHTML = `
+      ${statsHtml(st)}
+      <h4 class="usage-sub">成本</h4>
       <div class="usage-tiles">${tiles.map(([k, v]) => `<div class="tile"><span>${k}</span><b>${esc(v)}</b></div>`).join("")}</div>
       <p class="muted usage-foot">Claude ${fmtCost(s.cost.claude)} · 图像 ${fmtCost(s.cost.images)} · 缓存命中率 ${hit}%${esc(costNote(s.cost))}</p>
       ${

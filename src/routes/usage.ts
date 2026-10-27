@@ -2,6 +2,7 @@ import { Router } from "express";
 import { jobs } from "../agent/index.js";
 import { loadProject, loadUsage } from "../store/index.js";
 import { summarize } from "../usage/index.js";
+import { projectStats } from "../domain/stats.js";
 import { pid } from "./util.js";
 
 export const usageRouter = Router();
@@ -18,4 +19,11 @@ usageRouter.get("/api/projects/:id/usage", async (req, res) => {
   for (const l of live) if (!runs.some((r) => r.jobId === l.jobId)) runs.push(l);
   runs.sort((a, b) => b.startedAt.localeCompare(a.startedAt));
   res.json({ summary: summarize(runs), runs });
+});
+
+/** Progress at a glance: counts by status and type, approval rate, mean score, spend per approved asset. */
+usageRouter.get("/api/projects/:id/stats", async (req, res) => {
+  const project = await loadProject(pid(req));
+  const total = summarize(await loadUsage(project.id)).cost.total;
+  res.json(projectStats(project, total));
 });
