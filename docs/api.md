@@ -206,6 +206,10 @@ curl -s -F assetType=item_icon -F images=@sword.png -F images=@shield.png "$BASE
 
 批量后处理（最多 30 个）：`{ "op": "outline", "ids": ["ast_…"], "width": 2, "color": "#1a1020" }`；`op` 为 `outline`（加描边，生成新版本）、`cutout`（去背景，原地，可带 `tolerance`）或 `snap`（吸附色板，生成新版本，可带 `dither`）。不适用的素材（如背景、瓦片、不透明素材描边）跳过并给出原因。返回 `{ done: [{ id, result }], skipped: [{ id, reason }], project }`，`result` 为新版本或处理后素材的 id。
 
+### `POST /api/projects/:id/cleanup-versions`
+
+清理旧版本：把「已有通过的新版本」（沿 `parentId` 任意层）的旧版本移到回收站，可恢复。新版本都还在待审核或已驳回时旧版本保留；换色变体不算版本。`?dryRun=1` 只返回将被清理的 `ids` 不做改动。返回 `{ ids, affected, project }`。
+
 ### `POST /api/projects/:id/trash/empty`
 
 清空回收站（彻底删除其中所有素材及文件），返回 `{ affected, project }`。

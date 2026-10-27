@@ -14,6 +14,7 @@ import { hasTag, normalizeTags } from "../domain/tags.js";
 import { detectNineSlice } from "../image/nineSlice.js";
 import { colorShare, dominantColors } from "../image/recolor.js";
 import { measureConsistency } from "../ops/consistency.js";
+import { replaceableVersions } from "../domain/versions.js";
 import { attachment, findAsset, pid } from "./util.js";
 
 export const assetsRouter = Router();
@@ -182,6 +183,24 @@ assetsRouter.post("/api/projects/:id/assets/batch-process", async (req, res) => 
     }
   }
   res.json({ done, skipped, project: await loadProject(project.id) });
+});
+
+/**
+ * Move old versions that have an approved newer version to the trash (restorable). ?dryRun=1 only
+ * reports which ones; returns { ids, affected, project? }.
+ */
+assetsRouter.post("/api/projects/:id/cleanup-versions", async (req, res) => {
+  if (req.query.dryRun) {
+    const ids = replaceableVersions((await loadProject(pid(req))).assets);
+    return void res.json({ ids, affected: 0 });
+  }
+  let ids: string[] = [];
+  let affected = 0;
+  const project = await updateProject(pid(req), (p) => {
+    ids = replaceableVersions(p.assets);
+    affected = moveToTrash(p, new Set(ids));
+  });
+  res.json({ ids, affected, project });
 });
 
 /** Manual review and edits: any of status, notes, name, tags, nineSlice (ui only; null clears). */

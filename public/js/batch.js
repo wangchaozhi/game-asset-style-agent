@@ -97,7 +97,26 @@ async function emptyTrash() {
   }
 }
 
+/** Move old versions that an approved newer version replaces to the trash, after showing how many. */
+async function cleanupVersions() {
+  const base = `/api/projects/${state.project.id}/cleanup-versions`;
+  try {
+    const { ids } = await api(`${base}?dryRun=1`, { method: "POST" });
+    if (!ids.length) return toast("没有可清理的旧版本（只清理已有通过新版本的）");
+    if (!confirm(`把 ${ids.length} 个已有通过新版本的旧版本移到回收站？${state.config.trashDays ?? 7} 天内可恢复。`)) return;
+    const { affected, project } = await api(base, { method: "POST" });
+    state.project = project;
+    state.selected.clear();
+    renderAssets();
+    loadProjectsQuiet();
+    toast(`已把 ${affected} 个旧版本移到回收站`);
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
 export function bindBatch() {
+  $("#cleanupVersions").addEventListener("click", cleanupVersions);
   $("#batchBar").addEventListener("click", (e) => {
     const action = e.target.closest("[data-batch]")?.dataset.batch;
     if (!action) return;

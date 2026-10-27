@@ -620,6 +620,24 @@ describe("HTTP API (demo mode)", () => {
     }
   });
 
+  it("moves old versions with an approved newer version to the trash", async () => {
+    const sheet = (await json(`/api/projects/${id}`)).body.assets.find((a: { assetType: string; parentId?: string }) => a.assetType === "sprite_sheet");
+    const newer = (await json(`/api/projects/${id}/assets/batch-process`, { method: "POST", body: { op: "outline", ids: [sheet.id] } })).body.done[0].result;
+    const dry = (await json(`/api/projects/${id}/cleanup-versions?dryRun=1`, { method: "POST" })).body;
+    assert.ok(!dry.ids.includes(sheet.id), "the newer version is still pending review");
+    await json(`/api/projects/${id}/assets/${newer}`, { method: "PATCH", body: { status: "approved" } });
+    const dry2 = (await json(`/api/projects/${id}/cleanup-versions?dryRun=1`, { method: "POST" })).body;
+    assert.ok(dry2.ids.includes(sheet.id));
+    assert.ok((await json(`/api/projects/${id}`)).body.assets.some((a: { id: string }) => a.id === sheet.id), "dry run changes nothing");
+    const done = (await json(`/api/projects/${id}/cleanup-versions`, { method: "POST" })).body;
+    assert.equal(done.affected, dry2.ids.length);
+    assert.ok(done.project.trash.some((a: { id: string }) => a.id === sheet.id));
+    assert.ok(!done.project.assets.some((a: { id: string }) => dry2.ids.includes(a.id)));
+    // Put everything back for the tests that follow.
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "restore", ids: done.ids } });
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [newer] } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);
