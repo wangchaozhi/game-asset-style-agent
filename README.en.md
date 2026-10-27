@@ -120,6 +120,10 @@ The agent is a hand-written tool-use loop on the Anthropic TypeScript SDK (`src/
 
 See the architecture section of the [Chinese README](README.md#架构) for the source layout.
 
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) (in Chinese) for what changed in each version.
+
 ## License
 
 MIT
