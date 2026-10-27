@@ -1,6 +1,7 @@
 // Style guide panel: read-only view and the inline editor.
 import { $, api, esc, toast } from "./lib.js";
 import { state } from "./state.js";
+import { t } from "./i18n.js";
 
 const STYLE_FIELDS = [
   ["rendering", "技法"],
@@ -70,12 +71,12 @@ function renderConventions() {
 export function renderStyle() {
   renderConventions();
   const sg = state.project.styleGuide;
-  $("#editStyle").textContent = sg ? "编辑" : "手动填写";
+  $("#editStyle").textContent = t(sg ? "style.edit" : "style.fill");
   const box = $("#styleGuide");
   $("#resetStyle").hidden = !sg;
   if (!sg) {
     box.className = "style-guide empty";
-    box.textContent = "还没有风格指南，第一次运行时 Agent 会根据参考图自动生成。";
+    box.textContent = t("style.empty");
     return;
   }
   box.className = "style-guide";

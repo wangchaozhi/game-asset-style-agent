@@ -1,13 +1,12 @@
 // Asset library grid, filters and multi-select.
 import { $, api, esc, toast } from "./lib.js";
 import { state, thumbUrl } from "./state.js";
-
-const LABEL = { approved: "✓ 通过", rejected: "✗ 驳回", pending_review: "… 审核中" };
+import { t, typeLabel } from "./i18n.js";
 
 const matchesQuery = (a, q) =>
   !q || [a.name, a.notes, a.prompt, a.id, ...(a.tags ?? [])].some((v) => String(v ?? "").toLowerCase().includes(q));
 
-const hasTag = (a, tag) => !tag || (a.tags ?? []).some((t) => t.toLowerCase() === tag.toLowerCase());
+const hasTag = (a, tag) => !tag || (a.tags ?? []).some((x) => x.toLowerCase() === tag.toLowerCase());
 
 /** Assets currently visible under the status / type filters and search, newest first. */
 export const inTrash = () => state.filter === "trash";
@@ -40,9 +39,9 @@ function renderTypeFilter() {
   for (const a of state.project.assets) counts[a.assetType] = (counts[a.assetType] ?? 0) + 1;
   if (state.typeFilter && !counts[state.typeFilter]) state.typeFilter = "";
   sel.innerHTML =
-    `<option value="">全部类型（${state.project.assets.length}）</option>` +
+    `<option value="">${esc(t("filter.allTypes", { n: state.project.assets.length }))}</option>` +
     Object.entries(counts)
-      .map(([t, n]) => `<option value="${esc(t)}">${esc(state.config.assetTypes[t] ?? t)}（${n}）</option>`)
+      .map(([type, n]) => `<option value="${esc(type)}">${esc(typeLabel(type, state.config.assetTypes[type]))}（${n}）</option>`)
       .join("");
   sel.value = state.typeFilter;
   renderTagFilter();
@@ -52,12 +51,12 @@ function renderTypeFilter() {
 function renderTagFilter() {
   const sel = $("#tagFilter");
   const counts = new Map();
-  for (const a of state.project.assets) for (const t of a.tags ?? []) counts.set(t, (counts.get(t) ?? 0) + 1);
+  for (const a of state.project.assets) for (const tag of a.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
   if (state.tagFilter && !counts.has(state.tagFilter)) state.tagFilter = "";
   sel.hidden = !counts.size;
   sel.innerHTML =
-    `<option value="">全部标签</option>` +
-    [...counts].sort((x, y) => x[0].localeCompare(y[0])).map(([t, n]) => `<option value="${esc(t)}">#${esc(t)}（${n}）</option>`).join("");
+    `<option value="">${esc(t("filter.allTags"))}</option>` +
+    [...counts].sort((x, y) => x[0].localeCompare(y[0])).map(([tag, n]) => `<option value="${esc(tag)}">#${esc(tag)}（${n}）</option>`).join("");
   sel.value = state.tagFilter;
 }
 
@@ -86,13 +85,13 @@ export function renderAssets(newId) {
   const pool = inTrash() ? (state.project.trash ?? []) : all;
   for (const id of state.selected) if (!pool.some((a) => a.id === id)) state.selected.delete(id);
   const trashCount = state.project.trash?.length ?? 0;
-  $("#trashFilter").textContent = trashCount ? `回收站 ${trashCount}` : "回收站";
+  $("#trashFilter").textContent = trashCount ? t("filter.trashN", { n: trashCount }) : t("filter.trash");
   renderTypeFilter();
   const shown = visibleAssets();
   $("#assetCount").textContent = all.length ? `${all.filter((a) => a.status === "approved").length}/${all.length}` : "";
   const filtered = shown.length !== all.length;
-  $("#assetSearch").closest(".asset-search").dataset.shown = filtered ? `显示 ${shown.length} / ${all.length}` : "";
-  const typeName = (t) => state.config.assetTypes[t] ?? t;
+  $("#assetSearch").closest(".asset-search").dataset.shown = filtered ? t("lib.shown", { shown: shown.length, total: all.length }) : "";
+  const typeName = (type) => typeLabel(type, state.config.assetTypes[type]);
   const grid = $("#assets");
   grid.classList.toggle("selecting", state.selecting || inTrash());
   const days = state.config.trashDays ?? 7;
@@ -102,11 +101,11 @@ export function renderAssets(newId) {
   /** Corner chips on the thumbnail: what kind of asset this is beyond its type. */
   const marks = (a) =>
     [
-      a.frames?.length && `<span class="mark" title="精灵表，已切成 ${a.frames.length} 帧">${a.frames.length} 帧</span>`,
-      a.nineSlice && `<span class="mark" title="已设置九宫格边距">九宫格</span>`,
-      state.colorFilter?.shares.has(a.id) && `<span class="mark" title="${esc(state.colorFilter.hex)} 附近颜色的像素占比">${Math.round(state.colorFilter.shares.get(a.id) * 100)}%</span>`,
-      a.variantOf && `<span class="mark" title="换色变体">变体</span>`,
-      !a.deletedAt && superseded.has(a.id) && `<span class="mark old" title="已有新版本">旧版本</span>`,
+      a.frames?.length && `<span class="mark" title="${esc(t("mark.framesTitle", { n: a.frames.length }))}">${esc(t("mark.frames", { n: a.frames.length }))}</span>`,
+      a.nineSlice && `<span class="mark" title="${esc(t("mark.nineSliceTitle"))}">${esc(t("mark.nineSlice"))}</span>`,
+      state.colorFilter?.shares.has(a.id) && `<span class="mark" title="${esc(t("mark.colorTitle", { hex: state.colorFilter.hex }))}">${Math.round(state.colorFilter.shares.get(a.id) * 100)}%</span>`,
+      a.variantOf && `<span class="mark" title="${esc(t("mark.variantTitle"))}">${esc(t("mark.variant"))}</span>`,
+      !a.deletedAt && superseded.has(a.id) && `<span class="mark old" title="${esc(t("mark.oldTitle"))}">${esc(t("mark.old"))}</span>`,
     ].filter(Boolean).join("");
   // Big libraries render in pages; the count survives re-renders until the filters change.
   const key = [state.project.id, state.filter, state.typeFilter, state.tagFilter, state.query, state.colorFilter?.hex ?? ""].join("|");
@@ -115,18 +114,18 @@ export function renderAssets(newId) {
             <span class="tick" aria-hidden="true"></span>
             <div class="checker"><img loading="lazy" decoding="async" src="${thumbUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /><span class="marks">${marks(a)}</span></div>
             <div class="meta"><span class="name">${esc(a.name)}</span>
-              ${a.tags?.length ? `<span class="tags">${a.tags.map((t) => `<span class="tag">#${esc(t)}</span>`).join("")}</span>` : ""}
+              ${a.tags?.length ? `<span class="tags">${a.tags.map((tag) => `<span class="tag">#${esc(tag)}</span>`).join("")}</span>` : ""}
               <span class="sub"><span>${esc(typeName(a.assetType))}</span>${
                 a.deletedAt
-                  ? `<span class="badge trashed" title="删除于 ${esc(new Date(a.deletedAt).toLocaleString())}">${left(a)} 天后清除</span>`
-                  : `<span class="badge ${a.status}">${LABEL[a.status]}${a.score ? ` ${a.score}/10` : ""}</span>`
+                  ? `<span class="badge trashed" title="${esc(t("lib.deletedAt", { when: new Date(a.deletedAt).toLocaleString() }))}">${esc(t("lib.purgeIn", { n: left(a) }))}</span>`
+                  : `<span class="badge ${a.status}">${esc(t(`badge.${a.status}`))}${a.score ? ` ${a.score}/10` : ""}</span>`
               }</span>
             </div></div>`;
   const more = shown.length - limit;
   grid.innerHTML = shown.length
     ? shown.slice(0, limit).map(card).join("") +
-      (more > 0 ? `<button type="button" class="btn ghost more" id="assetsMore">加载更多（还有 ${more} 个）</button>` : "")
-    : `<p class="empty">${inTrash() ? "回收站是空的" : all.length ? "没有符合筛选的素材" : "生成的素材会出现在这里"}</p>`;
+      (more > 0 ? `<button type="button" class="btn ghost more" id="assetsMore">${esc(t("lib.more", { n: more }))}</button>` : "")
+    : `<p class="empty">${esc(t(inTrash() ? "lib.emptyTrash" : all.length ? "lib.noMatch" : "lib.empty"))}</p>`;
   const sentinel = $("#assetsMore");
   if (sentinel) observeMore(sentinel);
   renderBatchBar();
@@ -144,7 +143,7 @@ export function setSelecting(on) {
   state.selecting = on;
   state.selected.clear();
   state.lastSelected = null;
-  $("#selectToggle").textContent = on ? "完成" : "选择";
+  $("#selectToggle").textContent = t(on ? "filter.done" : "filter.select");
   $("#selectToggle").classList.toggle("on", on);
   renderAssets();
 }
@@ -152,15 +151,16 @@ export function setSelecting(on) {
 function renderBatchBar() {
   const bar = $("#batchBar");
   const trash = inTrash();
+  $("#selectToggle").textContent = t(state.selecting ? "filter.done" : "filter.select");
   bar.hidden = !state.selecting && !trash;
   if (bar.hidden) return;
   bar.classList.toggle("in-trash", trash);
   const n = state.selected.size;
   bar.querySelector(".batch-count").textContent = n
-    ? `已选 ${n} 个`
+    ? t("batch.count", { n })
     : trash
-      ? `删除的素材保留 ${state.config.trashDays ?? 7} 天，可选择后恢复`
-      : "点击素材进行选择（Shift 连选）";
+      ? t("batch.trashHint", { n: state.config.trashDays ?? 7 })
+      : t("batch.hint");
   bar.querySelectorAll("[data-batch]").forEach((b) => {
     if (b.dataset.batch === "empty") b.disabled = !(state.project.trash?.length);
     else if (b.dataset.batch !== "all" && b.dataset.batch !== "none") b.disabled = !n;
@@ -202,7 +202,7 @@ export function bindAssets({ onOpen }) {
       state.colorFilter = { hex: r.hex, shares: new Map(r.items.map((i) => [i.id, i.share])) };
       $("#colorFilterClear").hidden = false;
       renderAssets();
-      toast(r.items.length ? `${r.items.length} 个素材使用了 ${r.hex} 附近的颜色` : `没有素材明显使用 ${r.hex}`);
+      toast(r.items.length ? t("filter.colorFound", { n: r.items.length, hex: r.hex }) : t("filter.colorNone", { hex: r.hex }));
     } catch (err) {
       toast(err.message);
     }

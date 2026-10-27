@@ -1,6 +1,7 @@
 // Starting runs, the live SSE event stream and the agent log.
 import { $, api, esc, toast } from "./lib.js";
 import { state } from "./state.js";
+import { t, typeLabel } from "./i18n.js";
 import { upsertAsset } from "./assets.js";
 import { renderStyle } from "./styleGuide.js";
 import { loadConversationInfo, loadProjectsQuiet } from "./projects.js";
@@ -77,7 +78,7 @@ export function attachJob(jobId) {
   jobStarted();
   try { localStorage.setItem(`gaa.job.${state.project.id}`, jobId); } catch {}
   $("#runBtn").disabled = true;
-  $("#runBtn").textContent = "生成中…";
+  $("#runBtn").textContent = t("run.running");
   $("#stopBtn").hidden = false;
   state.source?.close();
   const src = new EventSource(`/api/jobs/${jobId}/events`);
@@ -102,7 +103,7 @@ export function detachJob() {
   state.run = null;
   state.textEntry = null;
   $("#runBtn").disabled = false;
-  $("#runBtn").textContent = "开始生成";
+  $("#runBtn").textContent = t("run.start");
   $("#stopBtn").hidden = true;
   renderLiveUsage(null);
   $("#log").innerHTML = "";
@@ -118,7 +119,7 @@ export function finishJob() {
   state.textEntry = null;
   try { localStorage.removeItem(`gaa.job.${state.project.id}`); } catch {}
   $("#runBtn").disabled = false;
-  $("#runBtn").textContent = "开始生成";
+  $("#runBtn").textContent = t("run.start");
   $("#stopBtn").hidden = true;
   if (state.project) loadConversationInfo();
   loadProjectsQuiet();
@@ -218,21 +219,27 @@ export function bindRun() {
   });
   bindNotify();
   const chips = $("#typeChips");
-  chips.innerHTML = Object.entries(state.config.assetTypes)
-    .map(([k, v]) => `<button class="chip" data-type="${k}">${esc(v)}</button>`)
-    .join("");
   const ps = $("#providerSelect");
-  ps.innerHTML = state.config.providers
-    .map((p) => `<option value="${p.id}" ${p.available ? "" : "disabled"}>${esc(p.label)}${p.available ? "" : "（未配置）"}</option>`)
-    .join("");
-  ps.value = state.config.providers.find((p) => p.available)?.id;
+  const renderControls = () => {
+    chips.innerHTML = Object.entries(state.config.assetTypes)
+      .map(([k, v]) => `<button class="chip ${state.selectedTypes.has(k) ? "on" : ""}" data-type="${k}">${esc(typeLabel(k, v))}</button>`)
+      .join("");
+    const picked = ps.value;
+    ps.innerHTML = state.config.providers
+      .map((p) => `<option value="${p.id}" ${p.available ? "" : "disabled"}>${esc(p.label)}${p.available ? "" : esc(t("run.unconfigured"))}</option>`)
+      .join("");
+    ps.value = picked || state.config.providers.find((p) => p.available)?.id;
+    $("#runBtn").textContent = t(state.job ? "run.running" : "run.start");
+  };
+  renderControls();
+  document.addEventListener("gaa:lang", renderControls);
   if (state.config.demo) logEntry("status", "当前为演示模式（AGENT_MODE=demo）：不调用 Claude，仅走一遍流水线。");
 
   chips.addEventListener("click", (e) => {
     const b = e.target.closest(".chip");
     if (!b) return;
-    const t = b.dataset.type;
-    state.selectedTypes.has(t) ? state.selectedTypes.delete(t) : state.selectedTypes.add(t);
+    const type = b.dataset.type;
+    state.selectedTypes.has(type) ? state.selectedTypes.delete(type) : state.selectedTypes.add(type);
     b.classList.toggle("on");
   });
 

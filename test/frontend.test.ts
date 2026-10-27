@@ -12,6 +12,7 @@ const { feedbackOf } = await load("../public/js/consistency.js");
 const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
 const { visibleAssets } = await load("../public/js/assets.js");
+const { DICT, LANGS, getLang, t, typeLabel } = await load("../public/js/i18n.js");
 
 const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048" };
 
@@ -72,5 +73,36 @@ describe("front end: library filters", () => {
     assert.deepEqual(ids(), ["d"], "search covers notes");
     Object.assign(state, { query: "", colorFilter: { hex: "#ff0000", shares: new Map([["a", 0.2], ["c", 0.6]]) } });
     assert.deepEqual(ids(), ["c", "a"]);
+  });
+});
+
+describe("front end: i18n", () => {
+  it("has the same keys in every language, with the same placeholders", () => {
+    const zh = Object.keys(DICT.zh).sort();
+    for (const lang of LANGS) {
+      assert.deepEqual(Object.keys(DICT[lang]).sort(), zh, lang);
+      for (const k of zh) {
+        const vars = (s: string) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort();
+        assert.deepEqual(vars(DICT[lang][k]), vars(DICT.zh[k]), `${lang} ${k}`);
+        assert.ok(DICT[lang][k].trim(), `${lang} ${k} is empty`);
+      }
+    }
+  });
+
+  it("every data-i18n key in index.html exists", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const html = await readFile(new URL("../public/index.html", import.meta.url), "utf8");
+    const keys = [...html.matchAll(/data-i18n(?:-title|-placeholder|-aria)?="([^"]+)"/g)].map((m) => m[1]);
+    assert.ok(keys.length > 50);
+    for (const k of keys) assert.ok(Object.hasOwn(DICT.zh, k), k);
+  });
+
+  it("t fills placeholders and falls back to the key; typeLabel falls back to the server label", () => {
+    assert.equal(getLang(), "zh");
+    assert.equal(t("lib.more", { n: 3 }), "加载更多（还有 3 个）");
+    assert.equal(t("no.such.key"), "no.such.key");
+    assert.equal(typeLabel("tile"), "地图瓦片 / 地形");
+    assert.equal(typeLabel("custom", "自定义"), "自定义");
+    assert.equal(typeLabel("constructor", "x"), "x");
   });
 });

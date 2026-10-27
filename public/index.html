@@ -19,129 +19,130 @@
       <span class="logo">◆</span>
       <div>
         <h1>Game Asset Agent</h1>
-        <p>上传风格参考图 → AI 美术总监提炼风格 → 批量生成风格一致的游戏素材</p>
+        <p data-i18n="app.tagline">上传风格参考图 → AI 美术总监提炼风格 → 批量生成风格一致的游戏素材</p>
       </div>
     </div>
     <div class="project-bar">
-      <select id="projectSelect" aria-label="选择项目"></select>
-      <button id="usageBtn" class="btn ghost" title="项目进度、Claude tokens 与图像调用统计">用量</button>
-      <button id="newProject" class="btn ghost">新建项目</button>
-      <a id="styleSheetLink" class="btn ghost" href="#" target="_blank" rel="noopener" title="单页 HTML：色板、画风规则、参考图与素材样例，可发给外包或打印">风格说明书</a>
-      <a id="backupProject" class="btn ghost" href="#" download title="导出整个项目（参考图、风格指南、素材、对话、用量）">备份</a>
-      <label class="btn ghost" title="从备份 zip 恢复为一个新项目">导入<input type="file" id="importProject" accept=".zip,application/zip" hidden /></label>
-      <button id="deleteProject" class="btn ghost danger" title="删除当前项目">删除</button>
-      <button id="logout" class="btn ghost" hidden>退出登录</button>
+      <select id="projectSelect" aria-label="选择项目" data-i18n-aria="project.select"></select>
+      <button id="usageBtn" class="btn ghost" title="项目进度、Claude tokens 与图像调用统计" data-i18n="project.usage" data-i18n-title="project.usageTitle">用量</button>
+      <button id="newProject" class="btn ghost" data-i18n="project.new">新建项目</button>
+      <a id="styleSheetLink" class="btn ghost" href="#" target="_blank" rel="noopener" title="单页 HTML：色板、画风规则、参考图与素材样例，可发给外包或打印" data-i18n="project.styleSheet" data-i18n-title="project.styleSheetTitle">风格说明书</a>
+      <a id="backupProject" class="btn ghost" href="#" download title="导出整个项目（参考图、风格指南、素材、对话、用量）" data-i18n="project.backup" data-i18n-title="project.backupTitle">备份</a>
+      <label class="btn ghost" title="从备份 zip 恢复为一个新项目" data-i18n-title="project.importTitle"><span data-i18n="project.import">导入</span><input type="file" id="importProject" accept=".zip,application/zip" hidden /></label>
+      <button id="deleteProject" class="btn ghost danger" title="删除当前项目" data-i18n="project.delete" data-i18n-title="project.deleteTitle">删除</button>
+      <button id="logout" class="btn ghost" hidden data-i18n="project.logout">退出登录</button>
+      <button id="langToggle" class="btn ghost" type="button" title="Switch the interface to English" data-i18n="lang.switch" data-i18n-title="lang.switchTitle">English</button>
     </div>
   </header>
 
   <main class="layout">
     <section class="panel" id="stylePanel">
-      <h2>① 风格参考</h2>
+      <h2 data-i18n="style.heading">① 风格参考</h2>
       <label class="dropzone" id="dropzone">
         <input type="file" id="refInput" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden />
-        <span>拖入或点击上传参考图（最多 8 张）</span>
-        <small>截图、原画、已有素材都可以，越能代表目标风格越好</small>
+        <span data-i18n="style.drop">拖入或点击上传参考图（最多 8 张）</span>
+        <small data-i18n="style.dropHint">截图、原画、已有素材都可以，越能代表目标风格越好</small>
       </label>
       <div class="refs" id="refs"></div>
 
       <div class="style-head">
-        <h2>风格指南</h2>
+        <h2 data-i18n="style.guide">风格指南</h2>
         <span class="style-actions">
           <button id="editStyle" class="btn link">编辑</button>
-          <button id="resetStyle" class="btn link" hidden>重新提炼</button>
-          <button id="styleHistory" class="btn link" title="查看与恢复以前的风格指南">历史</button>
+          <button id="resetStyle" class="btn link" hidden data-i18n="style.reset">重新提炼</button>
+          <button id="styleHistory" class="btn link" title="查看与恢复以前的风格指南" data-i18n="style.history" data-i18n-title="style.historyTitle">历史</button>
         </span>
       </div>
       <div id="styleGuide" class="style-guide empty">还没有风格指南，第一次运行时 Agent 会根据参考图自动生成。</div>
       <details class="conventions" id="conventionsBox">
-        <summary><b>项目约定</b> <span class="muted" id="conventionsState"></span></summary>
-        <label for="conventions" class="muted">团队自己的美术规范，每次运行都会发给 Claude，也会写进风格说明书。</label>
-        <textarea id="conventions" rows="4" maxlength="2000" placeholder="例如：图标统一 2px 深色描边；角色正面 3/4 视角；不要文字和边框；UI 面板中心保持平整，方便九宫格拉伸。"></textarea>
-        <button class="btn ghost small" id="saveConventions" type="button">保存约定</button>
+        <summary><b data-i18n="style.conventions">项目约定</b> <span class="muted" id="conventionsState"></span></summary>
+        <label for="conventions" class="muted" data-i18n="style.conventionsHint">团队自己的美术规范，每次运行都会发给 Claude，也会写进风格说明书。</label>
+        <textarea id="conventions" rows="4" maxlength="2000" data-i18n-placeholder="style.conventionsPlaceholder" placeholder="例如：图标统一 2px 深色描边；角色正面 3/4 视角；不要文字和边框；UI 面板中心保持平整，方便九宫格拉伸。"></textarea>
+        <button class="btn ghost small" id="saveConventions" type="button" data-i18n="style.saveConventions">保存约定</button>
       </details>
     </section>
 
     <section class="panel" id="runPanel">
-      <h2>② 描述需求</h2>
+      <h2 data-i18n="run.heading">② 描述需求</h2>
       <div class="chips" id="typeChips"></div>
-      <textarea id="request" rows="4" placeholder="例如：为一个蘑菇森林关卡做 6 个道具图标（回血蘑菇、毒蘑菇、木剑、铁盾、金币、钥匙），再做主角小狐狸的立绘和 4 帧走路动画。"></textarea>
+      <textarea id="request" rows="4" data-i18n-placeholder="run.placeholder" placeholder="例如：为一个蘑菇森林关卡做 6 个道具图标（回血蘑菇、毒蘑菇、木剑、铁盾、金币、钥匙），再做主角小狐狸的立绘和 4 帧走路动画。"></textarea>
       <div class="run-row">
-        <label class="provider">图像模型
+        <label class="provider"><span data-i18n="run.provider">图像模型</span>
           <select id="providerSelect"></select>
         </label>
-        <label class="toggle" title="Agent 会记得本项目之前的需求与结果，可以说「把刚才的剑改成蓝色」"><input type="checkbox" id="continueConv" checked /> 延续对话</label>
+        <label class="toggle" title="Agent 会记得本项目之前的需求与结果，可以说「把刚才的剑改成蓝色」" data-i18n-title="run.continueTitle"><input type="checkbox" id="continueConv" checked /> <span data-i18n="run.continue">延续对话</span></label>
         <details class="budget" id="budget">
-          <summary title="单次运行的上限，达到后不再生成新图">预算</summary>
+          <summary title="单次运行的上限，达到后不再生成新图" data-i18n="run.budget" data-i18n-title="run.budgetTitle">预算</summary>
           <div class="budget-pop">
-            <label>图像次数上限 <input type="number" id="budgetImages" min="0" step="1" /></label>
-            <label>费用上限（美元） <input type="number" id="budgetUsd" min="0" step="0.1" /></label>
-            <small class="muted">留空用默认值，填 0 表示不限</small>
+            <label><span data-i18n="run.budgetImages">图像次数上限</span> <input type="number" id="budgetImages" min="0" step="1" /></label>
+            <label><span data-i18n="run.budgetUsd">费用上限（美元）</span> <input type="number" id="budgetUsd" min="0" step="0.1" /></label>
+            <small class="muted" data-i18n="run.budgetHint">留空用默认值，填 0 表示不限</small>
           </div>
         </details>
         <button id="runBtn" class="btn primary">开始生成</button>
-        <button id="stopBtn" class="btn ghost" hidden>停止</button>
+        <button id="stopBtn" class="btn ghost" hidden data-i18n="run.stop">停止</button>
       </div>
       <div class="usage-bar" id="usageBar" hidden></div>
       <div class="conv-bar" id="convBar" hidden></div>
       <div class="log-head">
-        <h2>Agent 工作日志</h2>
+        <h2 data-i18n="run.log">Agent 工作日志</h2>
         <span class="log-toggles">
-          <label class="toggle" title="页面不在前台时，运行结束后弹出系统通知"><input type="checkbox" id="notifyToggle" /> 完成时通知</label>
-          <label class="toggle"><input type="checkbox" id="showThinking" checked /> 显示思考</label>
+          <label class="toggle" title="页面不在前台时，运行结束后弹出系统通知" data-i18n-title="run.notifyTitle"><input type="checkbox" id="notifyToggle" /> <span data-i18n="run.notify">完成时通知</span></label>
+          <label class="toggle"><input type="checkbox" id="showThinking" checked /> <span data-i18n="run.thinking">显示思考</span></label>
         </span>
       </div>
-      <div id="log" class="log"><p class="muted">运行后，这里会实时显示 Agent 的分析、计划、生成与审核过程。</p></div>
+      <div id="log" class="log"><p class="muted" data-i18n="run.logEmpty">运行后，这里会实时显示 Agent 的分析、计划、生成与审核过程。</p></div>
     </section>
 
     <section class="panel" id="assetPanel">
       <div class="asset-head">
-        <h2>③ 素材库 <span id="assetCount" class="count"></span></h2>
+        <h2><span data-i18n="lib.heading">③ 素材库</span> <span id="assetCount" class="count"></span></h2>
         <div class="export">
-          <a class="btn ghost small" id="exportApproved" href="#" download>导出已通过 ZIP</a>
-          <button class="btn ghost small" id="exportMore" type="button">更多导出…</button>
-          <button class="btn ghost small" id="importBtn" type="button" title="上传自己的图片作为素材，可用全部后处理与导出">导入素材…</button>
-          <button class="btn ghost small" id="sceneBtn" type="button" title="把已通过的素材摆到背景上，看整体是否协调">场景拼版</button>
-          <button class="btn ghost small" id="cleanupVersions" type="button" title="把已有通过新版本的旧版本移到回收站（可恢复）">清理旧版本</button>
-          <button class="btn ghost small" id="consistencyBtn" type="button" title="按风格色板测量所有素材，找出最跑偏的">一致性总览</button>
+          <a class="btn ghost small" id="exportApproved" href="#" download data-i18n="lib.exportApproved">导出已通过 ZIP</a>
+          <button class="btn ghost small" id="exportMore" type="button" data-i18n="lib.exportMore">更多导出…</button>
+          <button class="btn ghost small" id="importBtn" type="button" title="上传自己的图片作为素材，可用全部后处理与导出" data-i18n="lib.import" data-i18n-title="lib.importTitle">导入素材…</button>
+          <button class="btn ghost small" id="sceneBtn" type="button" title="把已通过的素材摆到背景上，看整体是否协调" data-i18n="lib.scene" data-i18n-title="lib.sceneTitle">场景拼版</button>
+          <button class="btn ghost small" id="cleanupVersions" type="button" title="把已有通过新版本的旧版本移到回收站（可恢复）" data-i18n="lib.cleanup" data-i18n-title="lib.cleanupTitle">清理旧版本</button>
+          <button class="btn ghost small" id="consistencyBtn" type="button" title="按风格色板测量所有素材，找出最跑偏的" data-i18n="lib.consistency" data-i18n-title="lib.consistencyTitle">一致性总览</button>
         </div>
         <div class="filters" id="filters">
-          <button data-filter="all" class="on">全部</button>
-          <button data-filter="approved">已通过</button>
-          <button data-filter="rejected">已驳回</button>
-          <button data-filter="pending_review">待审核</button>
+          <button data-filter="all" class="on" data-i18n="filter.all">全部</button>
+          <button data-filter="approved" data-i18n="filter.approved">已通过</button>
+          <button data-filter="rejected" data-i18n="filter.rejected">已驳回</button>
+          <button data-filter="pending_review" data-i18n="filter.pending_review">待审核</button>
           <button data-filter="trash" id="trashFilter">回收站</button>
           <button id="selectToggle" class="select-toggle" type="button">选择</button>
         </div>
       </div>
       <div class="asset-search">
-        <input type="search" id="assetSearch" placeholder="搜索名称 / 意见 / prompt" aria-label="搜索素材" />
-        <select id="typeFilter" aria-label="按类型筛选"><option value="">全部类型</option></select>
-        <select id="tagFilter" aria-label="按标签筛选" hidden><option value="">全部标签</option></select>
-        <span class="color-filter"><label title="按颜色找素材：列出主要使用该颜色的素材">按颜色 <input type="color" id="colorFilter" value="#d84848" /></label><button class="btn link" id="colorFilterClear" type="button" hidden>清除颜色</button></span>
+        <input type="search" id="assetSearch" placeholder="搜索名称 / 意见 / prompt" aria-label="搜索素材" data-i18n-placeholder="filter.search" data-i18n-aria="filter.searchLabel" />
+        <select id="typeFilter" aria-label="按类型筛选" data-i18n-aria="filter.type"><option value="">全部类型</option></select>
+        <select id="tagFilter" aria-label="按标签筛选" data-i18n-aria="filter.tag" hidden><option value="">全部标签</option></select>
+        <span class="color-filter"><label title="按颜色找素材：列出主要使用该颜色的素材" data-i18n-title="filter.byColorTitle"><span data-i18n="filter.byColor">按颜色</span> <input type="color" id="colorFilter" value="#d84848" /></label><button class="btn link" id="colorFilterClear" type="button" hidden data-i18n="filter.clearColor">清除颜色</button></span>
       </div>
       <div class="batch-bar" id="batchBar" hidden>
         <span class="batch-count"></span>
-        <button class="btn link" data-batch="all">全选</button>
-        <button class="btn link" data-batch="none">清空</button>
+        <button class="btn link" data-batch="all" data-i18n="batch.all">全选</button>
+        <button class="btn link" data-batch="none" data-i18n="batch.none">清空</button>
         <span class="batch-actions trash-actions">
-          <button class="btn ghost small" data-batch="restore">↺ 恢复</button>
-          <button class="btn ghost small danger" data-batch="purge">彻底删除</button>
-          <button class="btn ghost small danger" data-batch="empty">清空回收站</button>
+          <button class="btn ghost small" data-batch="restore" data-i18n="batch.restore">↺ 恢复</button>
+          <button class="btn ghost small danger" data-batch="purge" data-i18n="batch.purge">彻底删除</button>
+          <button class="btn ghost small danger" data-batch="empty" data-i18n="batch.empty">清空回收站</button>
         </span>
         <span class="batch-actions library-actions">
-          <button class="btn ghost small" data-batch="approve">✓ 通过</button>
-          <button class="btn ghost small" data-batch="reject">✗ 驳回</button>
-          <button class="btn ghost small" data-batch="redraw" title="把所选素材连同各自的审核意见一次交给 Agent 重画（最多 10 个）">按意见重画</button>
-          <button class="btn ghost small" data-batch="process:outline" title="给所选素材加 2px 描边（色板最深色），生成新版本">描边</button>
-          <button class="btn ghost small" data-batch="process:cutout" title="去除所选素材的背景（原地，可随时恢复原图）">去背景</button>
-          <button class="btn ghost small" data-batch="process:snap" title="把所选素材的颜色吸附到风格色板，生成新版本">吸附色板</button>
-          <button class="btn ghost small" data-batch="compare" title="把所选的 2-6 个素材并排放大比较">并排比较</button>
-          <button class="btn ghost small" data-batch="tag" title="给所选素材加标签">+ 标签</button>
-          <button class="btn ghost small" data-batch="rename" title="按素材库顺序把所选素材改名为「前缀 + 序号」">批量改名</button>
-          <button class="btn ghost small" data-batch="untag" title="从所选素材移除标签">− 标签</button>
-          <button class="btn ghost small" data-batch="zip">导出 ZIP</button>
-          <button class="btn ghost small" data-batch="atlas">导出图集</button>
-          <button class="btn ghost small danger" data-batch="delete">删除</button>
+          <button class="btn ghost small" data-batch="approve" data-i18n="batch.approve">✓ 通过</button>
+          <button class="btn ghost small" data-batch="reject" data-i18n="batch.reject">✗ 驳回</button>
+          <button class="btn ghost small" data-batch="redraw" data-i18n="batch.redraw" data-i18n-title="batch.redrawTitle" title="把所选素材连同各自的审核意见一次交给 Agent 重画（最多 10 个）">按意见重画</button>
+          <button class="btn ghost small" data-batch="process:outline" data-i18n="batch.outline" data-i18n-title="batch.outlineTitle" title="给所选素材加 2px 描边（色板最深色），生成新版本">描边</button>
+          <button class="btn ghost small" data-batch="process:cutout" data-i18n="batch.cutout" data-i18n-title="batch.cutoutTitle" title="去除所选素材的背景（原地，可随时恢复原图）">去背景</button>
+          <button class="btn ghost small" data-batch="process:snap" data-i18n="batch.snap" data-i18n-title="batch.snapTitle" title="把所选素材的颜色吸附到风格色板，生成新版本">吸附色板</button>
+          <button class="btn ghost small" data-batch="compare" data-i18n="batch.compare" data-i18n-title="batch.compareTitle" title="把所选的 2-6 个素材并排放大比较">并排比较</button>
+          <button class="btn ghost small" data-batch="tag" data-i18n="batch.tag" data-i18n-title="batch.tagTitle" title="给所选素材加标签">+ 标签</button>
+          <button class="btn ghost small" data-batch="rename" data-i18n="batch.rename" data-i18n-title="batch.renameTitle" title="按素材库顺序把所选素材改名为「前缀 + 序号」">批量改名</button>
+          <button class="btn ghost small" data-batch="untag" data-i18n="batch.untag" data-i18n-title="batch.untagTitle" title="从所选素材移除标签">− 标签</button>
+          <button class="btn ghost small" data-batch="zip" data-i18n="batch.zip">导出 ZIP</button>
+          <button class="btn ghost small" data-batch="atlas" data-i18n="batch.atlas">导出图集</button>
+          <button class="btn ghost small danger" data-batch="delete" data-i18n="batch.delete">删除</button>
         </span>
       </div>
       <div id="assets" class="assets"></div>
