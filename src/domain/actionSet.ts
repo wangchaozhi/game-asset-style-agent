@@ -30,3 +30,25 @@ export function actionSetRequest(asset: { id: string; name: string }, actions: A
     `Every sheet: pass consistency_asset_ids=["${asset.id}"] and tags=["${asset.name}"]; keep exactly the same character design, colours, scale and ground baseline in every frame and across all sheets; frames evenly spaced in one horizontal row; transparent background.`,
   ].join("\n");
 }
+
+/** Actions that play once (attack, hurt, jump, death); the others loop. */
+const ONE_SHOT = new Set<ActionKey>(["attack", "hurt", "jump", "death"]);
+
+/**
+ * Animation name and looping for a sprite sheet inside a character's animation set. Action-set sheets are
+ * named "<character>·<action label>": the label becomes the animation name (its preset key when ASCII
+ * names are wanted). Other sheets fall back to `fallback` and loop.
+ */
+export function animationFor(sheetName: string, tag: string, ascii: boolean, fallback: string): { name: string; loop: boolean } {
+  const label = sheetName.startsWith(`${tag}·`) ? sheetName.slice(tag.length + 1) : null;
+  const key = label ? (Object.keys(ACTION_PRESETS) as ActionKey[]).find((k) => ACTION_PRESETS[k].label === label) : undefined;
+  if (key) return { name: ascii ? key : label!, loop: !ONE_SHOT.has(key) };
+  return { name: label && !ascii ? label : fallback, loop: true };
+}
+
+/** Sort position of an action-set sheet: preset order (idle, walk, run…), unknown sheets last. */
+export function actionOrder(sheetName: string, tag: string): number {
+  const label = sheetName.startsWith(`${tag}·`) ? sheetName.slice(tag.length + 1) : null;
+  const i = (Object.values(ACTION_PRESETS) as { label: string }[]).findIndex((p) => p.label === label);
+  return i < 0 ? Number.MAX_SAFE_INTEGER : i;
+}

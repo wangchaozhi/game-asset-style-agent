@@ -499,6 +499,21 @@ describe("HTTP API (demo mode)", () => {
     assert.ok(Object.keys(plain).some((n) => !ascii.test(n)));
   });
 
+  it("bundles a character's sprite sheets into one multi-animation SpriteFrames", async () => {
+    const hero = (await json(`/api/projects/${id}`)).body.assets.findLast((a: { assetType: string }) => a.assetType === "character");
+    const zip = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?status=all`)).arrayBuffer()));
+    const set = JSON.parse(zip["manifest.json"].data.toString()).animationSets.find((s: { tag: string }) => s.tag === hero.name);
+    assert.ok(set, "the action set's sheets share the character's tag");
+    assert.deepEqual(set.animations.map((a: { name: string; loop: boolean; fps: number }) => [a.name, a.loop, a.fps]), [["待机", true, 6], ["行走", true, 10]]);
+    const tres = zip[set.file].data.toString();
+    assert.match(tres, /type="SpriteFrames"/);
+    assert.match(tres, /"name": &"待机"/);
+    const ascii = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?status=all&names=ascii`)).arrayBuffer()));
+    const asciiSet = JSON.parse(ascii["manifest.json"].data.toString()).animationSets.find((s: { tag: string }) => s.tag === hero.name);
+    assert.match(asciiSet.file, /^_animations\/[\x20-\x7e]+\.tres$/);
+    assert.deepEqual(asciiSet.animations.map((a: { name: string }) => a.name), ["idle", "walk"]);
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

@@ -24,7 +24,7 @@
 - 🧬 **跨素材一致性**：可把已通过的素材（如主角设定图）作为额外参考，画同一角色的动画帧 / 头像
 - 🏃 **动作套装**：选中角色或敌人，一键生成待机 / 行走 / 攻击 / 受击等精灵表，都以它为一致性参考并带合适的帧率
 - 🖼️ **场景拼版**：把已通过的素材摆到背景（场景图、瓦片平铺或纯色）上，拖动、缩放、翻转，检查整套素材放在一起是否协调，可下载 PNG
-- 📦 **引擎可用的导出**：按类型分目录的 ZIP（含多尺寸、manifest、Godot 4 SpriteFrames / UI 九宫格 StyleBoxTexture / 瓦片 TileSet `.tres`，可选 Unity `.meta` 与精灵表 AnimationClip：精灵表切片、九宫格边框、像素风过滤），以及图集 PNG + TexturePacker JSON（Phaser / PixiJS 可直接加载）和 Phaser 动画定义
+- 📦 **引擎可用的导出**：按类型分目录的 ZIP（含多尺寸、manifest、Godot 4 SpriteFrames / UI 九宫格 StyleBoxTexture / 瓦片 TileSet `.tres`，同一角色的多张精灵表合成一个多动画 SpriteFrames，可选 Unity `.meta` 与精灵表 AnimationClip：精灵表切片、九宫格边框、像素风过滤），以及图集 PNG + TexturePacker JSON（Phaser / PixiJS 可直接加载）和 Phaser 动画定义
 - 💰 **成本可控**：实时用量与费用估算；单次运行可设图像次数 / 费用上限，达到后 Agent 停止出图并收尾；图像接口限流自动退避重试
 - 🛠️ **素材工作台**：精灵表切帧与防抖对齐、瓦片一键无缝化、UI 九宫格边距与拉伸预览、去背景、游戏尺寸缩放、版本对比（滑块 / 并排）、改 prompt 直接重生成（不经过 Agent）
 - 🗂️ **素材管理**：搜索与类型筛选、批量通过 / 驳回 / 按意见重画 / 导出、回收站（7 天可恢复）、风格指南历史与回滚、参考图备注、项目备份与恢复

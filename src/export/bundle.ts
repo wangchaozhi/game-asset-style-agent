@@ -6,7 +6,8 @@ import { imageSize } from "../image/io.js";
 import { readProjectFile } from "../store/index.js";
 import type { Project } from "../store/types.js";
 import { type AtlasInput, buildAtlas, prepareSprite, scaleSprite } from "./atlas.js";
-import { spriteFramesTres, styleBoxTextureTres, tileSetTres } from "./godot.js";
+import { spriteFramesMultiTres, spriteFramesTres, styleBoxTextureTres, tileSetTres } from "./godot.js";
+import { actionOrder, animationFor } from "../domain/actionSet.js";
 import { type UnitySpriteMeta, animationClip, nativeMeta, spriteMeta } from "./unity.js";
 import { type ZipEntry, createZip } from "./zip.js";
 
@@ -90,6 +91,8 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
   const root = (opts.godotRoot ?? "assets").replace(/^res:\/\//, "").replace(/^\/+|\/+$/g, "");
   const resPath = (f: string) => `res://${root ? `${root}/` : ""}${f}`;
   const stemOf = stemNamer(opts.names);
+  /** Exported sprite sheets, for the per-character animation sets below. */
+  const sheets: { asset: (typeof assets)[number]; stem: string; paths: string[] }[] = [];
   for (const a of assets) {
     const stem = stemOf(a);
     const base = unique(`${a.assetType}/${stem}`);
@@ -149,6 +152,7 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
         entries.push({ name: `${base}.anim`, data: Buffer.from(clip) });
         entries.push({ name: `${base}.anim.meta`, data: Buffer.from(nativeMeta(`${project.id}/${a.id}/anim`)) });
       }
+      sheets.push({ asset: a, stem, paths: frames.map(resPath) });
       const tres = spriteFramesTres(frames.map(resPath), { name: "default", fps: a.fps ?? 8 });
       files.godot = `${base}.tres`;
       entries.push({ name: `${base}.tres`, data: Buffer.from(tres) });
@@ -158,6 +162,27 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
       notes: a.notes ?? null, prompt: a.prompt, provider: a.provider, createdAt: a.createdAt, fps: a.fps ?? null, files,
     });
   }
+  // One SpriteFrames per tag shared by 2+ sprite sheets (e.g. an action set): every sheet becomes a named animation.
+  const animationSets: { tag: string; file: string; animations: { name: string; asset: string; fps: number; loop: boolean }[] }[] = [];
+  const tagNames = new Map<string, string>();
+  for (const sh of sheets) for (const t of sh.asset.tags ?? []) if (!tagNames.has(t.toLowerCase())) tagNames.set(t.toLowerCase(), t);
+  const setStem = stemNamer(opts.names);
+  const setFiles = uniqueNamer();
+  for (const tag of tagNames.values()) {
+    const members = sheets
+      .filter((sh) => hasTag(sh.asset.tags, tag))
+      .sort((a, b) => actionOrder(a.asset.name, tag) - actionOrder(b.asset.name, tag) || a.asset.name.localeCompare(b.asset.name));
+    if (members.length < 2) continue;
+    const animName = uniqueNamer();
+    const anims = members.map((sh) => {
+      const { name, loop } = animationFor(sh.asset.name, tag, opts.names === "ascii", sh.stem);
+      return { name: animName(name), paths: sh.paths, fps: sh.asset.fps ?? 8, loop, asset: sh.asset.id };
+    });
+    const file = `_animations/${setFiles(setStem({ name: tag, assetType: "animations" }))}.tres`;
+    entries.push({ name: file, data: Buffer.from(spriteFramesMultiTres(anims)) });
+    animationSets.push({ tag, file, animations: anims.map(({ name, asset, fps, loop }) => ({ name, asset, fps, loop })) });
+  }
+
   const tiles = assets.filter((a) => a.assetType === "tile");
   let tileset: { image: string; tres: string; tileSize: number; tiles: { id: string; name: string; coords: [number, number] }[] } | null = null;
   if (tiles.length) {
@@ -192,7 +217,7 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
   entries.push({ name: "style-guide.json", data: json(project.styleGuide) });
   entries.push({
     name: "manifest.json",
-    data: json({ project: project.name, exportedAt: new Date().toISOString(), count: manifest.length, assets: manifest, tileset }),
+    data: json({ project: project.name, exportedAt: new Date().toISOString(), count: manifest.length, assets: manifest, tileset, animationSets }),
   });
   return { filename: `${safeName(project.name)}_assets.zip`, zip: createZip(entries) };
 }

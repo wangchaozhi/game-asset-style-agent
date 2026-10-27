@@ -272,6 +272,7 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 - `?sizes=1` 追加各类型常用尺寸
 - `?names=ascii` 文件名只用 ASCII：本身就是英文安全名的保持不变，其余按类型编号为 `item_icon_01`、`item_icon_02`…（`manifest.json` 仍记录原名），引擎、版本库与跨平台路径更省心；图集同样支持
 - `?godot=game/art` 指定 `.tres` 里的 `res://` 目录（默认 `assets`）
+- 同一标签下有 2 张以上精灵表时（如动作套装），附 `_animations/<标签>.tres`：一个 Godot 4 SpriteFrames，每张精灵表是一个命名动画（动作套装的表用动作名，如「待机」，`?names=ascii` 时为 `idle`；待机 / 行走 / 奔跑循环，攻击 / 受击 / 跳跃 / 倒下只播一次），挂到 AnimatedSprite2D 上按名字 `play()`；`manifest.json` 的 `animationSets` 列出各动画
 - 含瓦片时附 Godot 4 TileSet：所有瓦片缩放到同一尺寸拼成 `tile/tileset.png`（每行 8 块），`tile/tileset.tres` 直接拖到 TileMapLayer 上即可绘制；`?tile=32` 指定每块像素（8-256，默认 32）；`manifest.json` 的 `tileset` 记录每块瓦片在图集里的坐标
 - `?unity=1` 每张图旁附 Unity `TextureImporter` `.meta`：按 Sprite 导入；精灵表为 Multiple 并按帧切片；UI 九宫格写入 `spriteBorder`；角色 / 敌人 / 物件 / 帧的轴心在底部中心；瓦片为 Repeat；像素风为 Point 过滤、不压缩。GUID 由项目、素材 id 与用途决定，重复导出保持不变，Unity 里的引用不会断；精灵表另附循环播放的 AnimationClip（`.anim` + `.meta`，按帧率切换 SpriteRenderer 的 Sprite，manifest 里记为 `files.unity`）
 
