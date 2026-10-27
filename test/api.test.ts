@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
 import sharp from "sharp";
-import { readZip, solidPng, useTempDataDir, validStyleGuide } from "./helpers.js";
+import { pixel, readZip, solidPng, useTempDataDir, validStyleGuide } from "./helpers.js";
 
 const dataDir = useTempDataDir();
 process.env.AGENT_MODE = "demo";
@@ -661,6 +661,30 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await json(`/api/projects/${id}/assets/import`, { method: "POST", body: fd })).status, 400);
     const hero = (await json(`/api/projects/${id}`)).body.assets.find((a: { assetType: string }) => a.assetType === "character");
     assert.equal((await json(`/api/projects/${id}/assets/${hero.id}/action-set`, { method: "POST", body: { actions: ["toString", "__proto__"] } })).status, 400);
+  });
+
+  it("can cut flat backgrounds out on import, keeping the upload restorable", async () => {
+    const onWhite = await sharp({ create: { width: 48, height: 48, channels: 3, background: "#ffffff" } })
+      .composite([{ input: { create: { width: 20, height: 20, channels: 3, background: "#cc2222" } }, left: 14, top: 14 }])
+      .png().toBuffer();
+    const upload = async (assetType: string, cutout: boolean) => {
+      const fd = new FormData();
+      fd.append("assetType", assetType);
+      if (cutout) fd.append("cutout", "1");
+      fd.append("images", new Blob([new Uint8Array(onWhite)], { type: "image/png" }), "盾.png");
+      const r = (await json(`/api/projects/${id}/assets/import`, { method: "POST", body: fd })).body;
+      return r.project.assets.find((a: { id: string }) => a.id === r.imported[0]);
+    };
+    const cut = await upload("item_icon", true);
+    assert.ok(cut.originalFile, "the original upload is kept");
+    const file = Buffer.from(await (await fetch(`${base}/api/projects/${id}/files/${cut.file}`)).arrayBuffer());
+    assert.equal((await pixel(file, 1, 1)).a, 0, "white corner is transparent");
+    assert.equal((await pixel(file, 24, 24)).a, 255, "the subject stays");
+    const plain = await upload("item_icon", false);
+    assert.equal(plain.originalFile, undefined);
+    const tile = await upload("tile", true);
+    assert.equal(tile.originalFile, undefined, "tiles are never cut");
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [cut.id, plain.id, tile.id] } });
   });
 
   it("batch-updates, exports by id, and batch-deletes", async () => {

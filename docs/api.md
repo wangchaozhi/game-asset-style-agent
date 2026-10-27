@@ -184,7 +184,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ### `POST /api/projects/:id/assets/import`
 
-导入自己的图片作为素材（multipart）：字段 `images`（最多 20 张，png/jpg/webp/gif，每张 ≤ 20 MB）、`assetType`（必填，素材类型）、`frames`（精灵表可选，省略时自动检测）。名称取自文件名；状态为「已通过」（由用户导入），可使用全部后处理、换色、九宫格与导出。有风格指南时附色板检测。返回 `{ imported: [id…], project }`。
+导入自己的图片作为素材（multipart）：字段 `images`（最多 20 张，png/jpg/webp/gif，每张 ≤ 20 MB）、`assetType`（必填，素材类型）、`frames`（精灵表可选，省略时自动检测）、`cutout=1`（可选：对没有透明通道的图片自动去除纯色背景，原图保留可恢复；背景与瓦片类型不处理）。名称取自文件名；状态为「已通过」（由用户导入），可使用全部后处理、换色、九宫格与导出。有风格指南时附色板检测。返回 `{ imported: [id…], project }`。
 
 ```bash
 curl -s -F assetType=item_icon -F images=@sword.png -F images=@shield.png "$BASE/api/projects/$P/assets/import"

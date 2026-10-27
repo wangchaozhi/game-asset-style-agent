@@ -1,10 +1,11 @@
 import { Router } from "express";
 import multer from "multer";
-import { isAssetType } from "../domain/assetTypes.js";
+import { isAssetType, isOpaqueType } from "../domain/assetTypes.js";
 import { toPng } from "../image/io.js";
-import { setNineSlice, sliceAssetFrames } from "../ops/assetOps.js";
+import { isOpaque } from "../image/background.js";
+import { cutoutAsset, setNineSlice, sliceAssetFrames } from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
-import { loadProject, moveToTrash, newId, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject, writeProjectFile } from "../store/index.js";
+import { loadProject, moveToTrash, newId, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject, writeProjectFile } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
 import { replaceableVersions } from "../domain/versions.js";
@@ -99,7 +100,8 @@ const fileName = (raw: string) => {
 };
 
 /**
- * Import the user's own images as assets (multipart "images", up to 20; fields: assetType, frames for sprite sheets).
+ * Import the user's own images as assets (multipart "images", up to 20; fields: assetType, frames for sprite sheets,
+ * cutout=1 to remove flat backgrounds from images that have no transparency).
  * They count as approved by the user, so every post-process and export applies to them.
  */
 assetsRouter.post("/api/projects/:id/assets/import", importUpload.array("images", 20), async (req, res) => {
@@ -138,7 +140,17 @@ assetsRouter.post("/api/projects/:id/assets/import", importUpload.array("images"
     }
     created.push(asset);
   }
-  const p = await updateProject(project.id, (p) => void p.assets.push(...created));
+  let p = await updateProject(project.id, (p) => void p.assets.push(...created));
+  // Optional: cut flat backgrounds out right away (the untouched upload stays restorable as originalFile).
+  if (req.body?.cutout === "1" && !isOpaqueType(assetType)) {
+    let cut = 0;
+    for (const a of created) {
+      if (!(await isOpaque(await readProjectFile(p.id, a.file)))) continue;
+      await cutoutAsset(p, a, {});
+      cut++;
+    }
+    if (cut) p = await loadProject(p.id);
+  }
   res.json({ imported: created.map((a) => a.id), project: p });
 });
 
