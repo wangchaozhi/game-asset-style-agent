@@ -1,6 +1,6 @@
 // Batch actions on the selected assets: review, delete, export, post-process.
-import { $, api, toast } from "./lib.js";
-import { state } from "./state.js";
+import { $, api, esc, toast } from "./lib.js";
+import { fileUrl, state } from "./state.js";
 import { renderAssets, setSelecting, visibleAssets } from "./assets.js";
 import { loadProjectsQuiet } from "./projects.js";
 import { run } from "./run.js";
@@ -97,6 +97,20 @@ async function emptyTrash() {
   }
 }
 
+/** Show 2-6 selected assets side by side at the same scale. */
+function compareSelected() {
+  const picked = visibleAssets().filter((a) => state.selected.has(a.id));
+  if (picked.length < 2 || picked.length > 6) return toast("请选择 2-6 个素材进行比较");
+  $("#sideGrid").innerHTML = picked
+    .map(
+      (a) => `<figure><button type="button" data-side-open="${a.id}" title="打开查看器"><img src="${fileUrl(a.file)}" alt="${esc(a.name)}" /></button>
+        <figcaption>${esc(a.name)}<span class="muted">${esc(state.config.assetTypes[a.assetType] ?? a.assetType)}</span></figcaption></figure>`,
+    )
+    .join("");
+  $("#sideGrid").style.setProperty("--cols", String(Math.min(picked.length, 3)));
+  $("#compareDialog").showModal();
+}
+
 /** Move old versions that an approved newer version replaces to the trash, after showing how many. */
 async function cleanupVersions() {
   const base = `/api/projects/${state.project.id}/cleanup-versions`;
@@ -115,8 +129,17 @@ async function cleanupVersions() {
   }
 }
 
-export function bindBatch() {
+export function bindBatch({ onOpen }) {
   $("#cleanupVersions").addEventListener("click", cleanupVersions);
+  $("#sideGrid").addEventListener("click", (e) => {
+    const id = e.target.closest("[data-side-open]")?.dataset.sideOpen;
+    if (!id) return;
+    $("#compareDialog").close();
+    onOpen(id);
+  });
+  $("#compareDialog").addEventListener("change", (e) => {
+    if (e.target.name === "sideBg") $("#sideGrid").className = `side-grid bg-${e.target.value}`;
+  });
   $("#batchBar").addEventListener("click", (e) => {
     const action = e.target.closest("[data-batch]")?.dataset.batch;
     if (!action) return;
@@ -130,6 +153,7 @@ export function bindBatch() {
     else if (action === "atlas") download("export-atlas.zip");
     else if (action === "exit") setSelecting(false);
     else if (action === "empty") emptyTrash();
+    else if (action === "compare") compareSelected();
     else if (action === "redraw") redrawSelected();
     else if (action.startsWith("process:")) postProcess(action.slice(8));
     else apply(action);

@@ -35,7 +35,7 @@ async function init() {
   bindStyleGuide();
   bindAssets({ onOpen: openViewer });
   bindViewer();
-  bindBatch();
+  bindBatch({ onOpen: openViewer });
   bindExportDialog();
   bindConsistency({ onOpen: openViewer });
   bindImport();

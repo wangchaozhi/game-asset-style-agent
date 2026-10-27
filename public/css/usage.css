@@ -66,3 +66,16 @@
 .consistency-scope { display: flex; gap: 6px; align-items: center; font-size: 13px; }
 .consistency-scope[hidden] { display: none; }
 .consistency-scope select { padding: 3px 6px; font-size: 12px; }
+.side-dialog { max-width: min(1200px, 96vw); }
+.side-bar { display: flex; gap: 14px; font-size: 13px; }
+.side-bar label { display: flex; gap: 4px; align-items: center; }
+.side-grid { --cols: 3; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); gap: 12px; padding: 12px; border-radius: 10px; }
+.side-grid.bg-dark { background: #1f2024; color: #f2f2f2; }
+.side-grid.bg-dark .muted { color: #c4c4c8; }
+.side-grid.bg-light { background: #ffffff; color: #1d1d1f; }
+.side-grid.bg-checker { background-color: var(--check-b); background-image: linear-gradient(45deg, var(--check-a) 25%, transparent 25%), linear-gradient(-45deg, var(--check-a) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, var(--check-a) 75%), linear-gradient(-45deg, transparent 75%, var(--check-a) 75%); background-size: 16px 16px; background-position: 0 0, 0 8px, 8px -8px, -8px 0; }
+.side-grid figure { margin: 0; display: grid; gap: 6px; }
+.side-grid button { padding: 0; border: 0; background: none; cursor: zoom-in; }
+.side-grid img { width: 100%; height: 38vh; object-fit: contain; display: block; }
+.side-grid figcaption { display: flex; flex-direction: column; font-size: 12px; text-align: center; }
+@media (max-width: 720px) { .side-grid { --cols: 2 !important; } .side-grid img { height: 26vh; } }
