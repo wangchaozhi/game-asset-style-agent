@@ -4,6 +4,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
 import { after, before, describe, it } from "node:test";
+import sharp from "sharp";
 import { readZip, solidPng, useTempDataDir, validStyleGuide } from "./helpers.js";
 
 const dataDir = useTempDataDir();
@@ -200,6 +201,53 @@ describe("HTTP API (demo mode)", () => {
     assert.deepEqual([r.body.name, r.body.status], ["火焰剑 v2", asset.status]);
     assert.equal((await json(`/api/projects/${id}/assets/${asset.id}`, { method: "PATCH", body: { name: "  " } })).status, 400);
     assert.equal((await json(`/api/projects/${id}/assets/${asset.id}`, { method: "PATCH", body: {} })).status, 400);
+  });
+
+  it("sets UI 9-slice margins, carries them to new versions and into both exports", async () => {
+    const run = await json(`/api/projects/${id}/run`, { method: "POST", body: { request: "面板", assetTypes: ["ui"], provider: "mock" } });
+    await events(run.body.jobId);
+    const assets = (await json(`/api/projects/${id}`)).body.assets;
+    const ui = assets.find((a: { assetType: string }) => a.assetType === "ui");
+    const other = assets.find((a: { assetType: string }) => a.assetType !== "ui");
+    const { width, height } = await sharp(Buffer.from(await (await fetch(`${base}/api/projects/${id}/files/${ui.file}`)).arrayBuffer())).metadata();
+    const margins = { left: 10, top: 8, right: 12, bottom: 6 };
+    const patch = (assetId: string, nineSlice: unknown) => json(`/api/projects/${id}/assets/${assetId}`, { method: "PATCH", body: { nineSlice } });
+
+    assert.deepEqual((await patch(ui.id, margins)).body.nineSlice, margins);
+    assert.equal((await patch(other.id, margins)).status, 400, "only UI assets");
+    assert.equal((await patch(ui.id, { ...margins, left: width! - 12 })).status, 400, "left + right must leave a centre");
+    assert.equal((await patch(ui.id, { ...margins, top: 1.5 })).status, 400);
+    assert.equal((await patch(ui.id, { left: 0, top: 0, right: 0, bottom: 0 })).status, 400);
+    assert.equal((await patch("ast_missing", margins)).status, 404);
+
+    // Post-processing keeps the layout, so the new version keeps the margins.
+    const snapped = (await json(`/api/projects/${id}/assets/${ui.id}/snap-palette`, { method: "POST", body: {} })).body;
+    assert.deepEqual(snapped.asset.nineSlice, margins);
+    await json(`/api/projects/${id}/assets/${snapped.asset.id}`, { method: "DELETE" });
+
+    const bundle = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?ids=${ui.id}`)).arrayBuffer()));
+    const entry = JSON.parse(bundle["manifest.json"].data.toString()).assets[0];
+    assert.deepEqual(entry.nineSlice, margins);
+    const tres = bundle[entry.files.godot].data.toString();
+    assert.match(tres, /type="StyleBoxTexture"/);
+    assert.match(tres, new RegExp(`path="res://assets/${entry.files.image}"`));
+    assert.match(tres, /texture_margin_left = 10\.0\ntexture_margin_top = 8\.0\ntexture_margin_right = 12\.0\ntexture_margin_bottom = 6\.0/);
+
+    // The atlas keeps the full image (no trim) and scales the margins with it.
+    const max = 32;
+    const atlas = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export-atlas.zip?ids=${ui.id}&max=${max}`)).arrayBuffer()));
+    const [frame] = Object.values(JSON.parse(atlas["atlas.json"].data.toString()).frames) as {
+      frame: { w: number; h: number };
+      scale9Borders: { x: number; y: number; w: number; h: number };
+    }[];
+    const k = Math.min(max / width!, max / height!);
+    assert.deepEqual([frame.frame.w, frame.frame.h], [Math.round(width! * k), Math.round(height! * k)]);
+    const b = frame.scale9Borders;
+    assert.deepEqual([b.x, b.y], [Math.round(10 * k), Math.round(8 * k)]);
+    assert.deepEqual([b.x + b.w + Math.round(12 * k), b.y + b.h + Math.round(6 * k)], [frame.frame.w, frame.frame.h]);
+
+    const cleared = await patch(ui.id, null);
+    assert.equal(cleared.body.nineSlice, undefined);
   });
 
   it("exports approved assets as a ZIP", async () => {

@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { fitNineSlice } from "../domain/nineSlice.js";
 import { removeBackground } from "../image/background.js";
+import { imageSize } from "../image/io.js";
 import { analyzePalette, snapToPalette } from "../image/palette.js";
 import { isPixelArt } from "../image/sizes.js";
 import { type AlignMode, type Jitter, alignFrames, detectFrameCount, joinFrames, measureJitter, sliceSheet } from "../image/spriteSheet.js";
@@ -100,6 +102,12 @@ async function newVersion(project: Project, asset: Asset, png: Buffer, notes: st
     parentId: asset.id,
     ...(asset.tags?.length ? { tags: [...asset.tags] } : {}),
   };
+  // Post-processing keeps the layout, so the 9-slice margins carry over while they still fit.
+  if (asset.nineSlice) {
+    const { width, height } = await imageSize(png);
+    const slice = fitNineSlice(asset.nineSlice, width, height);
+    if (slice) created.nineSlice = slice;
+  }
   if (extra) Object.assign(created, await extra(created));
   await updateProject(project.id, (p) => void p.assets.push(created));
   return created;

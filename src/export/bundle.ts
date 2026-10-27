@@ -1,9 +1,11 @@
 import { SIZE_PRESETS, isPixelArt, parseSize, resizeAsset } from "../image/sizes.js";
 import { hasTag } from "../domain/tags.js";
+import { fitNineSlice, scaleNineSlice } from "../domain/nineSlice.js";
+import { imageSize } from "../image/io.js";
 import { readProjectFile } from "../store/index.js";
 import type { Project } from "../store/types.js";
-import { buildAtlas, prepareSprite, scaleSprite } from "./atlas.js";
-import { spriteFramesTres } from "./godot.js";
+import { type AtlasInput, buildAtlas, prepareSprite, scaleSprite } from "./atlas.js";
+import { spriteFramesTres, styleBoxTextureTres } from "./godot.js";
 import { type ZipEntry, createZip } from "./zip.js";
 
 export interface ExportOptions {
@@ -53,12 +55,21 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
   const unique = uniqueNamer();
   const manifest = [];
   const pixel = isPixelArt(project.styleGuide);
+  const root = (opts.godotRoot ?? "assets").replace(/^res:\/\//, "").replace(/^\/+|\/+$/g, "");
+  const resPath = (f: string) => `res://${root ? `${root}/` : ""}${f}`;
   for (const a of assets) {
     const base = unique(`${a.assetType}/${safeName(a.name)}`);
     const ext = a.file.split(".").pop();
     const original = await readProjectFile(project.id, a.file);
     const files: Record<string, string | string[]> = { image: `${base}.${ext}` };
     entries.push({ name: `${base}.${ext}`, data: original });
+    // Re-checked against the real image: stored margins may come from an imported backup.
+    const size = a.nineSlice ? await imageSize(original) : null;
+    const nineSlice = size && fitNineSlice(a.nineSlice, size.width, size.height);
+    if (nineSlice) {
+      files.godot = `${base}.tres`;
+      entries.push({ name: `${base}.tres`, data: Buffer.from(styleBoxTextureTres(resPath(`${base}.${ext}`), nineSlice)) });
+    }
     if (opts.sizes) {
       const sized: string[] = (files.sizes = []);
       for (const spec of SIZE_PRESETS[a.assetType] ?? []) {
@@ -81,13 +92,12 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
         frames.push(name);
         entries.push({ name, data: await readProjectFile(project.id, f) });
       }
-      const root = (opts.godotRoot ?? "assets").replace(/^res:\/\//, "").replace(/^\/+|\/+$/g, "");
-      const tres = spriteFramesTres(frames.map((f) => `res://${root ? `${root}/` : ""}${f}`), { name: "default", fps: a.fps ?? 8 });
+      const tres = spriteFramesTres(frames.map(resPath), { name: "default", fps: a.fps ?? 8 });
       files.godot = `${base}.tres`;
       entries.push({ name: `${base}.tres`, data: Buffer.from(tres) });
     }
     manifest.push({
-      id: a.id, name: a.name, type: a.assetType, status: a.status, score: a.score ?? null, tags: a.tags ?? [],
+      id: a.id, name: a.name, type: a.assetType, status: a.status, score: a.score ?? null, tags: a.tags ?? [], nineSlice: nineSlice ?? null,
       notes: a.notes ?? null, prompt: a.prompt, provider: a.provider, createdAt: a.createdAt, fps: a.fps ?? null, files,
     });
   }
@@ -121,6 +131,8 @@ animations.json            Phaser 3 animations for sprite sheets (this.anims.fro
 Phaser 3:
   preload() { this.load.atlas("atlas", "atlas.png", "atlas.json"); this.load.json("anims", "animations.json"); }
   create()  { this.anims.fromJSON(this.cache.json.get("anims")); this.add.sprite(100, 100, "atlas", "item_icon/sword"); }
+UI frames with 9-slice margins carry "scale9Borders" (Phaser 3.60+ reads them):
+  this.add.nineslice(200, 100, "atlas", "ui/panel", 320, 120);
 With several pages, load each as atlas_0, atlas_1, … (texture keys match the page file names).
 `;
 
@@ -134,7 +146,7 @@ export async function buildAtlasExport(project: Project, opts: AtlasExportOption
   const pixel = isPixelArt(project.styleGuide);
   const maxSprite = opts.maxSprite ?? 256;
   const unique = uniqueNamer();
-  const images: { name: string; data: Buffer }[] = [];
+  const images: AtlasInput[] = [];
   const animations: { key: string; frames: string[]; fps: number }[] = [];
   for (const a of assets) {
     const key = unique(`${a.assetType}/${safeName(a.name)}`);
@@ -148,7 +160,17 @@ export async function buildAtlasExport(project: Project, opts: AtlasExportOption
       }
       animations.push({ key, frames, fps: a.fps ?? 8 });
     } else {
-      images.push({ name: key, data: await prepareSprite(await readProjectFile(project.id, a.file), maxSprite, pixel) });
+      const data = await readProjectFile(project.id, a.file);
+      const size = a.nineSlice ? await imageSize(data) : null;
+      const slice = size && fitNineSlice(a.nineSlice, size.width, size.height);
+      if (slice && size) {
+        // No trim: the margins are measured from the image edges. Scale them with the sprite.
+        const scaled = await scaleSprite(data, maxSprite, pixel);
+        const m = scaleNineSlice(slice, size, await imageSize(scaled));
+        images.push({ name: key, data: scaled, nineSlice: m });
+      } else {
+        images.push({ name: key, data: await prepareSprite(data, maxSprite, pixel) });
+      }
     }
   }
   const atlas = await buildAtlas(images, { maxSize: opts.maxSize ?? 2048 });

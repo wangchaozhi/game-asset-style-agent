@@ -176,7 +176,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ### `PATCH /api/projects/:id/assets/:assetId`
 
-人工审核与编辑，字段任选：`{ "status": "approved" | "rejected" | "pending_review", "notes": "意见", "name": "新名称", "tags": ["第一关"] }`（标签最多 10 个、每个 ≤ 20 字，空数组清除）。返回更新后的素材。
+人工审核与编辑，字段任选：`{ "status": "approved" | "rejected" | "pending_review", "notes": "意见", "name": "新名称", "tags": ["第一关"], "nineSlice": { "left": 24, "top": 24, "right": 24, "bottom": 24 } }`（标签最多 10 个、每个 ≤ 20 字，空数组清除）。`nineSlice` 只用于 UI 素材：九宫格边距，单位为原图像素，左右之和 / 上下之和需小于图片宽 / 高，`null` 清除；通过后处理生成的新版本会沿用边距。返回更新后的素材。
 
 ### `DELETE /api/projects/:id/assets/:assetId`
 
@@ -234,7 +234,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ### `GET /api/projects/:id/export.zip`
 
-按类型分目录的素材包，附 `manifest.json`、`style-guide.json`、参考图。精灵表带切帧、GIF 与 Godot 4 `.tres`。
+按类型分目录的素材包，附 `manifest.json`、`style-guide.json`、参考图。精灵表带切帧、GIF 与 Godot 4 `.tres`（SpriteFrames）；设置了九宫格的 UI 素材带 Godot 4 `StyleBoxTexture` `.tres`，`manifest.json` 里记录 `nineSlice`（相对原图，`?sizes=1` 的缩放版本需按比例换算）。
 
 - 默认只含已通过素材；`?status=all` 全部；`?ids=ast_a,ast_b` 指定素材（不限状态）；`?tag=第一关` 只含带该标签的素材（可与前两者组合）
 - `?sizes=1` 追加各类型常用尺寸
@@ -242,7 +242,7 @@ curl -N http://localhost:5173/api/jobs/job_xxx/events
 
 ### `GET /api/projects/:id/export-atlas.zip`
 
-图集：`atlas.png` + `atlas.json`（TexturePacker JSON Hash，Phaser / PixiJS 可直接加载）、`animations.json`（Phaser 3 动画）。背景图不进图集。
+图集：`atlas.png` + `atlas.json`（TexturePacker JSON Hash，Phaser / PixiJS 可直接加载）、`animations.json`（Phaser 3 动画）。背景图不进图集。设置了九宫格的 UI 素材不裁透明边，帧里带按缩放换算的 `scale9Borders`（Phaser 3.60+ 的 `this.add.nineslice` 直接读取）。
 
 - `?max=256` 单个精灵最长边（16-1024），`?size=2048` 图集页尺寸（512 / 1024 / 2048 / 4096），放不下时分多页 `atlas_0`、`atlas_1`…
 - `?status=all`、`?ids=`、`?tag=` 同上

@@ -1,4 +1,4 @@
-/* Asset viewer dialog: review, sprite frames, cut-out, sizes, tile seams. */
+/* Asset viewer dialog: review, sprite frames, cut-out, sizes, tile seams, 9-slice. */
 
 dialog { border: 0; border-radius: 14px; padding: 0; max-width: min(1000px, 94vw); width: 100%; background: var(--panel); color: var(--ink); }
 dialog::backdrop { background: rgba(0,0,0,.55); }
@@ -95,3 +95,16 @@ kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5p
 .viewer-title .rename:hover { color: var(--accent); }
 .snap-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
 .snap-form select { padding: 3px 6px; font-size: 12px; }
+.nine { display: grid; gap: 8px; }
+.nine-src { position: relative; justify-self: start; max-width: 100%; border-radius: 8px; border: 1px solid var(--line); line-height: 0; }
+.nine-src img { max-width: 100%; max-height: 180px; display: block; }
+.nine-line { position: absolute; pointer-events: none; border: 0 dashed var(--accent); }
+.nine-line.left, .nine-line.right { top: 0; bottom: 0; border-left-width: 1px; }
+.nine-line.top, .nine-line.bottom { left: 0; right: 0; border-top-width: 1px; }
+.nine-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.nine-form label { display: flex; gap: 4px; align-items: center; color: var(--muted); }
+.nine-form input { width: 64px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
+.nine-error { margin: 0; font-size: 12px; color: var(--bad); }
+.nine-previews { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.nine-previews figure { margin: 0; display: grid; gap: 4px; justify-items: center; font-size: 12px; }
+.nine-box { box-sizing: border-box; border-style: solid; border-color: transparent; border-image-repeat: stretch; }

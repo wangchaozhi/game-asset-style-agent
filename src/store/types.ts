@@ -1,3 +1,5 @@
+import type { NineSlice } from "../domain/nineSlice.js";
+
 export interface PaletteColor {
   hex: string;
   role: string;
@@ -52,6 +54,8 @@ export interface Asset {
   reviewer?: "agent" | "user";
   /** user / agent labels for grouping, e.g. a level or set name */
   tags?: string[];
+  /** ui only: 9-slice margins in pixels of `file` */
+  nineSlice?: NineSlice;
   /** palette consistency, measured against the style guide when the asset was made */
   palette?: { coverage: number; meanDeltaE: number; offPalette: { hex: string; share: number }[] };
 }

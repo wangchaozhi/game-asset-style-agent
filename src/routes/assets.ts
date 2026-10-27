@@ -8,6 +8,8 @@ import { tilePreview } from "../image/tiles.js";
 import { moveToTrash, readProjectFile, removeAssetFiles, restoreFromTrash, takeForPurge, updateProject } from "../store/index.js";
 import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
+import { type NineSlice, parseNineSlice } from "../domain/nineSlice.js";
+import { imageSize } from "../image/io.js";
 import { attachment, findAsset, pid } from "./util.js";
 
 export const assetsRouter = Router();
@@ -69,14 +71,26 @@ assetsRouter.post("/api/projects/:id/trash/empty", async (req, res) => {
   res.json({ affected: purged.length, project });
 });
 
-/** Manual review and edits: any of status, notes, name. */
+/** Manual review and edits: any of status, notes, name, tags, nineSlice (ui only; null clears). */
 assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
-  const { status, notes, name, tags } = req.body ?? {};
+  const { status, notes, name, tags, nineSlice } = req.body ?? {};
   if (status !== undefined && !STATUSES.includes(status)) return void res.status(400).json({ error: "无效的状态" });
   if (name !== undefined && (typeof name !== "string" || !name.trim())) return void res.status(400).json({ error: "名称不能为空" });
   if (tags !== undefined && !Array.isArray(tags)) return void res.status(400).json({ error: "tags 需为字符串数组" });
-  if (status === undefined && name === undefined && tags === undefined && typeof notes !== "string") {
+  if (status === undefined && name === undefined && tags === undefined && nineSlice === undefined && typeof notes !== "string") {
     return void res.status(400).json({ error: "没有要修改的内容" });
+  }
+  let slice: NineSlice | null | undefined;
+  if (nineSlice !== undefined) {
+    const found = await findAsset(req, res);
+    if (!found) return;
+    if (found.asset.assetType !== "ui") return void res.status(400).json({ error: "只有 UI 素材可以设置九宫格" });
+    if (nineSlice !== null) {
+      const { width, height } = await imageSize(await readProjectFile(found.project.id, found.asset.file));
+      const parsed = parseNineSlice(nineSlice, width, height);
+      if (typeof parsed === "string") return void res.status(400).json({ error: parsed });
+      slice = parsed;
+    } else slice = null;
   }
   let asset: Asset | undefined;
   await updateProject(pid(req), (p) => {
@@ -96,6 +110,8 @@ assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
       if (clean.length) asset.tags = clean;
       else delete asset.tags;
     }
+    if (slice) asset.nineSlice = slice;
+    else if (slice === null) delete asset.nineSlice;
   });
   if (!asset) return void res.status(404).json({ error: "素材不存在" });
   res.json(asset);

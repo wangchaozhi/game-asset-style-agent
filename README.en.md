@@ -20,9 +20,9 @@ Upload a few style reference images and let Claude act as your **AI art director
 - 🔁 **Self-review loop** — each image is scored 1–10 for consistency against the references, with automatic palette, tile-seam and frame-jitter checks attached. Seams, jitter and leftover backgrounds are fixed with free post-processing tools; anything else is redrawn with specific feedback (at most twice per asset)
 - 🎯 **Palette check** — ΔE distance in Lab space between an asset and the style palette: share of on-palette pixels and the main off-palette colours
 - 🧬 **Cross-asset consistency** — approved assets (e.g. the hero's design sheet) can be passed as extra references for the same character's animation frames or portrait
-- 🛠️ **Asset workbench** — sprite slicing and frame alignment, one-click seamless tiles, background removal, game-size exports, version compare (slider / side by side), editing a prompt and regenerating directly (no agent)
+- 🛠️ **Asset workbench** — sprite slicing and frame alignment, one-click seamless tiles, UI 9-slice margins with stretch preview, background removal, game-size exports, version compare (slider / side by side), editing a prompt and regenerating directly (no agent)
 - 🗂️ **Library management** — search and type filters, batch approve / reject / redraw with feedback / export, trash (restorable for 7 days), style-guide history with rollback, notes on reference images, project backup and restore
-- 📦 **Engine-ready exports** — ZIP per asset type (with common sizes, a manifest and Godot 4 `SpriteFrames` `.tres` for sprite sheets), plus texture atlases (PNG + TexturePacker JSON, loads directly in Phaser / PixiJS) with Phaser animation definitions
+- 📦 **Engine-ready exports** — ZIP per asset type (with common sizes, a manifest and Godot 4 `.tres` — `SpriteFrames` for sprite sheets, 9-slice `StyleBoxTexture` for UI), plus texture atlases (PNG + TexturePacker JSON, loads directly in Phaser / PixiJS) with Phaser animation definitions
 - 💰 **Cost control** — live token / image usage and cost estimates, per-run caps on image calls and USD, automatic backoff on image-API rate limits
 - 🔌 **Pluggable image models** — OpenAI `gpt-image-1` (multi-reference edits), Google Gemini Image, local Stable Diffusion WebUI (AUTOMATIC1111 / Forge, optional IP-Adapter for reference style), offline mock
 
