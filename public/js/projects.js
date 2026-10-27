@@ -45,6 +45,7 @@ export function renderAll() {
   loadConversationInfo();
   $("#exportApproved").href = `/api/projects/${state.project.id}/export.zip`;
   $("#backupProject").href = `/api/projects/${state.project.id}/backup.zip`;
+  $("#styleSheetLink").href = `/api/projects/${state.project.id}/style-sheet.html`;
   state.pixelKernel = /pixel|像素|8-?bit|16-?bit/i.test(JSON.stringify(state.project.styleGuide ?? ""));
   renderRefs();
   renderStyle();

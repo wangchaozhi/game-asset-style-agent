@@ -11,6 +11,7 @@ import {
 import { THUMB_WIDTHS, getThumb } from "../image/thumbs.js";
 import { isPixelArt } from "../image/sizes.js";
 import type { Project } from "../store/types.js";
+import { buildStyleSheet } from "../export/styleSheet.js";
 import { attachment, pid } from "./util.js";
 
 export const projectsRouter = Router();
@@ -151,6 +152,15 @@ projectsRouter.post("/api/projects/:id/cleanup", async (req, res) => {
 });
 
 /** Whole-project backup: metadata, conversation, usage log and every file. */
+/** One-page HTML style sheet (palette, rules, references, approved samples); ?download=1 saves it as a file. */
+projectsRouter.get("/api/projects/:id/style-sheet.html", async (req, res) => {
+  const project = await loadProject(pid(req));
+  const html = await buildStyleSheet(project);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  if (req.query.download) res.setHeader("Content-Disposition", attachment("style-sheet.html", `${project.name}_风格说明书.html`));
+  res.send(html);
+});
+
 projectsRouter.get("/api/projects/:id/backup.zip", async (req, res) => {
   const { filename, zip } = await buildBackup(pid(req));
   res.setHeader("Content-Type", "application/zip");

@@ -514,6 +514,25 @@ describe("HTTP API (demo mode)", () => {
     assert.deepEqual(asciiSet.animations.map((a: { name: string }) => a.name), ["idle", "walk"]);
   });
 
+  it("renders a self-contained style sheet", async () => {
+    const res = await fetch(`${base}/api/projects/${id}/style-sheet.html`);
+    assert.equal(res.headers.get("content-type"), "text/html; charset=utf-8");
+    const html = await res.text();
+    const project = (await json(`/api/projects/${id}`)).body;
+    assert.match(html, /^<!doctype html>/);
+    for (const c of project.styleGuide.palette) assert.ok(html.includes(c.hex), c.hex);
+    assert.ok(html.includes("风格说明书"));
+    assert.ok(!/<script/i.test(html), "no scripts");
+    assert.ok(!/src="(?!data:)/.test(html), "every image is inline");
+    assert.ok((html.match(/<img /g) ?? []).length >= project.refs.length + 1, "references and samples");
+    const dl = await fetch(`${base}/api/projects/${id}/style-sheet.html?download=1`);
+    assert.match(dl.headers.get("content-disposition") ?? "", /attachment; filename="style-sheet.html"/);
+    // Names are escaped.
+    await json(`/api/projects/${id}`, { method: "PATCH", body: { name: "<b>x</b>" } });
+    assert.ok((await (await fetch(`${base}/api/projects/${id}/style-sheet.html`)).text()).includes("&lt;b&gt;x&lt;/b&gt;"));
+    await json(`/api/projects/${id}`, { method: "PATCH", body: { name: project.name } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

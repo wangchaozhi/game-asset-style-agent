@@ -103,6 +103,10 @@ curl -H "Authorization: Bearer $ACCESS_TOKEN" http://localhost:5173/api/projects
 
 删除不属于任何素材或参考图的文件：`{ removed, bytes }`。有任务运行时返回 409。
 
+### `GET /api/projects/:id/style-sheet.html`
+
+风格说明书：单个 HTML 文件（图片内嵌，无脚本），含风格摘要、色板（色值与用途）、画风规则、避免事项、prompt 前缀、参考图与备注、各类型最多 6 个已通过素材样例，适合发给外包美术或直接打印。`?download=1` 作为附件下载。
+
 ### `GET /api/projects/:id/backup.zip`
 
 整个项目的备份（项目数据、对话、用量记录、全部文件）。
