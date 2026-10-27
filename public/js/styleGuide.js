@@ -113,6 +113,27 @@ export function bindStyleGuide() {
 const SOURCE = { agent: "Agent 提炼", user: "手动编辑", restore: "恢复", import: "早期版本" };
 const FIELD = Object.fromEntries([["summary", "概述"], ["palette", "色板"], ["avoid", "避免"], ["prompt_prefix", "Prompt 前缀"], ...STYLE_FIELDS]);
 
+/** The versions last shown in the history dialog, for the compare view. */
+let history = [];
+
+/** One field's value as HTML: palettes as swatches, lists as items, text as text. */
+function fieldValue(k, v) {
+  if (k === "palette") {
+    return `<span class="cmp-palette">${(v ?? []).map((c) => `<span><i style="background:${/^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : "transparent"}"></i>${esc(c.hex)} ${esc(c.role)}</span>`).join("")}</span>`;
+  }
+  if (Array.isArray(v)) return v.length ? `<ul>${v.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<span class="muted">（空）</span>`;
+  return v ? esc(v) : `<span class="muted">（空）</span>`;
+}
+
+/** Field-by-field table of what differs between a past version and the current guide. */
+function compareHtml(v) {
+  const cur = state.project.styleGuide;
+  if (!cur) return `<p class="muted">当前没有风格指南。</p>`;
+  return `<table class="cmp-table"><thead><tr><th scope="col">字段</th><th scope="col">此版本</th><th scope="col">当前</th></tr></thead><tbody>${v.changed
+    .map((k) => `<tr><th scope="row">${esc(FIELD[k] ?? k)}</th><td class="old">${fieldValue(k, v.styleGuide[k])}</td><td class="new">${fieldValue(k, cur[k])}</td></tr>`)
+    .join("")}</tbody></table>`;
+}
+
 export async function openStyleHistory() {
   const dlg = $("#historyDialog");
   const body = $("#historyBody");
@@ -120,6 +141,7 @@ export async function openStyleHistory() {
   dlg.showModal();
   try {
     const list = await api(`/api/projects/${state.project.id}/style-history`);
+    history = list;
     body.innerHTML = list.length
       ? `<ol class="history">${list
           .map((v) => {
@@ -127,11 +149,11 @@ export async function openStyleHistory() {
             return `<li class="${same ? "current" : ""}">
               <div class="history-head">
                 <span><b>${esc(SOURCE[v.source] ?? v.source)}</b> <span class="muted">${v.source === "import" ? "" : new Date(v.at).toLocaleString()}</span></span>
-                ${same ? `<span class="muted">当前使用中</span>` : `<button class="btn ghost small" data-restore-style="${v.index}">恢复此版本</button>`}
+                ${same ? `<span class="muted">当前使用中</span>` : `<span class="history-actions"><button class="btn ghost small" data-compare-style="${v.index}" aria-expanded="false">对比当前</button><button class="btn ghost small" data-restore-style="${v.index}">恢复此版本</button></span>`}
               </div>
               <p class="history-summary">${esc(v.styleGuide.summary)}</p>
               <div class="history-palette">${v.styleGuide.palette.map((c) => `<i title="${esc(c.hex)} ${esc(c.role)}" style="background:${esc(c.hex)}"></i>`).join("")}</div>
-              ${same ? "" : `<p class="muted history-diff">与当前不同：${v.changed.map((k) => esc(FIELD[k] ?? k)).join("、")}</p>`}
+              ${same ? "" : `<p class="muted history-diff">与当前不同：${v.changed.map((k) => esc(FIELD[k] ?? k)).join("、")}</p><div class="style-compare" data-compare-body="${v.index}" hidden></div>`}
             </li>`;
           })
           .join("")}</ol>`
@@ -144,6 +166,17 @@ export async function openStyleHistory() {
 export function bindStyleHistory() {
   $("#styleHistory").addEventListener("click", openStyleHistory);
   $("#historyBody").addEventListener("click", async (e) => {
+    const cmp = e.target.closest("[data-compare-style]");
+    if (cmp) {
+      const box = $(`#historyBody [data-compare-body="${cmp.dataset.compareStyle}"]`);
+      const v = history.find((x) => String(x.index) === cmp.dataset.compareStyle);
+      if (!box || !v) return;
+      if (box.hidden) box.innerHTML = compareHtml(v);
+      box.hidden = !box.hidden;
+      cmp.setAttribute("aria-expanded", String(!box.hidden));
+      cmp.textContent = box.hidden ? "对比当前" : "收起对比";
+      return;
+    }
     const index = e.target.closest("[data-restore-style]")?.dataset.restoreStyle;
     if (index === undefined) return;
     try {

@@ -42,3 +42,16 @@
 .history-palette { display: flex; gap: 4px; flex-wrap: wrap; }
 .history-palette i { width: 18px; height: 18px; border-radius: 4px; border: 1px solid var(--line); display: block; }
 .history-diff { margin: 0; font-size: 12px; }
+.history-actions { display: flex; gap: 6px; }
+.cmp-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px; }
+.cmp-table th, .cmp-table td { border: 1px solid var(--line); padding: 6px 8px; vertical-align: top; text-align: left; }
+.cmp-table thead th { background: var(--bg); }
+.cmp-table tbody th { white-space: nowrap; font-weight: 600; }
+.cmp-table td.old { background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.cmp-table td.new { background: color-mix(in srgb, var(--ok) 8%, transparent); }
+.cmp-table ul { margin: 0; padding-left: 16px; }
+.cmp-palette { display: flex; flex-direction: column; gap: 2px; }
+.cmp-palette span { display: flex; gap: 6px; align-items: center; font-family: ui-monospace, monospace; }
+.cmp-palette i { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
+/* The history list's item card style must not reach list items inside the compare table. */
+.cmp-table li { border: 0; padding: 0; background: none; border-radius: 0; display: list-item; }
