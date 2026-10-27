@@ -654,6 +654,15 @@ describe("HTTP API (demo mode)", () => {
     assert.match(JSON.stringify(failEvents), /风格预设/);
   });
 
+  it("rejects inherited object keys as asset types and actions", async () => {
+    const fd = new FormData();
+    fd.append("assetType", "constructor");
+    fd.append("images", new Blob([new Uint8Array(await solidPng(8, 8, "#336699"))], { type: "image/png" }), "x.png");
+    assert.equal((await json(`/api/projects/${id}/assets/import`, { method: "POST", body: fd })).status, 400);
+    const hero = (await json(`/api/projects/${id}`)).body.assets.find((a: { assetType: string }) => a.assetType === "character");
+    assert.equal((await json(`/api/projects/${id}/assets/${hero.id}/action-set`, { method: "POST", body: { actions: ["toString", "__proto__"] } })).status, 400);
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

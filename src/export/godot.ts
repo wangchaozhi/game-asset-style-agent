@@ -1,5 +1,8 @@
 import type { NineSlice } from "../domain/nineSlice.js";
 
+/** A value safe inside a Godot string literal: quotes and backslashes escaped, no line breaks. */
+const str = (v: string) => v.replace(/[\r\n]+/g, " ").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+
 /**
  * Godot 4 StyleBoxTexture for a 9-slice UI image: use it as a Panel / Button theme style,
  * or copy the margins to a NinePatchRect's patch_margin_*.
@@ -7,7 +10,7 @@ import type { NineSlice } from "../domain/nineSlice.js";
 export function styleBoxTextureTres(path: string, slice: NineSlice): string {
   return `[gd_resource type="StyleBoxTexture" load_steps=2 format=3]
 
-[ext_resource type="Texture2D" path="${path.replace(/"/g, '\\"')}" id="1"]
+[ext_resource type="Texture2D" path="${str(path)}" id="1"]
 
 [resource]
 texture = ExtResource("1")
@@ -33,11 +36,11 @@ export interface FramesAnimation {
 export function spriteFramesMultiTres(anims: FramesAnimation[]): string {
   const all = anims.flatMap((a) => a.paths);
   const ids = new Map(all.map((p, i) => [p, i + 1]));
-  const ext = [...ids.entries()].map(([p, id]) => `[ext_resource type="Texture2D" path="${p.replace(/"/g, '\\"')}" id="${id}"]`).join("\n");
+  const ext = [...ids.entries()].map(([p, id]) => `[ext_resource type="Texture2D" path="${str(p)}" id="${id}"]`).join("\n");
   const body = anims
     .map((a) => {
       const frames = a.paths.map((p) => `{\n"duration": 1.0,\n"texture": ExtResource("${ids.get(p)}")\n}`).join(", ");
-      return `{\n"frames": [${frames}],\n"loop": ${a.loop},\n"name": &"${a.name.replace(/"/g, "")}",\n"speed": ${a.fps.toFixed(1)}\n}`;
+      return `{\n"frames": [${frames}],\n"loop": ${a.loop},\n"name": &"${str(a.name)}",\n"speed": ${a.fps.toFixed(1)}\n}`;
     })
     .join(", ");
   return `[gd_resource type="SpriteFrames" load_steps=${ids.size + 1} format=3]
@@ -62,7 +65,7 @@ export function tileSetTres(path: string, o: { tileSize: number; count: number; 
   const tiles = Array.from({ length: o.count }, (_, i) => `${i % o.columns}:${Math.floor(i / o.columns)}/0 = 0`).join("\n");
   return `[gd_resource type="TileSet" load_steps=3 format=3]
 
-[ext_resource type="Texture2D" path="${path.replace(/"/g, '\\"')}" id="1"]
+[ext_resource type="Texture2D" path="${str(path)}" id="1"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_1"]
 texture = ExtResource("1")

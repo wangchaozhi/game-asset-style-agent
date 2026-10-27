@@ -7,6 +7,9 @@ import type { NineSlice } from "../domain/nineSlice.js";
  */
 export const unityGuid = (seed: string) => crypto.createHash("md5").update(`game-asset-agent:${seed}`).digest("hex");
 
+/** A name safe as a bare YAML scalar: letters (any script), digits, _ . - only. */
+const yamlName = (v: string) => v.replace(/[^\p{L}\p{N}_.-]+/gu, "_").replace(/^[-._]+|_+$/g, "") || "sprite";
+
 /** Stable 64-bit id Unity uses for a sprite inside a texture; 52 bits so it stays a safe JS integer. */
 const internalId = (seed: string) => Number(BigInt(`0x${unityGuid(seed).slice(0, 13)}`));
 
@@ -31,13 +34,14 @@ export interface UnitySpriteMeta {
  */
 export function spriteMeta(o: UnitySpriteMeta): string {
   const b = o.nineSlice;
+  const frameName = o.frames ? yamlName(o.frames.name) : "";
   // Unity's border is (x: left, y: bottom, z: right, w: top).
   const border = b ? `{x: ${b.left}, y: ${b.bottom}, z: ${b.right}, w: ${b.top}}` : "{x: 0, y: 0, z: 0, w: 0}";
   const alignment = o.bottomPivot ? 7 : 0;
   const pivot = o.bottomPivot ? "{x: 0.5, y: 0}" : "{x: 0.5, y: 0.5}";
   const sprites = o.frames
     ? Array.from({ length: o.frames.count }, (_, i) => {
-        const name = `${o.frames!.name}_${i}`;
+        const name = `${frameName}_${i}`;
         return `    - serializedVersion: 2
       name: ${name}
       rect:
@@ -54,7 +58,7 @@ export function spriteMeta(o: UnitySpriteMeta): string {
       })
     : [];
   const nameTable = o.frames
-    ? `\n    nameFileIdTable:\n${sprites.map((_, i) => `      ${o.frames!.name}_${i}: ${internalId(`${o.seed}#${i}`)}`).join("\n")}`
+    ? `\n    nameFileIdTable:\n${sprites.map((_, i) => `      ${frameName}_${i}: ${internalId(`${o.seed}#${i}`)}`).join("\n")}`
     : "";
   return `fileFormatVersion: 2
 guid: ${unityGuid(o.seed)}
@@ -105,7 +109,7 @@ AnimationClip:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: ${o.name.replace(/[\r\n:]/g, " ")}
+  m_Name: ${yamlName(o.name)}
   serializedVersion: 7
   m_Legacy: 0
   m_Compressed: 0

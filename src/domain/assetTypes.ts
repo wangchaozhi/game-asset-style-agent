@@ -14,7 +14,8 @@ export const ASSET_TYPES = {
 
 export type AssetType = keyof typeof ASSET_TYPES;
 export const ASSET_TYPE_KEYS = Object.keys(ASSET_TYPES) as [AssetType, ...AssetType[]];
-export const isAssetType = (t: string): t is AssetType => t in ASSET_TYPES;
+// Own keys only: `in` would also accept inherited names like "constructor" or "toString".
+export const isAssetType = (t: string): t is AssetType => Object.hasOwn(ASSET_TYPES, t);
 
 /** Types that are drawn edge-to-edge rather than as a cut-out subject. */
 export const isOpaqueType = (t: string) => t === "background" || t === "tile";

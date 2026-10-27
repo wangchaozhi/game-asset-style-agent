@@ -10,7 +10,8 @@ export const ACTION_PRESETS = {
 } as const;
 
 export type ActionKey = keyof typeof ACTION_PRESETS;
-export const isActionKey = (k: unknown): k is ActionKey => typeof k === "string" && k in ACTION_PRESETS;
+// Own keys only: `in` would also accept inherited names like "toString" or "__proto__".
+export const isActionKey = (k: unknown): k is ActionKey => typeof k === "string" && Object.hasOwn(ACTION_PRESETS, k);
 
 /** Asset types an action set can be made for. */
 export const ACTION_SET_TYPES = new Set(["character", "enemy"]);
