@@ -25,6 +25,8 @@ export interface ExportOptions {
   unity?: boolean;
   /** px per tile in the Godot TileSet built from the exported tiles (default 32) */
   tileSize?: number;
+  /** file names: as the asset is named, or ASCII only */
+  names?: NameStyle;
 }
 
 /** Tiles per row in the TileSet texture. */
@@ -35,6 +37,24 @@ const STANDING_TYPES = new Set(["character", "enemy", "sprite_sheet", "prop"]);
 
 /** Strip characters that are unsafe in archive paths. */
 export const safeName = (s: string) => s.replace(/[\\/:*?"<>|\s]+/g, "_").replace(/^_+|_+$/g, "") || "asset";
+
+/** How exported files are named: from the asset name as is, or ASCII only (safe for engines, VCS and any OS). */
+export type NameStyle = "original" | "ascii";
+
+/**
+ * Returns the file stem for each asset. "ascii" keeps names that are already ASCII-safe and turns the
+ * rest into "<type>_01", "<type>_02"… per type; the manifest still records the original name.
+ */
+export function stemNamer(style: NameStyle = "original") {
+  const counts = new Map<string, number>();
+  return (a: { name: string; assetType: string }) => {
+    const name = safeName(a.name);
+    if (style === "original" || /^[A-Za-z0-9_.-]+$/.test(name)) return name;
+    const n = (counts.get(a.assetType) ?? 0) + 1;
+    counts.set(a.assetType, n);
+    return `${a.assetType}_${String(n).padStart(2, "0")}`;
+  };
+}
 
 /** Returns a de-duplicating namer: "a", "a_2", "a_3"… */
 export function uniqueNamer() {
@@ -69,8 +89,10 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
   const pixel = isPixelArt(project.styleGuide);
   const root = (opts.godotRoot ?? "assets").replace(/^res:\/\//, "").replace(/^\/+|\/+$/g, "");
   const resPath = (f: string) => `res://${root ? `${root}/` : ""}${f}`;
+  const stemOf = stemNamer(opts.names);
   for (const a of assets) {
-    const base = unique(`${a.assetType}/${safeName(a.name)}`);
+    const stem = stemOf(a);
+    const base = unique(`${a.assetType}/${stem}`);
     const ext = a.file.split(".").pop();
     const original = await readProjectFile(project.id, a.file);
     const files: Record<string, string | string[]> = { image: `${base}.${ext}` };
@@ -86,7 +108,7 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
     };
     const standing = STANDING_TYPES.has(a.assetType);
     const sheet = (w: number, h: number) =>
-      a.frames?.length ? { count: a.frames.length, width: Math.floor(w / a.frames.length), height: h, name: safeName(a.name) } : undefined;
+      a.frames?.length ? { count: a.frames.length, width: Math.floor(w / a.frames.length), height: h, name: stem } : undefined;
     meta(`${base}.${ext}`, "image", { nineSlice, bottomPivot: standing, frames: size ? sheet(size.width, size.height) : undefined });
     if (nineSlice) {
       files.godot = `${base}.tres`;
@@ -123,7 +145,7 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
       }
       if (opts.unity) {
         files.unity = `${base}.anim`;
-        const clip = animationClip({ name: safeName(a.name), sheetSeed: `${project.id}/${a.id}/image`, count: a.frames.length, fps: a.fps ?? 8 });
+        const clip = animationClip({ name: stem, sheetSeed: `${project.id}/${a.id}/image`, count: a.frames.length, fps: a.fps ?? 8 });
         entries.push({ name: `${base}.anim`, data: Buffer.from(clip) });
         entries.push({ name: `${base}.anim.meta`, data: Buffer.from(nativeMeta(`${project.id}/${a.id}/anim`)) });
       }
@@ -176,6 +198,8 @@ export async function buildExport(project: Project, opts: ExportOptions = {}): P
 }
 
 export interface AtlasExportOptions {
+  /** frame names: as the asset is named, or ASCII only */
+  names?: NameStyle;
   all?: boolean;
   ids?: string[];
   tag?: string;
@@ -208,10 +232,11 @@ export async function buildAtlasExport(project: Project, opts: AtlasExportOption
   const pixel = isPixelArt(project.styleGuide);
   const maxSprite = opts.maxSprite ?? 256;
   const unique = uniqueNamer();
+  const stemOf = stemNamer(opts.names);
   const images: AtlasInput[] = [];
   const animations: { key: string; frames: string[]; fps: number }[] = [];
   for (const a of assets) {
-    const key = unique(`${a.assetType}/${safeName(a.name)}`);
+    const key = unique(`${a.assetType}/${stemOf(a)}`);
     if (a.frames?.length) {
       const frames: string[] = [];
       for (const [i, f] of a.frames.entries()) {

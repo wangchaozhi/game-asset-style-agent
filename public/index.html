@@ -223,6 +223,10 @@
           <label><input type="radio" name="scope" value="all" /> 全部素材</label>
           <label>标签 <select name="tag"></select></label>
         </fieldset>
+        <fieldset><legend>文件名</legend>
+          <label><input type="radio" name="names" value="original" /> 保留素材名</label>
+          <label><input type="radio" name="names" value="ascii" /> 英文安全名 <span class="muted">非英文的改为「类型_序号」，原名记在 manifest 里</span></label>
+        </fieldset>
         <fieldset data-kind="zip"><legend>素材包选项</legend>
           <label><input type="checkbox" name="sizes" /> 附各类型常用尺寸</label>
           <label><input type="checkbox" name="unity" /> 附 Unity .meta 与精灵表 AnimationClip</label>

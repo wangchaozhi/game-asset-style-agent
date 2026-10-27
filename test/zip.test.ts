@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { safeName, uniqueNamer } from "../src/export/bundle.js";
+import { safeName, stemNamer, uniqueNamer } from "../src/export/bundle.js";
 import { createZip } from "../src/export/zip.js";
 import { readZip } from "./helpers.js";
 
@@ -36,5 +36,26 @@ describe("export naming", () => {
   it("uniqueNamer de-duplicates", () => {
     const n = uniqueNamer();
     assert.deepEqual([n("a"), n("a"), n("a"), n("b")], ["a", "a_2", "a_3", "b"]);
+  });
+});
+
+describe("stemNamer", () => {
+  it("keeps names as they are by default", () => {
+    const stem = stemNamer();
+    assert.equal(stem({ name: "火焰 剑", assetType: "item_icon" }), "火焰_剑");
+  });
+
+  it("ascii: keeps ASCII-safe names, numbers the rest per type", () => {
+    const stem = stemNamer("ascii");
+    assert.deepEqual(
+      [
+        stem({ name: "fire sword", assetType: "item_icon" }),
+        stem({ name: "火焰剑", assetType: "item_icon" }),
+        stem({ name: "盾牌", assetType: "item_icon" }),
+        stem({ name: "小狐狸", assetType: "character" }),
+        stem({ name: "hero.v2", assetType: "character" }),
+      ],
+      ["fire_sword", "item_icon_01", "item_icon_02", "character_01", "hero.v2"],
+    );
   });
 });

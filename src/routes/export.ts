@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { buildAtlasExport, buildExport } from "../export/bundle.js";
+import { type NameStyle, buildAtlasExport, buildExport } from "../export/bundle.js";
 import { loadProject } from "../store/index.js";
 import { attachment, pid } from "./util.js";
 
@@ -8,6 +8,9 @@ const idsParam = (q: unknown) =>
   typeof q === "string" && q ? q.split(",").map((s) => s.trim()).filter(Boolean).slice(0, 1000) : undefined;
 
 export const exportRouter = Router();
+
+/** ?names=ascii: ASCII-only file names (type_01…) for names that aren't already. */
+const namesParam = (q: unknown): NameStyle => (q === "ascii" ? "ascii" : "original");
 
 /** ?status=all includes unapproved assets; ?sizes=1 adds common game sizes; ?unity=1 adds Unity .meta files. */
 exportRouter.get("/api/projects/:id/export.zip", async (req, res) => {
@@ -18,7 +21,7 @@ exportRouter.get("/api/projects/:id/export.zip", async (req, res) => {
   const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
   const tileSize = req.query.tile === undefined ? undefined : Number(req.query.tile);
   if (tileSize !== undefined && (!Number.isInteger(tileSize) || tileSize < 8 || tileSize > 256)) return void res.status(400).json({ error: "瓦片尺寸需为 8-256" });
-  const out = await buildExport(project, { all, ids, tag, sizes: !!req.query.sizes, godotRoot, unity: !!req.query.unity, tileSize });
+  const out = await buildExport(project, { all, ids, tag, sizes: !!req.query.sizes, godotRoot, unity: !!req.query.unity, tileSize, names: namesParam(req.query.names) });
   if (!out) return void res.status(400).json({ error: ids ? "所选素材不存在" : tag ? `没有带「${tag}」标签的${all ? "" : "已通过"}素材` : all ? "项目还没有素材" : "还没有已通过的素材" });
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", attachment("assets.zip", out.filename));
@@ -35,7 +38,7 @@ exportRouter.get("/api/projects/:id/export-atlas.zip", async (req, res) => {
   if (![512, 1024, 2048, 4096].includes(maxSize)) return void res.status(400).json({ error: "图集页尺寸需为 512/1024/2048/4096" });
   if (maxSprite + 4 > maxSize) return void res.status(400).json({ error: "单个精灵尺寸不能超过图集页尺寸" });
   const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
-  const out = await buildAtlasExport(project, { all, ids: idsParam(req.query.ids), tag, maxSprite, maxSize });
+  const out = await buildAtlasExport(project, { all, ids: idsParam(req.query.ids), tag, maxSprite, maxSize, names: namesParam(req.query.names) });
   if (!out) return void res.status(400).json({ error: "没有可打包的素材（背景图不进图集）" });
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", attachment("atlas.zip", out.filename));

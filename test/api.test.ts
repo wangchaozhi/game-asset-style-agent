@@ -481,6 +481,24 @@ describe("HTTP API (demo mode)", () => {
     assert.deepEqual([fromBare.styleGuide, fromBare.refs.length], [null, 0]);
   });
 
+  it("names exported files ASCII-only on request, keeping the original names in the manifest", async () => {
+    const ascii = /^[\x20-\x7e]+$/;
+    const zip = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?status=all&names=ascii&unity=1`)).arrayBuffer()));
+    const bad = Object.keys(zip).filter((n) => !ascii.test(n));
+    assert.deepEqual(bad, [], "every path is ASCII");
+    const manifest = JSON.parse(zip["manifest.json"].data.toString());
+    assert.ok(manifest.assets.some((a: { name: string }) => !ascii.test(a.name)), "original (Chinese) names stay in the manifest");
+    for (const n of Object.keys(zip).filter((k) => k.endsWith(".meta") || k.endsWith(".anim"))) {
+      assert.match(zip[n].data.toString(), /^[\t\n\r\x20-\x7e]*$/, `${n} is ASCII inside too`);
+    }
+    const atlas = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export-atlas.zip?status=all&names=ascii`)).arrayBuffer()));
+    const frames = Object.keys(JSON.parse(atlas["atlas.json"].data.toString()).frames);
+    assert.ok(frames.length && frames.every((f) => ascii.test(f)), frames.join());
+    // Default stays as before.
+    const plain = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?status=all`)).arrayBuffer()));
+    assert.ok(Object.keys(plain).some((n) => !ascii.test(n)));
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

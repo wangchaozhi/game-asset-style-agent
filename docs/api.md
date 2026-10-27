@@ -270,6 +270,7 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 
 - 默认只含已通过素材；`?status=all` 全部；`?ids=ast_a,ast_b` 指定素材（不限状态）；`?tag=第一关` 只含带该标签的素材（可与前两者组合）
 - `?sizes=1` 追加各类型常用尺寸
+- `?names=ascii` 文件名只用 ASCII：本身就是英文安全名的保持不变，其余按类型编号为 `item_icon_01`、`item_icon_02`…（`manifest.json` 仍记录原名），引擎、版本库与跨平台路径更省心；图集同样支持
 - `?godot=game/art` 指定 `.tres` 里的 `res://` 目录（默认 `assets`）
 - 含瓦片时附 Godot 4 TileSet：所有瓦片缩放到同一尺寸拼成 `tile/tileset.png`（每行 8 块），`tile/tileset.tres` 直接拖到 TileMapLayer 上即可绘制；`?tile=32` 指定每块像素（8-256，默认 32）；`manifest.json` 的 `tileset` 记录每块瓦片在图集里的坐标
 - `?unity=1` 每张图旁附 Unity `TextureImporter` `.meta`：按 Sprite 导入；精灵表为 Multiple 并按帧切片；UI 九宫格写入 `spriteBorder`；角色 / 敌人 / 物件 / 帧的轴心在底部中心；瓦片为 Repeat；像素风为 Point 过滤、不压缩。GUID 由项目、素材 id 与用途决定，重复导出保持不变，Unity 里的引用不会断；精灵表另附循环播放的 AnimationClip（`.anim` + `.meta`，按帧率切换 SpriteRenderer 的 Sprite，manifest 里记为 `files.unity`）

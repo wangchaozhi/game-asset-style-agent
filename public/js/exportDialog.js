@@ -3,7 +3,7 @@ import { $, esc } from "./lib.js";
 import { state } from "./state.js";
 
 const KEY = "gaa.export";
-const DEFAULTS = { kind: "zip", scope: "approved", tag: "", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048" };
+const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048" };
 
 function load() {
   try {
@@ -24,6 +24,7 @@ export function exportUrl(projectId, o) {
   const q = new URLSearchParams();
   if (o.scope === "all") q.set("status", "all");
   if (o.tag) q.set("tag", o.tag);
+  if (o.names === "ascii") q.set("names", "ascii");
   if (o.kind === "atlas") {
     if (o.max !== DEFAULTS.max) q.set("max", o.max);
     if (o.size !== DEFAULTS.size) q.set("size", o.size);
@@ -43,6 +44,7 @@ function read(form) {
     kind: fd.get("kind"),
     scope: fd.get("scope"),
     tag: fd.get("tag") ?? "",
+    names: fd.get("names") ?? "original",
     sizes: fd.has("sizes"),
     unity: fd.has("unity"),
     godot: String(fd.get("godot") ?? "").trim(),
@@ -75,6 +77,7 @@ function open() {
   form.elements.tag.innerHTML = `<option value="">全部标签</option>${tags.map((t) => `<option value="${esc(t)}">#${esc(t)}</option>`).join("")}`;
   form.elements.kind.value = o.kind;
   form.elements.scope.value = o.scope;
+  form.elements.names.value = o.names;
   form.elements.tag.value = tags.includes(o.tag) ? o.tag : "";
   form.elements.sizes.checked = o.sizes;
   form.elements.unity.checked = o.unity;
