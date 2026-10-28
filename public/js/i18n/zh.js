@@ -739,4 +739,11 @@ export default {
   "export.preset.save": "保存为预设…",
   "export.preset.delete": "删除此预设",
   "export.preset.namePrompt": "预设名称（格式与选项会被保存，范围与标签不保存）",
+
+  // Viewer: reference check
+  "refCompare.title": "对照参考图",
+  "refCompare.pick": "点一张参考图与素材并排",
+  "refCompare.ref": "参考图 {n}",
+  "refCompare.note": "参考图备注",
+  "refCompare.hint": "左：参考图 · 右：素材",
 };

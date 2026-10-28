@@ -43,6 +43,26 @@ export function openCompare(beforeId, afterId, mode = "slider") {
     ${before.notes || after.notes ? `<div class="cmp-notes">${before.notes ? `<p><b>${t("compare.before")}: </b>${esc(before.notes)}</p>` : ""}${after.notes ? `<p><b>${t("compare.after")}: </b>${esc(after.notes)}</p>` : ""}</div>` : ""}`;
 }
 
+/** Swap the image pane for the asset next to one of the project's reference images. */
+export function openRefCompare(refId, assetId) {
+  const i = state.project.refs.findIndex((r) => r.id === refId);
+  const ref = state.project.refs[i];
+  const a = state.project.assets.find((x) => x.id === assetId);
+  if (!ref || !a) return;
+  const pane = $("#viewerCompare");
+  $("#viewerImgWrap").hidden = true;
+  $("#zoomBar").hidden = true;
+  pane.hidden = false;
+  delete pane.dataset.pair;
+  pane.innerHTML = `
+    <div class="cmp-bar"><span class="muted">${esc(t("refCompare.hint"))}</span><button class="btn link" data-cmp-close>${t("compare.exit")}</button></div>
+    <div class="cmp-side">
+      <figure class="checker"><img src="${fileUrl(ref.file)}" alt="${esc(t("refCompare.ref", { n: i + 1 }))}" /><span class="cmp-label"><b>${esc(t("refCompare.ref", { n: i + 1 }))}</b></span></figure>
+      <figure class="checker"><img src="${fileUrl(a.file)}" alt="${esc(a.name)}" /><span class="cmp-label"><b>${esc(a.name)}</b> ${esc(verdictText(a))}</span></figure>
+    </div>
+    ${ref.note ? `<div class="cmp-notes"><p><b>${esc(t("refCompare.note"))}: </b>${esc(ref.note)}</p></div>` : ""}`;
+}
+
 export function closeCompare() {
   const pane = $("#viewerCompare");
   if (!pane) return;

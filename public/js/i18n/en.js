@@ -739,4 +739,11 @@ export default {
   "export.preset.save": "Save as preset…",
   "export.preset.delete": "Delete this preset",
   "export.preset.namePrompt": "Preset name (format and options are saved; scope and tag are not)",
+
+  // Viewer: reference check
+  "refCompare.title": "Check against a reference",
+  "refCompare.pick": "Pick a reference to show beside the asset",
+  "refCompare.ref": "Reference {n}",
+  "refCompare.note": "Reference note",
+  "refCompare.hint": "Left: reference · right: asset",
 };
