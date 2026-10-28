@@ -645,4 +645,7 @@ export default {
   // Providers
   "provider.mock": "Mock (offline placeholders)",
   "provider.sdwebui": "Stable Diffusion WebUI (local)",
+
+  // Common
+  "common.count": "{label} ({n})",
 };

@@ -7,8 +7,8 @@ English · [中文](README.md)
 Upload a few style reference images and let Claude act as your **AI art director**. It distils a reusable **style guide** from the references (palette hex codes, technique, line work, lighting, camera, proportions), plans an asset list from your request, generates the images with an image model, **looks at every result and reviews it**, and redraws whatever drifts — so you end up with a set of assets that look like they come from the same game.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/main-dark.png" />
-  <img alt="Main screen: references and style guide, request and agent log, asset library" src="docs/screenshots/main-light.png" />
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/en/main-dark.png" />
+  <img alt="Main screen: references and style guide, request and agent log, asset library" src="docs/screenshots/en/main-light.png" />
 </picture>
 
 <sub>Screenshots are from demo mode (`AGENT_MODE=demo`) with offline placeholder art; with Claude and an image model connected you get real generations. The UI is in Chinese.</sub>
@@ -32,7 +32,7 @@ Upload a few style reference images and let Claude act as your **AI art director
 - 💰 **Cost control** — live token / image usage and cost estimates, per-run caps on image calls and USD, automatic backoff on image-API rate limits
 - 🔌 **Pluggable image models** — OpenAI `gpt-image-1` (multi-reference edits), Google Gemini Image, local Stable Diffusion WebUI (AUTOMATIC1111 / Forge, optional IP-Adapter for reference style), offline mock
 
-<img alt="Asset viewer: review and redraw, palette check, sprite jitter detection and alignment, game sizes" src="docs/screenshots/viewer.png" />
+<img alt="Asset viewer: review and redraw, palette check, sprite jitter detection and alignment, game sizes" src="docs/screenshots/en/viewer.png" />
 
 ## Quick start
 

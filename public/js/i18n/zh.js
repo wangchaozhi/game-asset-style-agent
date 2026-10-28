@@ -645,4 +645,7 @@ export default {
   // Providers
   "provider.mock": "Mock（离线占位图）",
   "provider.sdwebui": "Stable Diffusion WebUI（本地）",
+
+  // Common
+  "common.count": "{label}（{n}）",
 };

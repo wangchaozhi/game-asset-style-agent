@@ -13,7 +13,7 @@ export async function loadProjects(selectId) {
     const p = await api("/api/projects", { method: "POST", body: { name: t("project.first") } });
     return loadProjects(p.id);
   }
-  sel.innerHTML = list.map((p) => `<option value="${p.id}">${esc(p.name)}（${p.assets}）</option>`).join("");
+  sel.innerHTML = list.map((p) => `<option value="${p.id}">${esc(t("common.count", { label: p.name, n: p.assets }))}</option>`).join("");
   const id = selectId || localStorage.getItem("gaa.project") || list[0].id;
   sel.value = list.some((p) => p.id === id) ? id : list[0].id;
   await openProject(sel.value);
@@ -61,7 +61,7 @@ export async function loadProjectsQuiet() {
   const list = await api("/api/projects");
   const sel = $("#projectSelect");
   const cur = sel.value;
-  sel.innerHTML = list.map((p) => `<option value="${p.id}">${esc(p.name)}（${p.assets}）</option>`).join("");
+  sel.innerHTML = list.map((p) => `<option value="${p.id}">${esc(t("common.count", { label: p.name, n: p.assets }))}</option>`).join("");
   sel.value = cur;
 }
 

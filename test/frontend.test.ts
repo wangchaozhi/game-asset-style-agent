@@ -126,7 +126,8 @@ describe("front end: i18n", () => {
       if (!f.endsWith(".js") || f.startsWith("i18n/")) continue;
       const lines = (await readFile(new URL(f, root), "utf8")).split("\n");
       lines.forEach((l, i) => {
-        if (/[\u4e00-\u9fa5]/.test(l) && !allowed.some((r) => r.test(l))) offenders.push(`${f}:${i + 1}`);
+        // Full-width brackets and quotes are Chinese typography too.
+        if (/[\u4e00-\u9fa5（）「」]/.test(l) && !allowed.some((r) => r.test(l))) offenders.push(`${f}:${i + 1}`);
       });
     }
     assert.deepEqual(offenders, []);

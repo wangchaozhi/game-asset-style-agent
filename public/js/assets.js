@@ -41,7 +41,7 @@ function renderTypeFilter() {
   sel.innerHTML =
     `<option value="">${esc(t("filter.allTypes", { n: state.project.assets.length }))}</option>` +
     Object.entries(counts)
-      .map(([type, n]) => `<option value="${esc(type)}">${esc(typeLabel(type, state.config.assetTypes[type]))}（${n}）</option>`)
+      .map(([type, n]) => `<option value="${esc(type)}">${esc(t("common.count", { label: typeLabel(type, state.config.assetTypes[type]), n }))}</option>`)
       .join("");
   sel.value = state.typeFilter;
   renderTagFilter();
@@ -56,7 +56,7 @@ function renderTagFilter() {
   sel.hidden = !counts.size;
   sel.innerHTML =
     `<option value="">${esc(t("filter.allTags"))}</option>` +
-    [...counts].sort((x, y) => x[0].localeCompare(y[0])).map(([tag, n]) => `<option value="${esc(tag)}">#${esc(tag)}（${n}）</option>`).join("");
+    [...counts].sort((x, y) => x[0].localeCompare(y[0])).map(([tag, n]) => `<option value="${esc(tag)}">${esc(t("common.count", { label: `#${tag}`, n }))}</option>`).join("");
   sel.value = state.tagFilter;
 }
 
