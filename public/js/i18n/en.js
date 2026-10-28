@@ -726,4 +726,17 @@ export default {
 
   // Search syntax
   "filter.searchTitle": "All words must appear; \"quoted phrases\"; -word excludes; #tag; type:item_icon; status:approved / rejected / pending",
+
+  // Export presets
+  "export.preset.label": "Preset",
+  "export.preset.custom": "Current settings",
+  "export.preset.builtin": "Built-in",
+  "export.preset.mine": "My presets",
+  "export.preset.unity": "Unity sprites (ZIP + .meta)",
+  "export.preset.godot": "Godot (ZIP + .tres)",
+  "export.preset.phaser": "Phaser / PixiJS atlas",
+  "export.preset.cocos": "Cocos Creator atlas (.plist)",
+  "export.preset.save": "Save as preset…",
+  "export.preset.delete": "Delete this preset",
+  "export.preset.namePrompt": "Preset name (format and options are saved; scope and tag are not)",
 };

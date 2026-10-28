@@ -295,6 +295,11 @@
     <form method="dialog"><button class="close" aria-label="关闭" data-i18n-aria="dlg.close">×</button></form>
     <div class="usage-body">
       <h3 id="exportTitle" data-i18n="export.title">导出</h3>
+      <div class="export-presets">
+        <label><span data-i18n="export.preset.label">预设</span> <select id="exportPreset"></select></label>
+        <button type="button" class="btn link" id="exportPresetSave" data-i18n="export.preset.save">保存为预设…</button>
+        <button type="button" class="btn link danger" id="exportPresetDelete" hidden data-i18n="export.preset.delete">删除此预设</button>
+      </div>
       <form id="exportForm" class="export-form">
         <fieldset><legend data-i18n="export.format">格式</legend>
           <label><input type="radio" name="kind" value="zip" /> <span data-i18n="export.zip">素材包 ZIP</span> <span class="muted" data-i18n="export.zipHint">按类型分目录，含 manifest、Godot .tres、TileSet</span></label>

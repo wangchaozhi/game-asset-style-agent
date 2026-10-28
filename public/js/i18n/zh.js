@@ -726,4 +726,17 @@ export default {
 
   // Search syntax
   "filter.searchTitle": "多个词需同时出现；\"带空格的短语\"；-词 排除；#标签；type:item_icon；status:approved / rejected / pending",
+
+  // Export presets
+  "export.preset.label": "预设",
+  "export.preset.custom": "当前设置",
+  "export.preset.builtin": "内置",
+  "export.preset.mine": "我的预设",
+  "export.preset.unity": "Unity 精灵（ZIP + .meta）",
+  "export.preset.godot": "Godot（ZIP + .tres）",
+  "export.preset.phaser": "Phaser / PixiJS 图集",
+  "export.preset.cocos": "Cocos Creator 图集（.plist）",
+  "export.preset.save": "保存为预设…",
+  "export.preset.delete": "删除此预设",
+  "export.preset.namePrompt": "预设名称（格式与选项会被保存，范围与标签不保存）",
 };

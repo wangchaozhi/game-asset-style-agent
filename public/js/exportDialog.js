@@ -20,6 +20,62 @@ function save(opts) {
   } catch {}
 }
 
+/** Options that describe how to export; scope and tag (what to export) stay as chosen when a preset is applied. */
+const FORMAT_KEYS = ["kind", "names", "sizes", "unity", "godot", "tile", "max", "size", "cocos"];
+
+/** Built-in presets for common engines, by i18n key. */
+export const BUILTIN_PRESETS = {
+  "export.preset.unity": { kind: "zip", names: "ascii", unity: true },
+  "export.preset.godot": { kind: "zip", names: "ascii", unity: false },
+  "export.preset.phaser": { kind: "atlas", names: "original", cocos: false },
+  "export.preset.cocos": { kind: "atlas", names: "ascii", cocos: true },
+};
+
+const PRESETS_KEY = "gaa.exportPresets";
+
+/** The format part of a set of options (what a preset stores). */
+export const formatOf = (o) => Object.fromEntries(FORMAT_KEYS.map((k) => [k, o[k]]));
+
+/** Options after applying a preset: its format over the defaults, keeping the current scope and tag. */
+export const applyPreset = (o, preset) => ({ ...o, ...formatOf({ ...DEFAULTS, ...preset }) });
+
+/** The preset (id) whose format equals the current options, or "" when none does. */
+export function matchingPreset(o, presets) {
+  const now = JSON.stringify(formatOf(o));
+  return Object.keys(presets).find((id) => JSON.stringify(formatOf({ ...DEFAULTS, ...presets[id] })) === now) ?? "";
+}
+
+function loadPresets() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PRESETS_KEY) ?? "{}");
+    return saved && typeof saved === "object" ? saved : {};
+  } catch {
+    return {};
+  }
+}
+
+function savePresets(p) {
+  try {
+    localStorage.setItem(PRESETS_KEY, JSON.stringify(p));
+  } catch {}
+}
+
+/** Every preset by id: built-ins as "builtin:<key>", the user's as "user:<name>". */
+const allPresets = () => ({
+  ...Object.fromEntries(Object.entries(BUILTIN_PRESETS).map(([k, v]) => [`builtin:${k}`, v])),
+  ...Object.fromEntries(Object.entries(loadPresets()).map(([k, v]) => [`user:${k}`, v])),
+});
+
+function renderPresets(o) {
+  const user = Object.keys(loadPresets());
+  const sel = $("#exportPreset");
+  sel.innerHTML = `<option value="">${esc(t("export.preset.custom"))}</option>
+    <optgroup label="${esc(t("export.preset.builtin"))}">${Object.keys(BUILTIN_PRESETS).map((k) => `<option value="builtin:${k}">${esc(t(k))}</option>`).join("")}</optgroup>
+    ${user.length ? `<optgroup label="${esc(t("export.preset.mine"))}">${user.map((n) => `<option value="user:${esc(n)}">${esc(n)}</option>`).join("")}</optgroup>` : ""}`;
+  sel.value = matchingPreset(o, allPresets());
+  $("#exportPresetDelete").hidden = !sel.value.startsWith("user:");
+}
+
 /** The export URL for the chosen options; defaults are left out so URLs stay short. */
 export function exportUrl(projectId, o) {
   const q = new URLSearchParams();
@@ -96,17 +152,14 @@ function update() {
   link.classList.toggle("disabled", !n);
   link.setAttribute("aria-disabled", String(!n));
   save(o);
+  renderPresets(o);
 }
 
-function open() {
-  const o = load();
-  const form = $("#exportForm");
-  const tags = [...new Set(state.project.assets.flatMap((a) => a.tags ?? []))].sort();
-  form.elements.tag.innerHTML = `<option value="">${t("filter.allTags")}</option>${tags.map((tag) => `<option value="${esc(tag)}">#${esc(tag)}</option>`).join("")}`;
+/** Put a set of options into the form. */
+function fill(form, o) {
   form.elements.kind.value = o.kind;
   form.elements.scope.value = o.scope;
   form.elements.names.value = o.names;
-  form.elements.tag.value = tags.includes(o.tag) ? o.tag : "";
   form.elements.sizes.checked = o.sizes;
   form.elements.unity.checked = o.unity;
   form.elements.godot.value = o.godot;
@@ -114,12 +167,42 @@ function open() {
   form.elements.max.value = o.max;
   form.elements.size.value = o.size;
   form.elements.cocos.checked = o.cocos;
+}
+
+function open() {
+  const o = load();
+  const form = $("#exportForm");
+  const tags = [...new Set(state.project.assets.flatMap((a) => a.tags ?? []))].sort();
+  form.elements.tag.innerHTML = `<option value="">${t("filter.allTags")}</option>${tags.map((tag) => `<option value="${esc(tag)}">#${esc(tag)}</option>`).join("")}`;
+  fill(form, o);
+  form.elements.tag.value = tags.includes(o.tag) ? o.tag : "";
   update();
   $("#exportDialog").showModal();
 }
 
 export function bindExportDialog() {
   $("#exportMore").addEventListener("click", open);
+  $("#exportPreset").addEventListener("change", (e) => {
+    const preset = allPresets()[e.target.value];
+    if (!preset) return;
+    const form = $("#exportForm");
+    fill(form, applyPreset(read(form), preset));
+    update();
+  });
+  $("#exportPresetSave").addEventListener("click", () => {
+    const name = prompt(t("export.preset.namePrompt"), "")?.trim().slice(0, 40);
+    if (!name) return;
+    savePresets({ ...loadPresets(), [name]: formatOf(read($("#exportForm"))) });
+    update();
+  });
+  $("#exportPresetDelete").addEventListener("click", () => {
+    const id = $("#exportPreset").value;
+    if (!id.startsWith("user:")) return;
+    const presets = loadPresets();
+    delete presets[id.slice(5)];
+    savePresets(presets);
+    update();
+  });
   $("#exportForm").addEventListener("input", update);
   $("#exportForm").addEventListener("change", update);
   // Enter in a text field would submit the form; there is nothing to submit.

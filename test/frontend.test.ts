@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 // The interface language comes from saved choice, else the browser; pin Chinese so assertions are stable.
 Object.defineProperty(globalThis, "localStorage", { value: { getItem: () => "zh", setItem() {}, removeItem() {} }, configurable: true });
 const load = (path: string) => import(path);
-const { exportNotes, exportUrl, renamedAscii } = await load("../public/js/exportDialog.js");
+const { BUILTIN_PRESETS, applyPreset, exportNotes, exportUrl, formatOf, matchingPreset, renamedAscii } = await load("../public/js/exportDialog.js");
 const { esc } = await load("../public/js/lib.js");
 const { feedbackOf } = await load("../public/js/consistency.js");
 const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
@@ -69,6 +69,22 @@ describe("front end: library keyboard", () => {
     assert.equal(gridMove(5, "Home", 4, 10), 0);
     assert.equal(gridMove(5, "End", 4, 10), 9);
     assert.equal(gridMove(5, "a", 4, 10), null);
+  });
+});
+
+describe("front end: export presets", () => {
+  it("applies a preset's format over the defaults and keeps scope and tag", () => {
+    const now = { ...DEFAULTS, scope: "all", tag: "boss", kind: "atlas", max: "64" };
+    const o = applyPreset(now, BUILTIN_PRESETS["export.preset.unity"]);
+    assert.deepEqual([o.kind, o.unity, o.names, o.max, o.scope, o.tag], ["zip", true, "ascii", "256", "all", "boss"]);
+  });
+
+  it("recognises which preset the current options are", () => {
+    const presets = { a: BUILTIN_PRESETS["export.preset.cocos"], b: { kind: "zip", sizes: true } };
+    assert.equal(matchingPreset(applyPreset(DEFAULTS, presets.a), presets), "a");
+    assert.equal(matchingPreset({ ...applyPreset(DEFAULTS, presets.b), tag: "x" }, presets), "b", "tag doesn't matter");
+    assert.equal(matchingPreset({ ...DEFAULTS, max: "128" }, presets), "");
+    assert.deepEqual(Object.keys(formatOf(DEFAULTS)).sort(), ["cocos", "godot", "kind", "max", "names", "size", "sizes", "tile", "unity"]);
   });
 });
 
