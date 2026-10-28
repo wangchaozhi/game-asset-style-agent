@@ -648,4 +648,7 @@ export default {
 
   // Common
   "common.count": "{label}（{n}）",
+
+  // Export: Cocos
+  "export.cocos": "附 Cocos Creator 图集（.plist）",
 };

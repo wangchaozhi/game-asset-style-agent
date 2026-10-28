@@ -648,4 +648,7 @@ export default {
 
   // Common
   "common.count": "{label} ({n})",
+
+  // Export: Cocos
+  "export.cocos": "Include Cocos Creator atlases (.plist)",
 };

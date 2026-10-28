@@ -29,7 +29,7 @@ exportRouter.get("/api/projects/:id/export.zip", async (req, res) => {
   res.send(out.zip);
 });
 
-/** Texture atlas: ?status=all, ?max=<sprite px, 16-1024>, ?size=<page px: 512/1024/2048/4096>. */
+/** Texture atlas: ?status=all, ?max=<sprite px, 16-1024>, ?size=<page px: 512/1024/2048/4096>, ?cocos=1 adds cocos2d plists. */
 exportRouter.get("/api/projects/:id/export-atlas.zip", async (req, res) => {
   const project = await loadProject(pid(req));
   const all = req.query.status === "all";
@@ -39,7 +39,7 @@ exportRouter.get("/api/projects/:id/export-atlas.zip", async (req, res) => {
   if (![512, 1024, 2048, 4096].includes(maxSize)) return void res.status(400).json({ error: msg("err.atlasSize") });
   if (maxSprite + 4 > maxSize) return void res.status(400).json({ error: msg("err.spriteTooBig") });
   const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
-  const out = await buildAtlasExport(project, { all, ids: idsParam(req.query.ids), tag, maxSprite, maxSize, names: namesParam(req.query.names) });
+  const out = await buildAtlasExport(project, { all, ids: idsParam(req.query.ids), tag, maxSprite, maxSize, names: namesParam(req.query.names), cocos: req.query.cocos === "1" });
   if (!out) return void res.status(400).json({ error: msg("err.nothingToPack") });
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", attachment("atlas.zip", out.filename));

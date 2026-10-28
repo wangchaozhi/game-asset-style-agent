@@ -16,7 +16,7 @@ const { state } = await load("../public/js/state.js");
 const { visibleAssets } = await load("../public/js/assets.js");
 const { DICT, LANGS, defaultLang, getLang, t, typeLabel } = await load("../public/js/i18n.js");
 
-const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048" };
+const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048", cocos: false };
 
 describe("front end: export URL", () => {
   it("leaves defaults out", () => {
@@ -25,11 +25,11 @@ describe("front end: export URL", () => {
   });
 
   it("adds only the options that apply to the chosen format", () => {
-    const all = { ...DEFAULTS, scope: "all", tag: "第一关", names: "ascii", sizes: true, unity: true, godot: "game/art", tile: "16", max: "128", size: "4096" };
+    const all = { ...DEFAULTS, scope: "all", tag: "第一关", names: "ascii", sizes: true, unity: true, godot: "game/art", tile: "16", max: "128", size: "4096", cocos: true };
     const zip = new URL(exportUrl("p1", all), "http://x");
     assert.deepEqual(Object.fromEntries(zip.searchParams), { status: "all", tag: "第一关", names: "ascii", sizes: "1", unity: "1", godot: "game/art", tile: "16" });
     const atlas = new URL(exportUrl("p1", { ...all, kind: "atlas" }), "http://x");
-    assert.deepEqual(Object.fromEntries(atlas.searchParams), { status: "all", tag: "第一关", names: "ascii", max: "128", size: "4096" });
+    assert.deepEqual(Object.fromEntries(atlas.searchParams), { status: "all", tag: "第一关", names: "ascii", max: "128", size: "4096", cocos: "1" });
   });
 });
 

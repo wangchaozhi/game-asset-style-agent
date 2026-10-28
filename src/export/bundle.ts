@@ -10,6 +10,7 @@ import { spriteFramesMultiTres, spriteFramesTres, styleBoxTextureTres, tileSetTr
 import { actionOrder, animationFor } from "../domain/actionSet.js";
 import { type UnitySpriteMeta, animationClip, nativeMeta, spriteMeta } from "./unity.js";
 import { type ZipEntry, createZip } from "./zip.js";
+import { cocosPlist } from "./cocos.js";
 
 export interface ExportOptions {
   /** include every asset, not only approved ones */
@@ -232,6 +233,8 @@ export interface AtlasExportOptions {
   maxSprite?: number;
   /** longest side of an atlas page, px */
   maxSize?: number;
+  /** also write a cocos2d plist per page (Cocos Creator SpriteAtlas) */
+  cocos?: boolean;
 }
 
 const ATLAS_README = `Texture atlas exported by Game Asset Agent
@@ -245,6 +248,15 @@ Phaser 3:
 UI frames with 9-slice margins carry "scale9Borders" (Phaser 3.60+ reads them):
   this.add.nineslice(200, 100, "atlas", "ui/panel", 320, 120);
 With several pages, load each as atlas_0, atlas_1, … (texture keys match the page file names).
+`;
+
+const COCOS_README = `
+Cocos Creator / cocos2d-x:
+atlas*.plist               cocos2d plist (format 3) for each page
+  Cocos Creator: drop atlas.plist and atlas.png into assets/ together; it imports as a SpriteAtlas
+  and each frame becomes a SpriteFrame named as in the JSON (e.g. "item_icon/sword").
+  cocos2d-x:     SpriteFrameCache::getInstance()->addSpriteFramesWithFile("atlas.plist");
+  Nine-slice borders are not part of the plist format; set them on the SpriteFrame in the editor.
 `;
 
 /**
@@ -293,6 +305,7 @@ export async function buildAtlasExport(project: Project, opts: AtlasExportOption
   for (const p of atlas.pages) {
     entries.push({ name: p.image, data: p.png });
     entries.push({ name: p.image.replace(/\.png$/, ".json"), data: Buffer.from(JSON.stringify(p.json, null, 2)) });
+    if (opts.cocos) entries.push({ name: p.image.replace(/\.png$/, ".plist"), data: Buffer.from(cocosPlist(p.json as Parameters<typeof cocosPlist>[0])) });
   }
   entries.push({
     name: "animations.json",
@@ -312,6 +325,6 @@ export async function buildAtlasExport(project: Project, opts: AtlasExportOption
       ),
     ),
   });
-  entries.push({ name: "README.txt", data: Buffer.from(ATLAS_README) });
+  entries.push({ name: "README.txt", data: Buffer.from(ATLAS_README + (opts.cocos ? COCOS_README : "")) });
   return { filename: `${safeName(project.name)}_atlas.zip`, zip: createZip(entries) };
 }

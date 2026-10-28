@@ -286,6 +286,16 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(anims.length, 1);
     assert.equal(anims[0].frames.length, 4);
     assert.ok(anims[0].frames.every((f: { key: string; frame: string }) => f.key === "atlas" && frames.includes(f.frame)));
+    assert.equal(atlas["atlas.plist"], undefined, "plists only on request");
+    const cocos = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export-atlas.zip?max=64&cocos=1`)).arrayBuffer()));
+    const plist = cocos["atlas.plist"].data.toString();
+    const page = JSON.parse(cocos["atlas.json"].data.toString());
+    for (const [name, { frame: f }] of Object.entries(page.frames) as [string, { frame: { x: number; y: number; w: number; h: number } }][]) {
+      assert.ok(plist.includes(`<key>${name}</key>`), name);
+      assert.ok(plist.includes(`<string>{{${f.x},${f.y}},{${f.w},${f.h}}}</string>`), name);
+    }
+    assert.match(plist, /<key>textureFileName<\/key>\s*<string>atlas\.png<\/string>/);
+    assert.match(cocos["README.txt"].data.toString(), /Cocos Creator/);
 
     const bundle = readZip(Buffer.from(await (await fetch(`${base}/api/projects/${id}/export.zip?godot=game/art`)).arrayBuffer()));
     const tres = Object.keys(bundle).find((n) => n.endsWith(".tres"))!;

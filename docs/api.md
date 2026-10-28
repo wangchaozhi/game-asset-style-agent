@@ -302,6 +302,7 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 图集：`atlas.png` + `atlas.json`（TexturePacker JSON Hash，Phaser / PixiJS 可直接加载）、`animations.json`（Phaser 3 动画）。背景图不进图集。设置了九宫格的 UI 素材不裁透明边，帧里带按缩放换算的 `scale9Borders`（Phaser 3.60+ 的 `this.add.nineslice` 直接读取）。
 
 - `?max=256` 单个精灵最长边（16-1024），`?size=2048` 图集页尺寸（512 / 1024 / 2048 / 4096），放不下时分多页 `atlas_0`、`atlas_1`…
+- `?cocos=1` 每页另附 cocos2d `.plist`（格式 3）：Cocos Creator 把 `.plist` 与同名 PNG 一起放进 assets 即导入为 SpriteAtlas，cocos2d-x 用 `SpriteFrameCache::addSpriteFramesWithFile` 加载；九宫格边距需在编辑器里设置
 - `?status=all`、`?ids=`、`?tag=` 同上
 
 ## 用量

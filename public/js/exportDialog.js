@@ -4,7 +4,7 @@ import { state } from "./state.js";
 import { t } from "./i18n.js";
 
 const KEY = "gaa.export";
-const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048" };
+const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048", cocos: false };
 
 function load() {
   try {
@@ -29,6 +29,7 @@ export function exportUrl(projectId, o) {
   if (o.kind === "atlas") {
     if (o.max !== DEFAULTS.max) q.set("max", o.max);
     if (o.size !== DEFAULTS.size) q.set("size", o.size);
+    if (o.cocos) q.set("cocos", "1");
   } else {
     if (o.sizes) q.set("sizes", "1");
     if (o.unity) q.set("unity", "1");
@@ -52,6 +53,7 @@ function read(form) {
     tile: fd.get("tile"),
     max: fd.get("max"),
     size: fd.get("size"),
+    cocos: fd.has("cocos"),
   };
 }
 
@@ -86,6 +88,7 @@ function open() {
   form.elements.tile.value = o.tile;
   form.elements.max.value = o.max;
   form.elements.size.value = o.size;
+  form.elements.cocos.checked = o.cocos;
   update();
   $("#exportDialog").showModal();
 }

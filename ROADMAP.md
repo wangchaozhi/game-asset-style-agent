@@ -187,6 +187,6 @@
 
 ## 第二十六轮
 
-- [ ] Cocos Creator 导出：图集附 `.plist`（Cocos 可直接加载的 SpriteFrame 图集）
+- [x] Cocos Creator 导出：图集附 `.plist`（Cocos 可直接加载的 SpriteFrame 图集）
 - [ ] 撤销最近一次批量操作（通过 / 驳回 / 标签 / 改名 / 删除），提示条里一键撤销
 - [ ] 英文界面排版检查：长按钮文字、下拉框截断，按需调整样式
