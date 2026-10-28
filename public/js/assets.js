@@ -26,6 +26,7 @@ export const visibleAssets = () => {
       (!state.typeFilter || a.assetType === state.typeFilter) &&
       hasTag(a, state.tagFilter) &&
       (!shares || shares.has(a.id)) &&
+      (!state.onlyIds || state.onlyIds.has(a.id)) &&
       matchesQuery(a, q),
   );
   // A colour search lists the assets that use the colour most first; otherwise newest first.
@@ -132,7 +133,7 @@ export function renderAssets(newId) {
       !a.deletedAt && superseded.has(a.id) && `<span class="mark old" title="${esc(t("mark.oldTitle"))}">${esc(t("mark.old"))}</span>`,
     ].filter(Boolean).join("");
   // Big libraries render in pages; the count survives re-renders until the filters change.
-  const key = [state.project.id, state.filter, state.typeFilter, state.tagFilter, state.query, state.colorFilter?.hex ?? ""].join("|");
+  const key = [state.project.id, state.filter, state.typeFilter, state.tagFilter, state.query, state.colorFilter?.hex ?? "", state.onlyIds?.size ?? ""].join("|");
   if (key !== pageKey) [pageKey, limit] = [key, PAGE];
   // One card is in the tab order (roving focus); arrow keys move between them.
   const focusId = shown.slice(0, limit).some((a) => a.id === state.focusAsset) ? state.focusAsset : shown[0]?.id;

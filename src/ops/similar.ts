@@ -60,3 +60,42 @@ export async function similarAssets(project: Project, asset: Asset, max = 12) {
   }
   return out.sort((x, y) => x.distance - y.distance).slice(0, max);
 }
+
+/** Hash distance at or below which two different assets are probably the same picture. */
+export const DUPLICATE_MAX_DISTANCE = 4;
+
+/** Which asset of a duplicate group to keep: approved first, then the higher agent score, then the oldest. */
+const keepOrder = (a: Asset, b: Asset) =>
+  Number(b.status === "approved") - Number(a.status === "approved") || (b.score ?? 0) - (a.score ?? 0) || a.createdAt.localeCompare(b.createdAt);
+
+/**
+ * Groups of near-identical assets across the library (current assets only: an asset already replaced by a
+ * newer version is old, not a duplicate). Versions and variants of one asset never pair up — they are
+ * meant to look alike. Each group lists the asset to keep first; groups with the most members first.
+ */
+export async function duplicateGroups(project: Project): Promise<string[][]> {
+  const superseded = new Set(project.assets.map((a) => a.parentId).filter(Boolean));
+  const current = project.assets.filter((a) => !superseded.has(a.id));
+  const hashes = await Promise.all(current.map((a) => hashOf(project.id, pictureOf(a))));
+  const family = new Map<string, Set<string>>();
+  const familyOf = (a: Asset) => {
+    let f = family.get(a.id);
+    if (!f) for (const id of (f = lineageOf(project.assets, a))) family.set(id, f);
+    return f;
+  };
+  // Union-find over close pairs.
+  const parent = current.map((_, i) => i);
+  const find = (i: number): number => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  for (let i = 0; i < current.length; i++) {
+    for (let j = i + 1; j < current.length; j++) {
+      if (hammingDistance(hashes[i], hashes[j]) > DUPLICATE_MAX_DISTANCE || familyOf(current[i]).has(current[j].id)) continue;
+      parent[find(i)] = find(j);
+    }
+  }
+  const groups = new Map<number, Asset[]>();
+  current.forEach((a, i) => groups.set(find(i), [...(groups.get(find(i)) ?? []), a]));
+  return [...groups.values()]
+    .filter((g) => g.length > 1)
+    .map((g) => g.sort(keepOrder).map((a) => a.id))
+    .sort((x, y) => y.length - x.length);
+}

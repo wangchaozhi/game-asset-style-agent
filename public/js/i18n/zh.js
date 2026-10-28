@@ -712,4 +712,15 @@ export default {
   "usage.actions": "操作",
   "usage.rerun": "再次运行",
   "usage.rerunFilled": "已把需求和类型填回，确认后点「开始生成」",
+
+  // Duplicates
+  "lib.duplicates": "重复素材",
+  "lib.duplicatesTitle": "找出几乎一样的素材，一键清理重复",
+  "filter.clearOnly": "只看重复中 · 清除",
+  "dup.title": "重复素材",
+  "dup.none": "没有几乎一样的素材。",
+  "dup.summary": "{groups} 组几乎一样的素材，共 {n} 个可清理。每组第一个是建议保留的（已通过优先）。",
+  "dup.keep": "保留",
+  "dup.trashRest": "把其余 {n} 个移到回收站",
+  "dup.showInLibrary": "在素材库中只看这些",
 };

@@ -712,4 +712,15 @@ export default {
   "usage.actions": "Actions",
   "usage.rerun": "Run again",
   "usage.rerunFilled": "Request and types are back in the panel; check them and press Generate",
+
+  // Duplicates
+  "lib.duplicates": "Duplicates",
+  "lib.duplicatesTitle": "Find near-identical assets and clear out the extras",
+  "filter.clearOnly": "Showing duplicates only · clear",
+  "dup.title": "Duplicate assets",
+  "dup.none": "No near-identical assets.",
+  "dup.summary": "{groups} {groups|group|groups} of near-identical assets, {n} {n|extra|extras} to clear. The first in each group is the one to keep (approved first).",
+  "dup.keep": "Keep",
+  "dup.trashRest": "Move the other {n} to the trash",
+  "dup.showInLibrary": "Show only these in the library",
 };

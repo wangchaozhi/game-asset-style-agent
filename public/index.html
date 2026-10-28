@@ -104,6 +104,7 @@
           <button class="btn ghost small" id="sceneBtn" type="button" title="把已通过的素材摆到背景上，看整体是否协调" data-i18n="lib.scene" data-i18n-title="lib.sceneTitle">场景拼版</button>
           <button class="btn ghost small" id="cleanupVersions" type="button" title="把已有通过新版本的旧版本移到回收站（可恢复）" data-i18n="lib.cleanup" data-i18n-title="lib.cleanupTitle">清理旧版本</button>
           <button class="btn ghost small" id="consistencyBtn" type="button" title="按风格色板测量所有素材，找出最跑偏的" data-i18n="lib.consistency" data-i18n-title="lib.consistencyTitle">一致性总览</button>
+          <button class="btn ghost small" id="dupBtn" type="button" title="找出几乎一样的素材，一键清理重复" data-i18n="lib.duplicates" data-i18n-title="lib.duplicatesTitle">重复素材</button>
         </div>
         <div class="filters" id="filters">
           <button data-filter="all" class="on" data-i18n="filter.all">全部</button>
@@ -119,6 +120,7 @@
         <select id="typeFilter" aria-label="按类型筛选" data-i18n-aria="filter.type"><option value="" data-i18n="filter.anyType">全部类型</option></select>
         <select id="tagFilter" aria-label="按标签筛选" data-i18n-aria="filter.tag" hidden><option value="" data-i18n="filter.allTags">全部标签</option></select>
         <span class="color-filter"><label title="按颜色找素材：列出主要使用该颜色的素材" data-i18n-title="filter.byColorTitle"><span data-i18n="filter.byColor">按颜色</span> <input type="color" id="colorFilter" value="#d84848" /></label><button class="btn link" id="colorFilterClear" type="button" hidden data-i18n="filter.clearColor">清除颜色</button></span>
+        <button class="btn link" id="onlyIdsClear" type="button" hidden data-i18n="filter.clearOnly">只看重复中 · 清除</button>
       </div>
       <div class="batch-bar" id="batchBar" hidden>
         <span class="batch-count"></span>
@@ -186,6 +188,11 @@
     <div class="usage-body"><h3 id="consistencyTitle" data-i18n="dlg.consistency">一致性总览</h3>
       <label class="consistency-scope" hidden><span data-i18n="dlg.scope">范围</span> <select id="consistencyTag"></select></label>
       <div id="consistencyBody"></div></div>
+  </dialog>
+
+  <dialog id="dupDialog" class="usage-dialog" aria-labelledby="dupTitle">
+    <form method="dialog"><button class="close" aria-label="关闭" data-i18n-aria="dlg.close">×</button></form>
+    <div class="usage-body"><h3 id="dupTitle" data-i18n="dup.title">重复素材</h3><div id="dupBody"></div></div>
   </dialog>
 
   <dialog id="importDialog" class="usage-dialog export-dialog" aria-labelledby="importTitle">

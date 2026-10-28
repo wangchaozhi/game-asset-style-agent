@@ -799,6 +799,26 @@ describe("HTTP API (demo mode)", () => {
     assert.equal(runs.find((r) => r.jobId === redraw.body.jobId)?.rerun, undefined, "a redraw is tied to its asset");
   });
 
+  it("groups near-identical assets, keeping the approved one first", async () => {
+    const assets = (await json(`/api/projects/${id}`)).body.assets as { id: string; file: string; assetType: string; status: string }[];
+    const orig = assets.find((a) => a.assetType === "tile")!;
+    const png = Buffer.from(await (await fetch(`${base}/api/projects/${id}/files/${orig.file}`)).arrayBuffer());
+    const fd = new FormData();
+    fd.append("assetType", "tile");
+    fd.append("images", new Blob([new Uint8Array(png)], { type: "image/png" }), "dup-a.png");
+    fd.append("images", new Blob([new Uint8Array(png)], { type: "image/png" }), "dup-b.png");
+    const copies = (await json(`/api/projects/${id}/assets/import`, { method: "POST", body: fd })).body.imported as string[];
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "pending", ids: copies } });
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "approve", ids: [orig.id] } });
+    const { groups } = (await json(`/api/projects/${id}/duplicates`)).body as { groups: string[][] };
+    const group = groups.find((g) => g.includes(copies[0]))!;
+    assert.ok(group, JSON.stringify(groups));
+    assert.ok(copies.every((c) => group.includes(c)));
+    assert.ok(!copies.includes(group[0]), "an approved asset is the one to keep, not a pending copy");
+    assert.ok(groups.every((g, i) => i === 0 || groups[i - 1].length >= g.length), "largest groups first");
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: copies } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

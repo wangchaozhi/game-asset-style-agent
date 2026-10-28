@@ -8,12 +8,17 @@ import { loadProject, readProjectFile } from "../store/index.js";
 import { detectNineSlice } from "../image/nineSlice.js";
 import { colorShare, dominantColors } from "../image/recolor.js";
 import { measureConsistency } from "../ops/consistency.js";
-import { similarAssets } from "../ops/similar.js";
+import { duplicateGroups, similarAssets } from "../ops/similar.js";
 import { attachment, findAsset, pid } from "./util.js";
 import { assetTypeLabel, msg } from "../i18n.js";
 
 // Read-only checks and previews of assets: nothing here writes to the project.
 export const analysisRouter = Router();
+
+/** Groups of near-identical current assets across the project, the one to keep first in each. */
+analysisRouter.get("/api/projects/:id/duplicates", async (req, res) => {
+  res.json({ groups: await duplicateGroups(await loadProject(pid(req))) });
+});
 
 /** Assets that look nearly the same as this one (perceptual hash), closest first; its own versions are marked related. */
 analysisRouter.get("/api/projects/:id/assets/:assetId/similar", async (req, res) => {
