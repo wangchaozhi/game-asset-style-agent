@@ -342,6 +342,12 @@ describe("post-processing tools", () => {
 });
 
 describe("buildIntro", () => {
+  it("names the interface language, Chinese unless the request asked for English", async () => {
+    const project = await projectWithRef();
+    assert.match(buildIntro({ project, request: "x", assetTypes: [] }), /^Interface language: Simplified Chinese/);
+    assert.match(buildIntro({ project, request: "x", assetTypes: [], lang: "en" }), /^Interface language: English\./);
+  });
+
   it("passes the user's reference notes, numbered like the images", async () => {
     const project = await projectWithRef();
     project.refs.push({ id: "ref_2", file: "refs/r.png", mime: "image/png", originalName: "b", note: "只参考角色比例" });

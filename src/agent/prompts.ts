@@ -1,5 +1,6 @@
 import { ASSET_TYPES, isAssetType } from "../domain/assetTypes.js";
 import type { Asset, Project, StyleGuide } from "../store/types.js";
+import { currentLang, type Lang } from "../i18n.js";
 
 export const SYSTEM = `You are an art director agent for a game studio. Your job: produce game assets that look like they come from the same game as the user's reference images.
 
@@ -23,7 +24,7 @@ How you work:
 5. When the run made several assets, call check_consistency once before finishing: fix or regenerate what it flags from this run (free fixes first), and name any older assets it flags in the summary.
 6. Finish with a short summary in the user's language: what was made, and anything that still drifts.
 
-Write your messages to the user in the same language they use (usually Chinese). Keep narration brief; the UI already shows every image.`;
+Write everything the user reads (messages, the plan, asset names, review notes, the summary) in the interface language named at the start of each run; image prompts and the style guide's prompt_prefix stay in English. Keep narration brief; the UI already shows every image.`;
 
 export const styleGuideText = (sg: StyleGuide) => JSON.stringify(sg, null, 2);
 
@@ -33,13 +34,17 @@ export function buildIntro(opts: {
   request: string;
   assetTypes: string[];
   redraws?: { target: Asset; feedback: string }[];
+  /** the user's interface language; defaults to the current request's */
+  lang?: Lang;
 }): string {
   const { project } = opts;
   const redraws = opts.redraws ?? [];
   const existing = project.assets.filter((a) => a.status === "approved");
   const typeLabels = opts.assetTypes.filter(isAssetType).map((t) => `${t}（${ASSET_TYPES[t]}）`);
   const notes = project.refs.map((r, i) => (r.note ? `- Reference ${i + 1}: ${r.note}` : "")).filter(Boolean);
+  const lang = opts.lang ?? currentLang();
   return [
+    `Interface language: ${lang === "en" ? "English" : "Simplified Chinese (简体中文)"}. Write to the user in it, even if earlier turns used another language.`,
     `Project: ${project.name}`,
     notes.length
       ? `The user's notes on what to take from each reference image (follow them when building or applying the style guide):\n${notes.join("\n")}`

@@ -149,6 +149,18 @@ describe("agent loop against a fake Messages API", () => {
     assert.ok((await store.loadProject(p.id)).assets.some((a) => a.name === "金币"), "the generation went through");
   });
 
+  it("tells Claude the interface language of the request that started the run", async () => {
+    const { withLang } = await import("../src/i18n.js");
+    const projectId = await newProject();
+    await store.updateProject(projectId, (q) => void (q.styleGuide = validStyleGuide()));
+    fake.script(say("Done."));
+    const { events } = await withLang("en", () => run({ projectId, request: "two item icons" }));
+    assert.deepEqual(errorsOf(events), []);
+    const opening = fake.requests[0].body.messages[0].content as { type: string; text?: string }[];
+    assert.match(opening.at(-1)!.text!, /^Interface language: English\./);
+    assert.ok(events.some((e) => e.type === "status" && /^Agent started/.test(e.text)), "status lines follow the language too");
+  });
+
   it("refuses to start without references or a style guide", async () => {
     const p = await store.createProject("empty");
     const { events } = await run({ projectId: p.id });
