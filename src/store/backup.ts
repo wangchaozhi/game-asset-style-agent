@@ -41,9 +41,9 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
   const entries = readZip(zip, { maxTotalBytes: opts.maxBytes ?? 2 * 1024 * 1024 * 1024 });
   const byName = new Map(entries.map((e) => [e.name, e.data]));
   const meta = parse(byName.get("backup-meta.json"));
-  if ((meta as { format?: string } | null)?.format !== BACKUP_FORMAT) throw new Error("不是本工具导出的项目备份");
+  if ((meta as { format?: string } | null)?.format !== BACKUP_FORMAT) throw new Error(msg("err.notBackup"));
   const src = parse(byName.get("project.json")) as Partial<Project> | null;
-  if (!src || !Array.isArray(src.refs) || !Array.isArray(src.assets)) throw new Error("备份中的 project.json 无效");
+  if (!src || !Array.isArray(src.refs) || !Array.isArray(src.assets)) throw new Error(msg("err.badBackupJson"));
 
   const skipped: string[] = [];
   const hasFile = (rel: unknown): rel is string => typeof rel === "string" && isProjectFile(rel) && byName.has(rel);
@@ -70,7 +70,7 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
 
   const project: Project = {
     id: newId("prj"),
-    name: `${String(src.name ?? "导入的项目").slice(0, 70)}（恢复）`,
+    name: msg("project.restored", { name: String(src.name ?? msg("project.imported")).slice(0, 70) }),
     createdAt: new Date().toISOString(),
     refs,
     styleGuide,

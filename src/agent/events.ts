@@ -1,8 +1,9 @@
-import { ACTION_PRESETS, type ActionKey } from "../domain/actionSet.js";
+import type { ActionKey } from "../domain/actionSet.js";
 import type { Asset, StyleGuide } from "../store/types.js";
 import { saveRunUsage } from "../store/usage.js";
 import type { RunUsage } from "../usage/types.js";
 import type { Budget } from "./budget.js";
+import { actionLabel, msg } from "../i18n.js";
 
 export type AgentEvent =
   | { type: "status"; text: string }
@@ -79,10 +80,10 @@ export function reportUsage(job: Job) {
 export const MAX_REDRAWS = 10;
 
 export function requestLabel(opts: Pick<RunOptions, "request" | "redraws" | "manual" | "actionSet">) {
-  if (opts.manual) return `直接重生成：${opts.manual.prompt.slice(0, 80)}`;
-  if (opts.actionSet) return `动作套装「${opts.actionSet.name}」：${opts.actionSet.actions.map((k) => ACTION_PRESETS[k].label).join("、")}`;
+  if (opts.manual) return msg("run.label.manual", { prompt: opts.manual.prompt.slice(0, 80) });
+  if (opts.actionSet) return msg("run.label.actionSet", { name: opts.actionSet.name, actions: opts.actionSet.actions.map((k) => actionLabel(k)).join(msg("note.enumSep")) });
   const r = opts.redraws ?? [];
-  if (r.length === 1) return `重画：${r[0].feedback}`;
-  if (r.length > 1) return `重画 ${r.length} 个素材`;
+  if (r.length === 1) return msg("run.label.redraw", { feedback: r[0].feedback });
+  if (r.length > 1) return msg("run.label.redrawN", { n: r.length });
   return opts.request;
 }

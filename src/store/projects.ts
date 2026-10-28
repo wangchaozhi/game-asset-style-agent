@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Project } from "./types.js";
 import { createKeyedQueue, newId, projectDir, projectsDir, writeAtomic } from "./fs.js";
+import { msg } from "../i18n.js";
 
 // Serialize writes per project so concurrent tool calls don't clobber project.json.
 const withLock = createKeyedQueue();
@@ -26,7 +27,7 @@ export function updateProject(id: string, mutate: (p: Project) => void | Promise
 export async function createProject(name: string): Promise<Project> {
   const p: Project = {
     id: newId("prj"),
-    name: name || "未命名项目",
+    name: name || msg("project.untitled"),
     createdAt: new Date().toISOString(),
     refs: [],
     styleGuide: null,

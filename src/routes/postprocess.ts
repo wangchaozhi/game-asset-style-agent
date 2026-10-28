@@ -17,11 +17,11 @@ const MAX_BATCH_PROCESS = 30;
  */
 postprocessRouter.post("/api/projects/:id/assets/batch-process", async (req, res) => {
   const { op, ids } = req.body ?? {};
-  if (!["outline", "cutout", "snap"].includes(op)) return void res.status(400).json({ error: "op 需为 outline / cutout / snap" });
-  if (!Array.isArray(ids) || !ids.length) return void res.status(400).json({ error: "请提供要处理的素材 id 列表" });
-  if (ids.length > MAX_BATCH_PROCESS) return void res.status(400).json({ error: `一次最多处理 ${MAX_BATCH_PROCESS} 个素材` });
+  if (!["outline", "cutout", "snap"].includes(op)) return void res.status(400).json({ error: msg("err.badOp") });
+  if (!Array.isArray(ids) || !ids.length) return void res.status(400).json({ error: msg("err.needIds") });
+  if (ids.length > MAX_BATCH_PROCESS) return void res.status(400).json({ error: msg("err.maxBatch", { n: MAX_BATCH_PROCESS }) });
   const project = await loadProject(pid(req));
-  if (op === "snap" && !project.styleGuide?.palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  if (op === "snap" && !project.styleGuide?.palette.length) return void res.status(400).json({ error: msg("err.noPalette") });
   const done: { id: string; result: string }[] = [];
   const skipped: { id: string; reason: string }[] = [];
   for (const id of new Set(ids.map(String))) {
@@ -53,8 +53,8 @@ postprocessRouter.post("/api/projects/:id/assets/:assetId/slice", async (req, re
   const frames = req.body?.frames ? Number(req.body.frames) : undefined;
   // Without fps the sheet keeps its current rate.
   const fps = req.body?.fps !== undefined ? Number(req.body.fps) : (asset.fps ?? 8);
-  if (frames !== undefined && !(frames >= 1 && frames <= 32)) return void res.status(400).json({ error: "帧数需在 1-32 之间" });
-  if (!Number.isInteger(fps) || fps < 1 || fps > 30) return void res.status(400).json({ error: "帧率需为 1-30 的整数" });
+  if (frames !== undefined && !(frames >= 1 && frames <= 32)) return void res.status(400).json({ error: msg("err.frames") });
+  if (!Number.isInteger(fps) || fps < 1 || fps > 30) return void res.status(400).json({ error: msg("err.fps") });
   const sliced = await sliceAssetFrames(project.id, asset, await readProjectFile(project.id, asset.file), frames, fps);
   const p = await updateProject(project.id, (p) => {
     const a = p.assets.find((x) => x.id === asset.id);
@@ -75,7 +75,7 @@ postprocessRouter.post("/api/projects/:id/assets/:assetId/make-seamless", async 
   const found = await findAsset(req, res);
   if (!found) return;
   const overlap = Number(req.body?.overlap ?? 0.15);
-  if (!(overlap >= 0.04 && overlap <= 0.4)) return void res.status(400).json({ error: "融合比例需在 0.04-0.4 之间" });
+  if (!(overlap >= 0.04 && overlap <= 0.4)) return void res.status(400).json({ error: msg("err.overlap") });
   res.json((await seamlessVersion(found.project, found.asset, overlap, { by: "user" })).asset);
 });
 
@@ -83,7 +83,7 @@ postprocessRouter.post("/api/projects/:id/assets/:assetId/make-seamless", async 
 postprocessRouter.post("/api/projects/:id/assets/:assetId/align-frames", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
-  if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以对齐帧" });
+  if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: msg("err.alignSheetOnly") });
   res.json(await alignedVersion(found.project, found.asset, parseAlignMode(req.body?.mode), { by: "user" }));
 });
 
@@ -110,7 +110,7 @@ postprocessRouter.post("/api/projects/:id/assets/:assetId/outline", async (req, 
 postprocessRouter.post("/api/projects/:id/assets/:assetId/snap-palette", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
-  if (!found.project.styleGuide?.palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  if (!found.project.styleGuide?.palette.length) return void res.status(400).json({ error: msg("err.noPalette") });
   const dither = req.body?.dither === "ordered" ? "ordered" : "none";
   res.json(await paletteSnapVersion(found.project, found.asset, dither, { by: "user" }));
 });

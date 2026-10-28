@@ -3,6 +3,7 @@ import multer from "multer";
 import { toPng } from "../image/io.js";
 import { newId, removeRefFile, updateProject, writeProjectFile } from "../store/index.js";
 import { pid } from "./util.js";
+import { msg } from "../i18n.js";
 
 export const refsRouter = Router();
 
@@ -14,7 +15,7 @@ const upload = multer({
 
 refsRouter.post("/api/projects/:id/refs", upload.array("images", 8), async (req, res) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
-  if (!files.length) return void res.status(400).json({ error: "没有可用的图片（支持 png/jpg/webp/gif）" });
+  if (!files.length) return void res.status(400).json({ error: msg("err.noImages") });
   const p = await updateProject(pid(req), async (p) => {
     for (const f of files) {
       const id = newId("ref");
@@ -35,7 +36,7 @@ refsRouter.delete("/api/projects/:id/refs/:refId", async (req, res) => {
 
 /** Set or clear a reference's note (what to take from it); ≤ 200 characters. */
 refsRouter.patch("/api/projects/:id/refs/:refId", async (req, res) => {
-  if (typeof req.body?.note !== "string") return void res.status(400).json({ error: "note 需为字符串" });
+  if (typeof req.body?.note !== "string") return void res.status(400).json({ error: msg("err.noteString") });
   const note = req.body.note.trim().slice(0, 200);
   let found = false;
   const project = await updateProject(pid(req), (p) => {
@@ -45,6 +46,6 @@ refsRouter.patch("/api/projects/:id/refs/:refId", async (req, res) => {
     if (note) r.note = note;
     else delete r.note;
   });
-  if (!found) return void res.status(404).json({ error: "参考图不存在" });
+  if (!found) return void res.status(404).json({ error: msg("err.noRef") });
   res.json(project);
 });

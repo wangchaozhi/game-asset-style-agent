@@ -10,6 +10,7 @@ import { addImageCall } from "../usage/record.js";
 import { BudgetExceededError, budgetBlock } from "./budget.js";
 import { type Job, emit, reportUsage } from "./events.js";
 import type { GenerateInput } from "./schemas.js";
+import { msg } from "../i18n.js";
 
 export async function refImages(project: Project): Promise<ImageInput[]> {
   return Promise.all(project.refs.map(async (r) => ({ data: await readProjectFile(project.id, r.file), mime: r.mime })));
@@ -24,7 +25,7 @@ export async function generateAsset(
   // Check and reserve synchronously: parallel tool calls all reach this point before any finishes.
   const blocked = budgetBlock(job.budget, job.usage, job.imagesInFlight ?? 0);
   if (blocked) {
-    if (!job.budgetNoticed) emit(job, { type: "status", text: `${blocked}，不再生成新图` });
+    if (!job.budgetNoticed) emit(job, { type: "status", text: msg("run.budgetBlocked", { reason: blocked }) });
     job.budgetNoticed = true;
     throw new BudgetExceededError(blocked);
   }
@@ -66,7 +67,7 @@ async function generateReserved(job: Job, provider: ImageProvider, input: Genera
         transparent: input.transparent_background,
         frames: input.asset_type === "sprite_sheet" ? (input.frames ?? 4) : undefined,
         onRetry: ({ attempt, delayMs, reason }) =>
-          emit(job, { type: "status", text: `「${input.name}」图像接口${reason.includes("429") ? "限流" : "出错"}（${reason}），${Math.ceil(delayMs / 1000)} 秒后第 ${attempt} 次重试` }),
+          emit(job, { type: "status", text: msg(reason.includes("429") ? "run.retryLimited" : "run.retryError", { name: input.name, reason, s: Math.ceil(delayMs / 1000), n: attempt }) }),
       },
       job.abort.signal,
     );

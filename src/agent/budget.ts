@@ -1,4 +1,5 @@
 import type { RunUsage } from "../usage/types.js";
+import { msg } from "../i18n.js";
 
 /** Per-run spending limits. null = unlimited. */
 export interface Budget {
@@ -39,10 +40,10 @@ export function resolveBudget(override: { maxImages?: unknown; maxUsd?: unknown 
  */
 export function budgetBlock(budget: Budget, usage: RunUsage, inFlight = 0): string | null {
   if (budget.maxImages !== null && usage.images.calls + inFlight >= budget.maxImages) {
-    return `已达到本次图像调用上限 ${budget.maxImages} 次`;
+    return msg("run.maxImages", { n: budget.maxImages });
   }
   if (budget.maxUsd !== null && usage.cost.total >= budget.maxUsd) {
-    return `已达到本次费用上限 $${budget.maxUsd}（当前约 $${usage.cost.total.toFixed(3)}）`;
+    return msg("run.maxUsd", { max: budget.maxUsd, cost: usage.cost.total.toFixed(3) });
   }
   return null;
 }

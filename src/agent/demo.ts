@@ -1,6 +1,6 @@
 import sharp from "sharp";
 import { ACTION_PRESETS } from "../domain/actionSet.js";
-import { ASSET_TYPES, type AssetType, isAssetType, isOpaqueType } from "../domain/assetTypes.js";
+import { type AssetType, isAssetType, isOpaqueType } from "../domain/assetTypes.js";
 import { getProvider } from "../providers/index.js";
 import { loadConversation, loadProject, readProjectFile, recordStyleVersion, saveConversation, updateProject } from "../store/index.js";
 import type { StyleGuide } from "../store/types.js";
@@ -8,7 +8,7 @@ import { generateAsset } from "./assets.js";
 import { BudgetExceededError } from "./budget.js";
 import { type Job, type RunOptions, emit, requestLabel } from "./events.js";
 import type { GenerateInput } from "./schemas.js";
-import { msg } from "../i18n.js";
+import { assetTypeLabel, msg, providerLabel } from "../i18n.js";
 
 // Demo mode: a scripted run with no Claude call, for trying the UI without an API key.
 
@@ -18,12 +18,12 @@ const hex = (r: number, g: number, b: number) =>
 /** A placeholder style guide built from the reference image's dominant colour. */
 export function demoStyleGuide(d: { r: number; g: number; b: number }): StyleGuide {
   const palette = [
-    { hex: hex(d.r, d.g, d.b), role: "主色" },
-    { hex: hex(d.r * 0.6, d.g * 0.6, d.b * 0.6), role: "暗部" },
-    { hex: hex(255 - d.r, 255 - d.g, 255 - d.b), role: "强调色" },
+    { hex: hex(d.r, d.g, d.b), role: msg("demo.roleMain") },
+    { hex: hex(d.r * 0.6, d.g * 0.6, d.b * 0.6), role: msg("demo.roleShadow") },
+    { hex: hex(255 - d.r, 255 - d.g, 255 - d.b), role: msg("demo.roleAccent") },
   ];
   return {
-    summary: "演示风格指南（从参考图主色自动提取）",
+    summary: msg("demo.summary"),
     palette,
     rendering: "flat vector",
     line_and_edges: "bold dark outline",
@@ -52,8 +52,8 @@ async function recordDemoTurn(projectId: string, opts: RunOptions, reply: string
 export async function runDemo(job: Job, opts: RunOptions) {
   const provider = getProvider(opts.providerId);
   const project = await loadProject(opts.projectId);
-  if (!project.refs.length && !project.styleGuide) throw new Error("请先上传至少一张风格参考图，或在新建项目时选择风格预设");
-  emit(job, { type: "status", text: `演示模式（AGENT_MODE=demo）· 图像通道 ${provider.label}` });
+  if (!project.refs.length && !project.styleGuide) throw new Error(msg("err.needStyle"));
+  emit(job, { type: "status", text: msg("run.demoStart", { provider: providerLabel(provider.id, provider.label) }) });
 
   let sg = project.styleGuide;
   if (!sg) {
@@ -70,7 +70,7 @@ export async function runDemo(job: Job, opts: RunOptions) {
   if (opts.redraws?.length) {
     for (const r of opts.redraws) {
       const old = project.assets.find((a) => a.id === r.assetId);
-      if (!old) throw new Error("要重画的素材不存在");
+      if (!old) throw new Error(msg("err.noRedrawAsset"));
       const input: GenerateInput = {
         name: old.name,
         asset_type: old.assetType as AssetType,
@@ -81,7 +81,7 @@ export async function runDemo(job: Job, opts: RunOptions) {
         replaces_asset_id: old.id,
         frames: old.frames?.length,
       };
-      emit(job, { type: "text", delta: `按意见重画「${old.name}」：${r.feedback || "（未写意见）"}\n` });
+      emit(job, { type: "text", delta: `${msg("run.redrawing", { name: old.name, feedback: r.feedback || msg("run.noFeedback") })}\n` });
       emit(job, { type: "tool", name: "generate_image", input });
       const made = await generateAsset(job, provider, input).catch((err) => {
         if (err instanceof BudgetExceededError) return null;
@@ -89,7 +89,7 @@ export async function runDemo(job: Job, opts: RunOptions) {
       });
       if (made) emit(job, { type: "asset", asset: made.asset });
     }
-    await recordDemoTurn(project.id, opts, `已重画 ${opts.redraws.length} 个素材`);
+    await recordDemoTurn(project.id, opts, msg("run.redrew", { n: opts.redraws.length }));
     return;
   }
 
@@ -108,13 +108,13 @@ export async function runDemo(job: Job, opts: RunOptions) {
         tags: [set.name],
       }))
     : (opts.assetTypes.length ? opts.assetTypes : ["item_icon", "character", "tile"]).filter(isAssetType).map((t, i) => ({
-        name: `${ASSET_TYPES[t]} #${i + 1}`,
+        name: `${assetTypeLabel(t)} #${i + 1}`,
         asset_type: t,
         prompt: `${sg.prompt_prefix} ${opts.request} ${t}`,
         aspect: aspectFor(t),
         transparent_background: !isOpaqueType(t),
       }));
-  emit(job, { type: "text", delta: `计划生成 ${inputs.length} 个素材：${inputs.map((i) => i.name).join("、")}。\n` });
+  emit(job, { type: "text", delta: `${msg("run.plan", { n: inputs.length, names: inputs.map((i) => i.name).join(msg("note.enumSep")) })}\n` });
   await Promise.all(
     inputs.map(async (input) => {
       emit(job, { type: "tool", name: "generate_image", input });
@@ -135,6 +135,6 @@ export async function runDemo(job: Job, opts: RunOptions) {
       emit(job, { type: "asset", asset });
     }),
   );
-  await recordDemoTurn(project.id, opts, `生成了 ${inputs.length} 个素材`);
-  emit(job, { type: "text", delta: "演示完成。配置 ANTHROPIC_API_KEY 并去掉 AGENT_MODE=demo 即可启用真正的 Claude 美术总监。\n" });
+  await recordDemoTurn(project.id, opts, msg("run.generated", { n: inputs.length }));
+  emit(job, { type: "text", delta: `${msg("run.demoDone")}\n` });
 }

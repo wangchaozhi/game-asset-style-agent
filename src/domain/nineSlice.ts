@@ -1,3 +1,5 @@
+import { msg } from "../i18n.js";
+
 /**
  * 9-slice margins, in pixels of the asset image: the four corners keep their size when stretched,
  * the edges stretch along one axis and the centre along both.
@@ -13,17 +15,17 @@ const SIDES = ["left", "top", "right", "bottom"] as const;
 
 /** Validate user input against the image size. Returns the clean margins or an error message. */
 export function parseNineSlice(input: unknown, width: number, height: number): NineSlice | string {
-  if (!input || typeof input !== "object") return "nineSlice 需为 { left, top, right, bottom }";
+  if (!input || typeof input !== "object") return msg("err.nineShape");
   const src = input as Record<string, unknown>;
   const out = {} as NineSlice;
   for (const side of SIDES) {
     const v = src[side];
-    if (typeof v !== "number" || !Number.isInteger(v) || v < 0) return "九宫格边距需为非负整数（像素）";
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 0) return msg("err.nineInt");
     out[side] = v;
   }
-  if (out.left + out.right >= width) return `左右边距之和需小于图片宽度 ${width}px`;
-  if (out.top + out.bottom >= height) return `上下边距之和需小于图片高度 ${height}px`;
-  if (SIDES.every((s) => out[s] === 0)) return "边距不能全为 0";
+  if (out.left + out.right >= width) return msg("err.nineWide", { n: width });
+  if (out.top + out.bottom >= height) return msg("err.nineTall", { n: height });
+  if (SIDES.every((s) => out[s] === 0)) return msg("err.nineZero");
   return out;
 }
 

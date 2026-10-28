@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import type { NineSlice } from "../domain/nineSlice.js";
+import { msg } from "../i18n.js";
 
 export interface AtlasInput {
   name: string;
@@ -31,7 +32,7 @@ const nextPow2 = (n: number) => 2 ** Math.ceil(Math.log2(Math.max(1, n)));
  */
 export function packRects(rects: { name: string; w: number; h: number }[], maxSize = 2048, padding = 2): AtlasPage[] {
   for (const r of rects) {
-    if (r.w + padding * 2 > maxSize || r.h + padding * 2 > maxSize) throw new Error(`${r.name} (${r.w}×${r.h}) 超过图集最大尺寸 ${maxSize}`);
+    if (r.w + padding * 2 > maxSize || r.h + padding * 2 > maxSize) throw new Error(msg("err.atlasTooBig", { name: r.name, w: r.w, h: r.h, max: maxSize }));
   }
   let remaining = [...rects].sort((a, b) => b.h - a.h || b.w - a.w || a.name.localeCompare(b.name));
   const pages: AtlasPage[] = [];

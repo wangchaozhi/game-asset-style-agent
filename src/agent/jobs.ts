@@ -6,6 +6,7 @@ import { runDemo } from "./demo.js";
 import { type Job, type RunOptions, emit, jobs, reportUsage, requestLabel } from "./events.js";
 import { runAgent } from "./loop.js";
 import { runManual } from "./manual.js";
+import { msg } from "../i18n.js";
 
 /** How long a finished job's event log stays available for reconnecting clients. */
 const JOB_TTL_MS = 30 * 60_000;
@@ -36,7 +37,7 @@ export function startJob(opts: RunOptions): Job {
     })
     .catch((err: unknown) => {
       job.usage.status = job.abort.signal.aborted ? "stopped" : "error";
-      if (job.abort.signal.aborted) emit(job, { type: "status", text: "已停止" });
+      if (job.abort.signal.aborted) emit(job, { type: "status", text: msg("run.stopped") });
       else emit(job, { type: "error", message: err instanceof Error ? err.message : String(err) });
     })
     .finally(() => {

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { type NextFunction, type Request, type Response, Router } from "express";
 import { createLoginLimiter } from "./security.js";
+import { msg } from "./i18n.js";
 
 export const COOKIE = "gaa_session";
 const MAX_AGE_S = 30 * 24 * 3600;
@@ -44,12 +45,12 @@ export function authGate(token: string, limiter = createLoginLimiter()) {
     const wait = limiter.blockedFor(ip);
     if (wait > 0) {
       res.setHeader("Retry-After", String(Math.ceil(wait / 1000)));
-      return void res.status(429).json({ error: `尝试次数过多，请 ${Math.ceil(wait / 60_000)} 分钟后再试` });
+      return void res.status(429).json({ error: msg("err.tooMany", { n: Math.ceil(wait / 60_000) }) });
     }
     const given = typeof req.body?.token === "string" ? req.body.token : "";
     if (!safeEqual(given, token)) {
       limiter.fail(ip);
-      return void res.status(401).json({ error: "访问令牌不正确" });
+      return void res.status(401).json({ error: msg("err.badToken") });
     }
     limiter.succeed(ip);
     const secure = req.secure ? "; Secure" : "";
@@ -64,7 +65,7 @@ export function authGate(token: string, limiter = createLoginLimiter()) {
 
   router.use((req: Request, res: Response, next: NextFunction) => {
     if (PUBLIC_PATHS.has(req.path) || req.path === "/favicon.ico" || isAuthorized(req, token)) return next();
-    if (req.path.startsWith("/api/")) return void res.status(401).json({ error: "需要登录", login: true });
+    if (req.path.startsWith("/api/")) return void res.status(401).json({ error: msg("err.needLogin"), login: true });
     res.redirect(302, "/login.html");
   });
 

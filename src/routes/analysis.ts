@@ -24,7 +24,7 @@ analysisRouter.get("/api/projects/:id/assets/:assetId/seams", async (req, res) =
 analysisRouter.get("/api/projects/:id/assets/:assetId/nine-slice", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
-  if (found.asset.assetType !== "ui") return void res.status(400).json({ error: "只有 UI 素材可以设置九宫格" });
+  if (found.asset.assetType !== "ui") return void res.status(400).json({ error: msg("err.nineUiOnly") });
   res.json({ suggestion: await detectNineSlice(await readProjectFile(found.project.id, found.asset.file)) });
 });
 
@@ -32,7 +32,7 @@ analysisRouter.get("/api/projects/:id/assets/:assetId/tiled.png", async (req, re
   const found = await findAsset(req, res);
   if (!found) return;
   const n = Number(req.query.n ?? 3);
-  if (!Number.isInteger(n) || n < 2 || n > 6) return void res.status(400).json({ error: "平铺数需为 2-6 的整数" });
+  if (!Number.isInteger(n) || n < 2 || n > 6) return void res.status(400).json({ error: msg("err.tileCount") });
   res.setHeader("Content-Type", "image/png");
   res.send(await tilePreview(await readProjectFile(found.project.id, found.asset.file), n));
 });
@@ -42,7 +42,7 @@ analysisRouter.get("/api/projects/:id/assets/:assetId/sized.png", async (req, re
   if (!found) return;
   const { project, asset } = found;
   const size = parseSize(String(req.query.size ?? ""));
-  if (!size) return void res.status(400).json({ error: "尺寸格式应为 32 或 1280x720（8–4096）" });
+  if (!size) return void res.status(400).json({ error: msg("err.sizeFormat") });
   const pixel = req.query.kernel ? req.query.kernel === "nearest" : isPixelArt(project.styleGuide);
   const png = await resizeAsset(await readProjectFile(project.id, asset.file), {
     ...size, assetType: asset.assetType, pixel, frames: asset.frames?.length,
@@ -57,7 +57,7 @@ analysisRouter.get("/api/projects/:id/assets/:assetId/palette", async (req, res)
   const found = await findAsset(req, res);
   if (!found) return;
   const palette = found.project.styleGuide?.palette.map((p) => p.hex) ?? [];
-  if (!palette.length) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  if (!palette.length) return void res.status(400).json({ error: msg("err.noPalette") });
   const threshold = Math.max(2, Math.min(60, Number(req.query.threshold ?? 20)));
   res.json(await analyzePalette(await readProjectFile(found.project.id, found.asset.file), palette, { threshold }));
 });
@@ -66,7 +66,7 @@ analysisRouter.get("/api/projects/:id/assets/:assetId/palette", async (req, res)
 analysisRouter.get("/api/projects/:id/assets/:assetId/jitter", async (req, res) => {
   const found = await findAsset(req, res);
   if (!found) return;
-  if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: "只有精灵表可以检测帧抖动" });
+  if (found.asset.assetType !== "sprite_sheet") return void res.status(400).json({ error: msg("err.jitterSheetOnly") });
   res.json(await jitterOf(found.project, found.asset, parseAlignMode(req.query.mode)));
 });
 
@@ -74,7 +74,7 @@ analysisRouter.get("/api/projects/:id/assets/:assetId/jitter", async (req, res) 
 analysisRouter.get("/api/projects/:id/consistency", async (req, res) => {
   const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
   const report = await measureConsistency(await loadProject(pid(req)), { tag });
-  if (!report) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  if (!report) return void res.status(400).json({ error: msg("err.noPalette") });
   res.json(report);
 });
 
@@ -83,7 +83,7 @@ analysisRouter.get("/api/projects/:id/consistency.csv", async (req, res) => {
   const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
   const project = await loadProject(pid(req));
   const report = await measureConsistency(project, { tag });
-  if (!report) return void res.status(400).json({ error: "项目还没有风格指南色板" });
+  if (!report) return void res.status(400).json({ error: msg("err.noPalette") });
   const byId = new Map(project.assets.map((a) => [a.id, a]));
   const rows: unknown[][] = [msg("csv.header").split("|")];
   for (const [i, item] of report.items.entries()) {
@@ -101,11 +101,11 @@ analysisRouter.get("/api/projects/:id/consistency.csv", async (req, res) => {
  */
 analysisRouter.get("/api/projects/:id/assets-by-color", async (req, res) => {
   const hex = String(req.query.hex ?? "");
-  if (!/^#[0-9a-f]{6}$/i.test(hex)) return void res.status(400).json({ error: "hex 需为 #rrggbb" });
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return void res.status(400).json({ error: msg("err.hex") });
   const threshold = req.query.threshold === undefined ? 20 : Number(req.query.threshold);
-  if (!Number.isFinite(threshold) || threshold < 5 || threshold > 60) return void res.status(400).json({ error: "容差需为 5-60" });
+  if (!Number.isFinite(threshold) || threshold < 5 || threshold > 60) return void res.status(400).json({ error: msg("err.threshold") });
   const min = req.query.min === undefined ? 0.02 : Number(req.query.min);
-  if (!Number.isFinite(min) || min < 0 || min > 1) return void res.status(400).json({ error: "min 需为 0-1" });
+  if (!Number.isFinite(min) || min < 0 || min > 1) return void res.status(400).json({ error: msg("err.min") });
   const project = await loadProject(pid(req));
   const superseded = new Set(project.assets.map((a) => a.parentId).filter(Boolean));
   const current = project.assets.filter((a) => !superseded.has(a.id)).slice(-300);

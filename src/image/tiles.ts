@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { msg } from "../i18n.js";
 
 export interface SeamReport {
   width: number;
@@ -99,7 +100,7 @@ export async function makeSeamless(data: Buffer, opts: { overlap?: number; pixel
   const { width: w, height: h } = info;
   const mx = Math.max(1, Math.round(w * overlap));
   const my = Math.max(1, Math.round(h * overlap));
-  if (w - mx < 2 || h - my < 2) throw new Error("瓦片太小，无法无缝化");
+  if (w - mx < 2 || h - my < 2) throw new Error(msg("err.tileTooSmall"));
 
   // Horizontal pass: w×h → (w-mx)×h
   const w2 = w - mx;

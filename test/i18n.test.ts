@@ -40,4 +40,17 @@ describe("server i18n", () => {
     assert.match(withLang("en", () => rankDrift(items)).items[0].reasons[0], /^50% of pixels in palette, below the project median 90%/);
     assert.match(rankDrift(items).items[0].reasons[0], /^色板内像素 50%/);
   });
+
+  it("keeps user-facing messages in the message table, not in the code", async () => {
+    const { readdir, readFile } = await import("node:fs/promises");
+    const root = new URL("../src/", import.meta.url);
+    // Errors, rejections and validation results that reach the user: a Chinese literal right after one of these.
+    const userFacing = /(error: |new Error\(|return |reasons?\.push\(|notes: )[`"'][^`"']*[\u4e00-\u9fa5]/;
+    const offenders: string[] = [];
+    for (const f of await readdir(root, { recursive: true })) {
+      if (!f.endsWith(".ts") || f === "i18n.ts") continue;
+      (await readFile(new URL(f, root), "utf8")).split("\n").forEach((l, i) => userFacing.test(l) && offenders.push(`${f}:${i + 1}`));
+    }
+    assert.deepEqual(offenders, []);
+  });
 });

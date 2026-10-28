@@ -2,6 +2,7 @@ import { Router } from "express";
 import { type NameStyle, buildAtlasExport, buildExport } from "../export/bundle.js";
 import { loadProject } from "../store/index.js";
 import { attachment, pid } from "./util.js";
+import { msg } from "../i18n.js";
 
 /** ?ids=a,b,c selects specific assets. */
 const idsParam = (q: unknown) =>
@@ -20,9 +21,9 @@ exportRouter.get("/api/projects/:id/export.zip", async (req, res) => {
   const ids = idsParam(req.query.ids);
   const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
   const tileSize = req.query.tile === undefined ? undefined : Number(req.query.tile);
-  if (tileSize !== undefined && (!Number.isInteger(tileSize) || tileSize < 8 || tileSize > 256)) return void res.status(400).json({ error: "瓦片尺寸需为 8-256" });
+  if (tileSize !== undefined && (!Number.isInteger(tileSize) || tileSize < 8 || tileSize > 256)) return void res.status(400).json({ error: msg("err.tileSize") });
   const out = await buildExport(project, { all, ids, tag, sizes: !!req.query.sizes, godotRoot, unity: !!req.query.unity, tileSize, names: namesParam(req.query.names) });
-  if (!out) return void res.status(400).json({ error: ids ? "所选素材不存在" : tag ? `没有带「${tag}」标签的${all ? "" : "已通过"}素材` : all ? "项目还没有素材" : "还没有已通过的素材" });
+  if (!out) return void res.status(400).json({ error: ids ? msg("err.noSelected") : tag ? msg(all ? "err.noTagged" : "err.noTaggedApproved", { tag }) : all ? msg("err.noAssets") : msg("err.noApproved") });
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", attachment("assets.zip", out.filename));
   res.send(out.zip);
@@ -34,12 +35,12 @@ exportRouter.get("/api/projects/:id/export-atlas.zip", async (req, res) => {
   const all = req.query.status === "all";
   const maxSprite = Number(req.query.max ?? 256);
   const maxSize = Number(req.query.size ?? 2048);
-  if (!Number.isInteger(maxSprite) || maxSprite < 16 || maxSprite > 1024) return void res.status(400).json({ error: "单个精灵尺寸需为 16-1024" });
-  if (![512, 1024, 2048, 4096].includes(maxSize)) return void res.status(400).json({ error: "图集页尺寸需为 512/1024/2048/4096" });
-  if (maxSprite + 4 > maxSize) return void res.status(400).json({ error: "单个精灵尺寸不能超过图集页尺寸" });
+  if (!Number.isInteger(maxSprite) || maxSprite < 16 || maxSprite > 1024) return void res.status(400).json({ error: msg("err.maxSprite") });
+  if (![512, 1024, 2048, 4096].includes(maxSize)) return void res.status(400).json({ error: msg("err.atlasSize") });
+  if (maxSprite + 4 > maxSize) return void res.status(400).json({ error: msg("err.spriteTooBig") });
   const tag = typeof req.query.tag === "string" && req.query.tag ? req.query.tag : undefined;
   const out = await buildAtlasExport(project, { all, ids: idsParam(req.query.ids), tag, maxSprite, maxSize, names: namesParam(req.query.names) });
-  if (!out) return void res.status(400).json({ error: "没有可打包的素材（背景图不进图集）" });
+  if (!out) return void res.status(400).json({ error: msg("err.nothingToPack") });
   res.setHeader("Content-Type", "application/zip");
   res.setHeader("Content-Disposition", attachment("atlas.zip", out.filename));
   res.send(out.zip);

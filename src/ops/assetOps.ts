@@ -90,7 +90,7 @@ export async function cutoutAsset(project: Project, asset: Asset, opts: { tolera
  * Returns the updated asset, or an error message.
  */
 export async function setNineSlice(project: Project, asset: Asset, input: unknown): Promise<Asset | string> {
-  if (asset.assetType !== "ui") return "只有 UI 素材可以设置九宫格";
+  if (asset.assetType !== "ui") return msg("err.nineUiOnly");
   let slice: NineSlice | null = null;
   if (input !== null) {
     const { width, height } = await imageSize(await readProjectFile(project.id, asset.file));
@@ -105,7 +105,7 @@ export async function setNineSlice(project: Project, asset: Asset, input: unknow
     if (slice) updated.nineSlice = slice;
     else delete updated.nineSlice;
   });
-  return updated ?? "素材不存在";
+  return updated ?? msg("err.noAsset");
 }
 
 /** Save `png` as a new pending version of `asset` (parentId links them). */
@@ -166,7 +166,7 @@ export async function alignedVersion(project: Project, asset: Asset, mode: Align
 /** Snap an asset's colours to the style palette as a new version; reports palette coverage before/after. */
 export async function paletteSnapVersion(project: Project, asset: Asset, dither: "none" | "ordered", actor: Actor) {
   const hexes = project.styleGuide?.palette.map((p) => p.hex) ?? [];
-  if (!hexes.length) throw new Error("项目还没有风格指南色板");
+  if (!hexes.length) throw new Error(msg("err.noPalette"));
   const src = await readProjectFile(project.id, asset.file);
   const png = await snapToPalette(src, hexes, { dither });
   const [before, after] = await Promise.all([analyzePalette(src, hexes), analyzePalette(png, hexes)]);
@@ -193,11 +193,11 @@ export interface OutlineOptions {
  * (drawn edge to edge, or no transparency) or bad options.
  */
 export async function outlineVersion(project: Project, asset: Asset, opts: OutlineOptions, actor: Actor): Promise<Asset | string> {
-  if (isOpaqueType(asset.assetType)) return "背景和瓦片铺满画面，不需要描边";
-  if (!Number.isInteger(opts.width) || opts.width < 1 || opts.width > 16) return "描边宽度需为 1-16 像素";
-  if (opts.color !== undefined && !/^#[0-9a-f]{6}$/i.test(opts.color)) return "描边颜色需为 #rrggbb";
+  if (isOpaqueType(asset.assetType)) return msg("err.opaqueOutline");
+  if (!Number.isInteger(opts.width) || opts.width < 1 || opts.width > 16) return msg("err.outlineWidth");
+  if (opts.color !== undefined && !/^#[0-9a-f]{6}$/i.test(opts.color)) return msg("err.outlineColor");
   const src = await readProjectFile(project.id, asset.file);
-  if (await isOpaque(src)) return "素材没有透明背景，先去背景再描边";
+  if (await isOpaque(src)) return msg("err.needTransparency");
   const color = (opts.color ?? darkestColor(project.styleGuide?.palette.map((p) => p.hex) ?? [])).toLowerCase();
   const png = await addOutline(src, { width: opts.width, color, square: isPixelArt(project.styleGuide) });
   return newVersion(project, asset, png, msg("note.outline", { name: asset.name, width: opts.width, color }), actor, async (a) =>
@@ -219,10 +219,10 @@ export async function recolorVariant(
   actor: Actor,
 ): Promise<Asset | string> {
   const swaps = input.swaps;
-  if (!Array.isArray(swaps) || !swaps.length || swaps.length > 8) return "请给出 1-8 组换色（from → to）";
-  if (!swaps.every((s) => s && HEX.test(s.from) && HEX.test(s.to))) return "颜色需为 #rrggbb";
+  if (!Array.isArray(swaps) || !swaps.length || swaps.length > 8) return msg("err.swaps");
+  if (!swaps.every((s) => s && HEX.test(s.from) && HEX.test(s.to))) return msg("err.swapHex");
   const threshold = input.threshold === undefined ? 20 : Number(input.threshold);
-  if (!Number.isFinite(threshold) || threshold < 5 || threshold > 60) return "容差需为 5-60";
+  if (!Number.isFinite(threshold) || threshold < 5 || threshold > 60) return msg("err.threshold");
   const name = typeof input.name === "string" && input.name.trim() ? input.name.trim().slice(0, 80) : msg("note.variantName", { name: asset.name });
   const clean = (swaps as ColorSwap[]).map((s) => ({ from: s.from.toLowerCase(), to: s.to.toLowerCase() }));
   const png = await recolor(await readProjectFile(project.id, asset.file), clean, threshold);

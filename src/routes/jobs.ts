@@ -4,6 +4,7 @@ import { type AgentEvent, jobs, runningJobFor, startJob } from "../agent/index.j
 import { MAX_REDRAWS } from "../agent/events.js";
 import { loadProject } from "../store/index.js";
 import { pid } from "./util.js";
+import { msg } from "../i18n.js";
 
 export const jobsRouter = Router();
 
@@ -21,8 +22,8 @@ jobsRouter.post("/api/projects/:id/run", async (req, res) => {
   const projectId = pid(req);
   await loadProject(projectId);
   const running = runningJobFor(projectId);
-  if (running) return void res.status(409).json({ error: "该项目已有任务在运行", jobId: running.id });
-  if ((parseRedraws(req.body)?.length ?? 0) > MAX_REDRAWS) return void res.status(400).json({ error: `一次最多重画 ${MAX_REDRAWS} 个素材` });
+  if (running) return void res.status(409).json({ error: msg("err.running"), jobId: running.id });
+  if ((parseRedraws(req.body)?.length ?? 0) > MAX_REDRAWS) return void res.status(400).json({ error: msg("err.maxRedraws", { n: MAX_REDRAWS }) });
   const job = startJob({
     projectId,
     request: String(req.body?.request ?? "").slice(0, 4000),
@@ -40,12 +41,12 @@ jobsRouter.post("/api/projects/:id/assets/:assetId/action-set", async (req, res)
   const projectId = pid(req);
   const project = await loadProject(projectId);
   const asset = project.assets.find((a) => a.id === req.params.assetId);
-  if (!asset) return void res.status(404).json({ error: "素材不存在" });
-  if (!ACTION_SET_TYPES.has(asset.assetType)) return void res.status(400).json({ error: "只有角色和敌人可以生成动作套装" });
+  if (!asset) return void res.status(404).json({ error: msg("err.noAsset") });
+  if (!ACTION_SET_TYPES.has(asset.assetType)) return void res.status(400).json({ error: msg("err.actionSetType") });
   const actions = Array.isArray(req.body?.actions) ? [...new Set(req.body.actions as unknown[])].filter(isActionKey) : [];
-  if (!actions.length) return void res.status(400).json({ error: "请至少选择一个动作" });
+  if (!actions.length) return void res.status(400).json({ error: msg("err.needActions") });
   const running = runningJobFor(projectId);
-  if (running) return void res.status(409).json({ error: "该项目已有任务在运行", jobId: running.id });
+  if (running) return void res.status(409).json({ error: msg("err.running"), jobId: running.id });
   const job = startJob({
     projectId,
     request: actionSetRequest(asset, actions),
@@ -62,11 +63,11 @@ jobsRouter.post("/api/projects/:id/assets/:assetId/action-set", async (req, res)
 jobsRouter.post("/api/projects/:id/assets/:assetId/regenerate", async (req, res) => {
   const projectId = pid(req);
   const project = await loadProject(projectId);
-  if (!project.assets.some((a) => a.id === req.params.assetId)) return void res.status(404).json({ error: "素材不存在" });
+  if (!project.assets.some((a) => a.id === req.params.assetId)) return void res.status(404).json({ error: msg("err.noAsset") });
   const prompt = String(req.body?.prompt ?? "").trim();
-  if (prompt.length < 10) return void res.status(400).json({ error: "prompt 太短" });
+  if (prompt.length < 10) return void res.status(400).json({ error: msg("err.promptShort") });
   const running = runningJobFor(projectId);
-  if (running) return void res.status(409).json({ error: "该项目已有任务在运行", jobId: running.id });
+  if (running) return void res.status(409).json({ error: msg("err.running"), jobId: running.id });
   const job = startJob({
     projectId,
     request: "",

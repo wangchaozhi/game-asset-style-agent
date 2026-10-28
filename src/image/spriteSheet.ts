@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { msg } from "../i18n.js";
 
 /**
  * Guess the frame count of a horizontal sprite sheet from its alpha channel:
@@ -43,7 +44,7 @@ export async function sliceSheet(data: Buffer, frameCount: number, fps = 8): Pro
   const height = meta.height ?? 0;
   const count = Math.max(1, Math.min(32, Math.floor(frameCount)));
   const fw = Math.floor(width / count);
-  if (fw < 4) throw new Error("帧数过多，单帧宽度不足");
+  if (fw < 4) throw new Error(msg("err.tooManyFrames"));
   const frames = await Promise.all(
     Array.from({ length: count }, (_, i) =>
       sharp(data).extract({ left: i * fw, top: 0, width: fw, height }).png().toBuffer(),

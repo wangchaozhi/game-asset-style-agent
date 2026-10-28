@@ -1,4 +1,5 @@
 import zlib from "node:zlib";
+import { msg } from "../i18n.js";
 
 export interface UnzipLimits {
   /** max number of entries */
@@ -23,13 +24,13 @@ export function readZip(buf: Buffer, limits: UnzipLimits = {}): UnzippedEntry[] 
   // The end-of-central-directory record is in the last 22 + 65535 bytes.
   const sig = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
   const eocd = buf.lastIndexOf(sig, Math.max(0, buf.length - 22));
-  if (eocd < 0 || eocd < buf.length - 22 - 0xffff) throw new Error("不是有效的 ZIP 文件");
+  if (eocd < 0 || eocd < buf.length - 22 - 0xffff) throw new Error(msg("err.zipInvalid"));
   const count = buf.readUInt16LE(eocd + 10);
-  if (count > maxEntries) throw new Error(`ZIP 条目过多（${count}）`);
+  if (count > maxEntries) throw new Error(msg("err.zipTooMany", { n: count }));
   let p = buf.readUInt32LE(eocd + 16);
   const out: UnzippedEntry[] = [];
   for (let i = 0; i < count; i++) {
-    if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) throw new Error("ZIP 目录损坏");
+    if (p + 46 > buf.length || buf.readUInt32LE(p) !== 0x02014b50) throw new Error(msg("err.zipDir"));
     const flags = buf.readUInt16LE(p + 8);
     const method = buf.readUInt16LE(p + 10);
     const crc = buf.readUInt32LE(p + 16);
@@ -41,18 +42,18 @@ export function readZip(buf: Buffer, limits: UnzipLimits = {}): UnzippedEntry[] 
     const local = buf.readUInt32LE(p + 42);
     const name = buf.subarray(p + 46, p + 46 + nlen).toString(flags & 0x800 ? "utf8" : "latin1");
     p += 46 + nlen + xlen + clen;
-    if (flags & 0x1) throw new Error("不支持加密的 ZIP");
+    if (flags & 0x1) throw new Error(msg("err.zipEncrypted"));
     if (name.endsWith("/")) continue;
-    if (usize > budget) throw new Error("ZIP 解压后体积超出限制");
-    if (local + 30 > buf.length || buf.readUInt32LE(local) !== 0x04034b50) throw new Error("ZIP 条目损坏");
+    if (usize > budget) throw new Error(msg("err.zipTooBig"));
+    if (local + 30 > buf.length || buf.readUInt32LE(local) !== 0x04034b50) throw new Error(msg("err.zipEntry"));
     const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
     const body = buf.subarray(start, start + csize);
     let data: Buffer;
     if (method === 0) data = Buffer.from(body);
     else if (method === 8) data = zlib.inflateRawSync(body, { maxOutputLength: Math.max(1, budget) });
-    else throw new Error(`不支持的压缩方式 ${method}`);
-    if (data.length !== usize) throw new Error(`ZIP 条目大小不符：${name}`);
-    if ((zlib.crc32(data) >>> 0) !== crc) throw new Error(`ZIP 校验失败：${name}`);
+    else throw new Error(msg("err.zipMethod", { n: method }));
+    if (data.length !== usize) throw new Error(msg("err.zipSize", { name }));
+    if ((zlib.crc32(data) >>> 0) !== crc) throw new Error(msg("err.zipCrc", { name }));
     budget -= data.length;
     out.push({ name, data });
   }

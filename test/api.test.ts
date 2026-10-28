@@ -720,6 +720,19 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [made.id, zhMade.id] } });
   });
 
+  it("returns error messages in the request's language", async () => {
+    const req = (path: string, init: RequestInit, lang?: string) =>
+      fetch(base + path, { ...init, headers: { "Content-Type": "application/json", ...(lang ? { "Accept-Language": lang } : {}) } }).then(async (r) => ({ status: r.status, error: ((await r.json()) as { error: string }).error }));
+    const asset = (await json(`/api/projects/${id}`)).body.assets.find((a: { assetType: string }) => a.assetType === "sprite_sheet");
+    const patch = { method: "PATCH", body: JSON.stringify({ name: " " }) };
+    assert.deepEqual(await req(`/api/projects/${id}/assets/${asset.id}`, patch, "en-GB"), { status: 400, error: "The name cannot be empty" });
+    assert.deepEqual(await req(`/api/projects/${id}/assets/${asset.id}`, patch), { status: 400, error: "名称不能为空" });
+    const batch = { method: "POST", body: JSON.stringify({ action: "explode", ids: [asset.id] }) };
+    assert.equal((await req(`/api/projects/${id}/assets/batch`, batch, "en")).error, "Invalid batch action");
+    const outline = { method: "POST", body: JSON.stringify({ width: 99 }) };
+    assert.equal((await req(`/api/projects/${id}/assets/${asset.id}/outline?lang=en`, outline)).error, "Outline width must be 1–16 px");
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

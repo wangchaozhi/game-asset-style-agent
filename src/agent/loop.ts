@@ -10,6 +10,7 @@ import { type Job, type RunOptions, emit, reportUsage, requestLabel } from "./ev
 import { SYSTEM, buildIntro } from "./prompts.js";
 import { runTool } from "./runTool.js";
 import { tools } from "./tools.js";
+import { msg, providerLabel } from "../i18n.js";
 
 type Message = Anthropic.Beta.BetaMessageParam;
 type ImageBlock = Anthropic.Beta.BetaImageBlockParam;
@@ -24,13 +25,13 @@ export async function runAgent(job: Job, opts: RunOptions) {
   const client = new Anthropic();
   const provider = getProvider(opts.providerId);
   const project = await loadProject(opts.projectId);
-  if (!project.refs.length && !project.styleGuide) throw new Error("请先上传至少一张风格参考图，或在新建项目时选择风格预设");
+  if (!project.refs.length && !project.styleGuide) throw new Error(msg("err.needStyle"));
   const model = config.model;
 
   const refs = await Promise.all((await refImages(project)).map((r) => shrink(r, 1024)));
   const redraws = (opts.redraws ?? []).map((r) => {
     const target = project.assets.find((a) => a.id === r.assetId);
-    if (!target) throw new Error("要重画的素材不存在");
+    if (!target) throw new Error(msg("err.noRedrawAsset"));
     return { target, feedback: r.feedback };
   });
   const redrawImages = await Promise.all(
@@ -42,7 +43,7 @@ export async function runAgent(job: Job, opts: RunOptions) {
   // History is append-only: earlier turns (including thinking blocks) are sent back byte-for-byte.
   let history = opts.continueConversation ? await loadConversation(project.id) : null;
   if (history && JSON.stringify(history.messages).length > config.conversationLimitBytes) {
-    emit(job, { type: "status", text: "对话历史过长，本次开启新对话（风格指南与素材不受影响）" });
+    emit(job, { type: "status", text: msg("run.historyReset") });
     history = null;
   }
   const continuing = !!history?.messages.length;
@@ -65,12 +66,18 @@ export async function runAgent(job: Job, opts: RunOptions) {
   ];
 
   const limits = [
-    job.budget.maxImages !== null ? `图像 ≤ ${job.budget.maxImages} 次` : "",
-    job.budget.maxUsd !== null ? `费用 ≤ $${job.budget.maxUsd}` : "",
+    job.budget.maxImages !== null ? msg("run.limitImages", { n: job.budget.maxImages }) : "",
+    job.budget.maxUsd !== null ? msg("run.limitUsd", { n: job.budget.maxUsd }) : "",
   ].filter(Boolean);
   emit(job, {
     type: "status",
-    text: `Agent 启动 · ${model} · 图像通道 ${provider.label}${continuing ? ` · 延续对话（第 ${history!.runs.length + 1} 轮）` : ""}${limits.length ? ` · 预算 ${limits.join("，")}` : ""}`,
+    text: [
+      msg("run.agentStart", { model, provider: providerLabel(provider.id, provider.label) }),
+      continuing ? msg("run.continuing", { n: history!.runs.length + 1 }) : "",
+      limits.length ? msg("run.budget", { limits: limits.join(msg("note.listSep")) }) : "",
+    ]
+      .filter(Boolean)
+      .join(" · "),
   });
   const persist = async () => {
     const runs = [...(history?.runs ?? []), { request: requestLabel(opts), at: new Date().toISOString() }];
@@ -80,7 +87,7 @@ export async function runAgent(job: Job, opts: RunOptions) {
 
   for (let turn = 0; turn < config.maxTurns; turn++) {
     if (pastHardStop(job.budget, job.usage)) {
-      emit(job, { type: "status", text: `估算费用 $${job.usage.cost.total.toFixed(3)} 已明显超过上限 $${job.budget.maxUsd}，强制结束本次运行` });
+      emit(job, { type: "status", text: msg("run.overBudget", { cost: job.usage.cost.total.toFixed(3), max: String(job.budget.maxUsd) }) });
       return;
     }
     const stream = client.beta.messages.stream(
@@ -112,7 +119,7 @@ export async function runAgent(job: Job, opts: RunOptions) {
         reportUsage(job);
       }
       if (err instanceof Anthropic.APIError || job.abort.signal.aborted || jsonRetries++ >= 2) throw err;
-      emit(job, { type: "status", text: "工具参数解析失败，重试本轮" });
+      emit(job, { type: "status", text: msg("run.toolParseRetry") });
       continue;
     }
 
@@ -124,7 +131,7 @@ export async function runAgent(job: Job, opts: RunOptions) {
     }
 
     if (message.stop_reason === "refusal") {
-      throw new Error(`模型拒绝了该请求${message.stop_details?.explanation ? `：${message.stop_details.explanation}` : ""}`);
+      throw new Error(msg("err.refused") + (message.stop_details?.explanation ? `: ${message.stop_details.explanation}` : ""));
     }
     if (message.stop_reason === "pause_turn") {
       messages.push({ role: "assistant", content: message.content });
@@ -138,7 +145,7 @@ export async function runAgent(job: Job, opts: RunOptions) {
       await persist();
       return;
     }
-    if (message.stop_reason === "max_tokens") throw new Error("输出超出 max_tokens，工具参数被截断");
+    if (message.stop_reason === "max_tokens") throw new Error(msg("err.maxTokens"));
 
     messages.push({ role: "assistant", content: message.content });
     for (const t of toolUses) emit(job, { type: "tool", name: t.name, input: t.input });
@@ -146,5 +153,5 @@ export async function runAgent(job: Job, opts: RunOptions) {
     const results = await Promise.all(toolUses.map((t) => runTool(job, provider, t)));
     messages.push({ role: "user", content: results });
   }
-  emit(job, { type: "status", text: `已达到最大轮数 ${config.maxTurns}，停止` });
+  emit(job, { type: "status", text: msg("run.maxTurns", { n: config.maxTurns }) });
 }

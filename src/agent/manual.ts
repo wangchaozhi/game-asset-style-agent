@@ -5,6 +5,7 @@ import { loadProject, readProjectFile } from "../store/index.js";
 import { generateAsset } from "./assets.js";
 import { type Job, type RunOptions, emit } from "./events.js";
 import type { GenerateInput } from "./schemas.js";
+import { msg, providerLabel } from "../i18n.js";
 
 /** Aspect of an existing image, to regenerate at the same shape. */
 export function aspectOf(width: number, height: number): GenerateInput["aspect"] {
@@ -22,8 +23,8 @@ export async function runManual(job: Job, opts: RunOptions) {
   const provider = getProvider(opts.providerId);
   const project = await loadProject(opts.projectId);
   const old = project.assets.find((a) => a.id === m.assetId);
-  if (!old) throw new Error("要重生成的素材不存在");
-  if (!isAssetType(old.assetType)) throw new Error(`未知的素材类型 ${old.assetType}`);
+  if (!old) throw new Error(msg("err.noRegenAsset"));
+  if (!isAssetType(old.assetType)) throw new Error(msg("err.unknownType", { type: old.assetType }));
   const meta = await sharp(await readProjectFile(project.id, old.originalFile ?? old.file)).metadata();
   const frames = old.frames?.length;
   const input: GenerateInput = {
@@ -37,9 +38,9 @@ export async function runManual(job: Job, opts: RunOptions) {
     replaces_asset_id: old.id,
     ...(frames && frames >= 2 ? { frames } : {}),
   };
-  emit(job, { type: "status", text: `直接重生成「${old.name}」· 图像通道 ${provider.label} · 不调用 Claude` });
+  emit(job, { type: "status", text: msg("run.manualStart", { name: old.name, provider: providerLabel(provider.id, provider.label) }) });
   emit(job, { type: "tool", name: "generate_image", input });
   const { asset } = await generateAsset(job, provider, input);
-  emit(job, { type: "text", delta: `已生成新版本，请在素材库中审核（可「对比上一版本」）。\n` });
+  emit(job, { type: "text", delta: `${msg("run.manualDone")}\n` });
   return asset;
 }

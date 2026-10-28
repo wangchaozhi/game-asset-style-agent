@@ -1,4 +1,5 @@
 import sharp from "sharp";
+import { msg } from "../i18n.js";
 
 export interface PaletteReport {
   /** share of opaque pixels within `threshold` ΔE of some palette colour, 0-1 */
@@ -133,7 +134,7 @@ const BAYER4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
  * how close each is, which keeps the impression of gradients that pure snapping would band.
  */
 export async function snapToPalette(data: Buffer, palette: string[], opts: { dither?: "none" | "ordered" } = {}): Promise<Buffer> {
-  if (!palette.length) throw new Error("色板为空");
+  if (!palette.length) throw new Error(msg("err.emptyPalette"));
   const { data: px, info } = await sharp(data).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const pal = palette.map((h) => ({ rgb: hexToRgb(h), lab: rgbToLab(...hexToRgb(h)) }));
   const cache = new Map<number, [number, number, number]>(); // rgb → [nearest, second, ratio×1000]

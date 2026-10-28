@@ -29,17 +29,17 @@ type BatchAction = (typeof BATCH_ACTIONS)[number];
 assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
   const action = req.body?.action as BatchAction;
   const ids: unknown = req.body?.ids;
-  if (!BATCH_ACTIONS.includes(action)) return void res.status(400).json({ error: "无效的批量操作" });
+  if (!BATCH_ACTIONS.includes(action)) return void res.status(400).json({ error: msg("err.badBatch") });
   if (!Array.isArray(ids) || !ids.length || ids.length > 1000 || !ids.every((x) => typeof x === "string")) {
-    return void res.status(400).json({ error: "请提供要操作的素材 id 列表" });
+    return void res.status(400).json({ error: msg("err.needIds") });
   }
   const wanted = new Set(ids as string[]);
   const tags = normalizeTags(req.body?.tags);
-  if ((action === "tag" || action === "untag") && !tags.length) return void res.status(400).json({ error: "请提供标签" });
+  if ((action === "tag" || action === "untag") && !tags.length) return void res.status(400).json({ error: msg("err.needTags") });
   const prefix = typeof req.body?.prefix === "string" ? req.body.prefix.trim().slice(0, 60) : "";
-  if (action === "rename" && !prefix) return void res.status(400).json({ error: "请提供名称前缀" });
+  if (action === "rename" && !prefix) return void res.status(400).json({ error: msg("err.needPrefix") });
   const start = req.body?.start === undefined ? 1 : Number(req.body.start);
-  if (action === "rename" && !(Number.isInteger(start) && start >= 0 && start <= 9999)) return void res.status(400).json({ error: "起始序号需为 0-9999 的整数" });
+  if (action === "rename" && !(Number.isInteger(start) && start >= 0 && start <= 9999)) return void res.status(400).json({ error: msg("err.start") });
   let affected = 0;
   let purged: string[] = [];
   const project = await updateProject(pid(req), (p) => {
@@ -108,10 +108,10 @@ const fileName = (raw: string) => {
 assetsRouter.post("/api/projects/:id/assets/import", importUpload.array("images", 20), async (req, res) => {
   const files = (req.files as Express.Multer.File[] | undefined) ?? [];
   const assetType = String(req.body?.assetType ?? "");
-  if (!isAssetType(assetType)) return void res.status(400).json({ error: "请选择素材类型" });
-  if (!files.length) return void res.status(400).json({ error: "没有可用的图片（支持 png/jpg/webp/gif）" });
+  if (!isAssetType(assetType)) return void res.status(400).json({ error: msg("err.needType") });
+  if (!files.length) return void res.status(400).json({ error: msg("err.noImages") });
   const frames = req.body?.frames ? Number(req.body.frames) : undefined;
-  if (frames !== undefined && !(Number.isInteger(frames) && frames >= 1 && frames <= 32)) return void res.status(400).json({ error: "帧数需在 1-32 之间" });
+  if (frames !== undefined && !(Number.isInteger(frames) && frames >= 1 && frames <= 32)) return void res.status(400).json({ error: msg("err.frames") });
   const project = await loadProject(pid(req));
   const hexes = project.styleGuide?.palette.map((p) => p.hex) ?? [];
   const created: Asset[] = [];
@@ -176,11 +176,11 @@ assetsRouter.post("/api/projects/:id/cleanup-versions", async (req, res) => {
 /** Manual review and edits: any of status, notes, name, tags, nineSlice (ui only; null clears). */
 assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
   const { status, notes, name, tags, nineSlice } = req.body ?? {};
-  if (status !== undefined && !STATUSES.includes(status)) return void res.status(400).json({ error: "无效的状态" });
-  if (name !== undefined && (typeof name !== "string" || !name.trim())) return void res.status(400).json({ error: "名称不能为空" });
-  if (tags !== undefined && !Array.isArray(tags)) return void res.status(400).json({ error: "tags 需为字符串数组" });
+  if (status !== undefined && !STATUSES.includes(status)) return void res.status(400).json({ error: msg("err.badStatus") });
+  if (name !== undefined && (typeof name !== "string" || !name.trim())) return void res.status(400).json({ error: msg("err.emptyName") });
+  if (tags !== undefined && !Array.isArray(tags)) return void res.status(400).json({ error: msg("err.tagsArray") });
   if (status === undefined && name === undefined && tags === undefined && nineSlice === undefined && typeof notes !== "string") {
-    return void res.status(400).json({ error: "没有要修改的内容" });
+    return void res.status(400).json({ error: msg("err.nothingToChange") });
   }
   if (nineSlice !== undefined) {
     const found = await findAsset(req, res);
@@ -207,7 +207,7 @@ assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
       else delete asset.tags;
     }
   });
-  if (!asset) return void res.status(404).json({ error: "素材不存在" });
+  if (!asset) return void res.status(404).json({ error: msg("err.noAsset") });
   res.json(asset);
 });
 
