@@ -522,6 +522,11 @@ describe("HTTP API (demo mode)", () => {
     assert.match(html, /^<!doctype html>/);
     for (const c of project.styleGuide.palette) assert.ok(html.includes(c.hex), c.hex);
     assert.ok(html.includes("风格说明书"));
+    assert.match(html, /<html lang="zh-CN">/);
+    const en = await (await fetch(`${base}/api/projects/${id}/style-sheet.html?lang=en`)).text();
+    assert.match(en, /<html lang="en">/);
+    for (const s of ["Style sheet", "Palette", "Art rules", "Approved samples"]) assert.ok(en.includes(s), s);
+    for (const s of ["风格说明书", "画风规则", "已通过素材样例", "由 Game Asset Agent 生成"]) assert.ok(!en.includes(s), s);
     assert.ok(!/<script/i.test(html), "no scripts");
     assert.ok(!/src="(?!data:)/.test(html), "every image is inline");
     assert.ok((html.match(/<img /g) ?? []).length >= project.refs.length + 1, "references and samples");

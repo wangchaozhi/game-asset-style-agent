@@ -1,7 +1,8 @@
 import sharp from "sharp";
-import { ASSET_TYPES, isAssetType } from "../domain/assetTypes.js";
+import { ASSET_TYPES } from "../domain/assetTypes.js";
 import { readProjectFile } from "../store/index.js";
 import type { Project, StyleGuide } from "../store/types.js";
+import { assetTypeLabel, currentLang, msg, type MsgKey } from "../i18n.js";
 
 /** Approved samples shown per asset type. */
 const SAMPLES_PER_TYPE = 6;
@@ -15,14 +16,14 @@ async function dataUri(data: Buffer, max = 480): Promise<string> {
   return `data:image/webp;base64,${webp.toString("base64")}`;
 }
 
-const RULES: [keyof StyleGuide, string][] = [
-  ["rendering", "画法"],
-  ["line_and_edges", "线条与边缘"],
-  ["lighting_and_shading", "光影"],
-  ["perspective", "视角"],
-  ["proportions", "比例"],
-  ["texture_and_detail", "质感与细节"],
-  ["mood", "氛围"],
+const RULES: [keyof StyleGuide, MsgKey][] = [
+  ["rendering", "sheet.rendering"],
+  ["line_and_edges", "sheet.line_and_edges"],
+  ["lighting_and_shading", "sheet.lighting_and_shading"],
+  ["perspective", "sheet.perspective"],
+  ["proportions", "sheet.proportions"],
+  ["texture_and_detail", "sheet.texture_and_detail"],
+  ["mood", "sheet.mood"],
 ];
 
 /**
@@ -39,33 +40,33 @@ export async function buildStyleSheet(project: Project): Promise<string> {
     const picked = approved.filter((a) => a.assetType === type).slice(-SAMPLES_PER_TYPE);
     if (!picked.length) continue;
     groups.push({
-      label: isAssetType(type) ? ASSET_TYPES[type] : type,
+      label: assetTypeLabel(type),
       items: await Promise.all(picked.map(async (a) => ({ name: a.name, src: await dataUri(await readProjectFile(project.id, a.file), 360) }))),
     });
   }
   const section = (title: string, body: string) => `<section><h2>${esc(title)}</h2>${body}</section>`;
   const palette = sg?.palette.length
     ? `<ul class="palette">${sg.palette.map((c) => `<li><span class="chip" style="background:${/^#[0-9a-f]{6}$/i.test(c.hex) ? c.hex : "transparent"}"></span><b>${esc(c.hex)}</b><span>${esc(c.role)}</span></li>`).join("")}</ul>`
-    : `<p class="muted">还没有色板。</p>`;
+    : `<p class="muted">${msg("sheet.noPalette")}</p>`;
   const rules = sg
-    ? `<dl class="rules">${RULES.map(([k, label]) => `<dt>${label}</dt><dd>${esc(sg[k])}</dd>`).join("")}</dl>
-       ${sg.avoid.length ? `<h3>避免</h3><ul class="avoid">${sg.avoid.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
-       <h3>Prompt 前缀</h3><pre>${esc(sg.prompt_prefix)}</pre>`
-    : `<p class="muted">还没有风格指南。</p>`;
+    ? `<dl class="rules">${RULES.map(([k, label]) => `<dt>${msg(label)}</dt><dd>${esc(sg[k])}</dd>`).join("")}</dl>
+       ${sg.avoid.length ? `<h3>${msg("sheet.avoid")}</h3><ul class="avoid">${sg.avoid.map((a) => `<li>${esc(a)}</li>`).join("")}</ul>` : ""}
+       <h3>${msg("sheet.prefix")}</h3><pre>${esc(sg.prompt_prefix)}</pre>`
+    : `<p class="muted">${msg("sheet.noGuide")}</p>`;
   const refHtml = refs.length
-    ? `<div class="grid refs">${refs.map((r) => `<figure><img src="${r.src}" alt="参考图" />${r.note ? `<figcaption>${esc(r.note)}</figcaption>` : ""}</figure>`).join("")}</div>`
-    : `<p class="muted">没有参考图。</p>`;
+    ? `<div class="grid refs">${refs.map((r) => `<figure><img src="${r.src}" alt="${msg("sheet.refAlt")}" />${r.note ? `<figcaption>${esc(r.note)}</figcaption>` : ""}</figure>`).join("")}</div>`
+    : `<p class="muted">${msg("sheet.noRefs")}</p>`;
   const samples = groups.length
     ? groups
         .map((g) => `<h3>${esc(g.label)}</h3><div class="grid">${g.items.map((i) => `<figure><img src="${i.src}" alt="${esc(i.name)}" /><figcaption>${esc(i.name)}</figcaption></figure>`).join("")}</div>`)
         .join("")
-    : `<p class="muted">还没有已通过的素材。</p>`;
+    : `<p class="muted">${msg("sheet.noSamples")}</p>`;
   return `<!doctype html>
-<html lang="zh-CN">
+<html lang="${currentLang() === "en" ? "en" : "zh-CN"}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${esc(project.name)} · 风格说明书</title>
+<title>${esc(project.name)} · ${msg("sheet.title")}</title>
 <style>
   :root { color-scheme: light; --ink: #1d1d1f; --muted: #5f6368; --line: #dadce0; --check: #eeeeee; }
   * { box-sizing: border-box; }
@@ -95,13 +96,13 @@ export async function buildStyleSheet(project: Project): Promise<string> {
 </style>
 </head>
 <body>
-<header><h1>${esc(project.name)} · 风格说明书</h1>${sg ? `<p class="summary">${esc(sg.summary)}</p>` : ""}</header>
-${section("色板", palette)}
-${project.conventions ? section("项目约定", `<p class="conventions">${esc(project.conventions)}</p>`) : ""}
-${section("画风规则", rules)}
-${section("参考图", refHtml)}
-${section("已通过素材样例", samples)}
-<footer>由 Game Asset Agent 生成 · ${esc(new Date().toISOString().slice(0, 10))}</footer>
+<header><h1>${esc(project.name)} · ${msg("sheet.title")}</h1>${sg ? `<p class="summary">${esc(sg.summary)}</p>` : ""}</header>
+${section(msg("sheet.palette"), palette)}
+${project.conventions ? section(msg("sheet.conventions"), `<p class="conventions">${esc(project.conventions)}</p>`) : ""}
+${section(msg("sheet.rules"), rules)}
+${section(msg("sheet.refs"), refHtml)}
+${section(msg("sheet.samples"), samples)}
+<footer>${msg("sheet.footer")} · ${esc(new Date().toISOString().slice(0, 10))}</footer>
 </body>
 </html>
 `;

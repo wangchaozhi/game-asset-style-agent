@@ -4,7 +4,7 @@ import { state } from "./state.js";
 import { renderRefs } from "./refs.js";
 import { renderStyle } from "./styleGuide.js";
 import { renderAssets } from "./assets.js";
-import { has, t } from "./i18n.js";
+import { getLang, has, t } from "./i18n.js";
 
 export async function loadProjects(selectId) {
   const list = await api("/api/projects");
@@ -49,7 +49,7 @@ export function renderAll() {
   loadConversationInfo();
   $("#exportApproved").href = `/api/projects/${state.project.id}/export.zip`;
   $("#backupProject").href = `/api/projects/${state.project.id}/backup.zip`;
-  $("#styleSheetLink").href = `/api/projects/${state.project.id}/style-sheet.html`;
+  $("#styleSheetLink").href = `/api/projects/${state.project.id}/style-sheet.html?lang=${getLang()}`;
   state.pixelKernel = /pixel|像素|8-?bit|16-?bit/i.test(JSON.stringify(state.project.styleGuide ?? ""));
   renderRefs();
   renderStyle();

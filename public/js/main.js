@@ -1,5 +1,5 @@
 // Entry point: load config, wire up every panel, open the last project.
-import { api, toast } from "./lib.js";
+import { $, api, toast } from "./lib.js";
 import { state } from "./state.js";
 import { bindProjects, loadConversationInfo, loadProjects } from "./projects.js";
 import { bindRefs, renderRefs } from "./refs.js";
@@ -35,6 +35,7 @@ applyI18n();
 document.querySelector("#langToggle").addEventListener("click", () => setLang(getLang() === "zh" ? "en" : "zh"));
 document.addEventListener("gaa:lang", () => {
   if (!state.project) return;
+  $("#styleSheetLink").href = `/api/projects/${state.project.id}/style-sheet.html?lang=${getLang()}`;
   renderRefs();
   renderStyle();
   renderAssets();
