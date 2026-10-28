@@ -788,6 +788,17 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [copy, outlined] } });
   });
 
+  it("keeps plain requests in the run history so they can be run again", async () => {
+    const plain = await json(`/api/projects/${id}/run`, { method: "POST", body: { request: "再来两个图标", assetTypes: ["item_icon"], provider: "mock" } });
+    await events(plain.body.jobId);
+    const target = (await json(`/api/projects/${id}`)).body.assets[0].id;
+    const redraw = await json(`/api/projects/${id}/run`, { method: "POST", body: { redraws: [{ assetId: target, feedback: "更亮" }], provider: "mock" } });
+    await events(redraw.body.jobId);
+    const runs = (await json(`/api/projects/${id}/usage`)).body.runs as { jobId: string; rerun?: { request: string; assetTypes: string[] } }[];
+    assert.deepEqual(runs.find((r) => r.jobId === plain.body.jobId)?.rerun, { request: "再来两个图标", assetTypes: ["item_icon"] });
+    assert.equal(runs.find((r) => r.jobId === redraw.body.jobId)?.rerun, undefined, "a redraw is tied to its asset");
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

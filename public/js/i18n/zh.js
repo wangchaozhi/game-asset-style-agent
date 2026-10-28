@@ -707,4 +707,9 @@ export default {
   "similar.onlyVersions": "都是这个素材的版本或变体",
   "similar.related": "同一素材的版本",
   "similar.distance": "差异 {n}（0 = 完全一样）",
+
+  // Usage: run again
+  "usage.actions": "操作",
+  "usage.rerun": "再次运行",
+  "usage.rerunFilled": "已把需求和类型填回，确认后点「开始生成」",
 };

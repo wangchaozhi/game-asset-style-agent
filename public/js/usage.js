@@ -58,8 +58,27 @@ async function loadStorage(projectId) {
   }
 }
 
+/** Runs last shown in the dialog, for "run again". */
+let shownRuns = [];
+
+/** Put an earlier request and its asset types back into the request panel (the user still presses Generate). */
+function refill(rerun) {
+  $("#request").value = rerun.request;
+  state.selectedTypes = new Set(rerun.assetTypes);
+  for (const chip of document.querySelectorAll("#typeChips .chip")) chip.classList.toggle("on", state.selectedTypes.has(chip.dataset.type));
+  $("#usageDialog").close();
+  $("#request").focus();
+  toast(t("usage.rerunFilled"));
+}
+
 export function bindUsageDialog(getProjectId) {
   $("#usageBody").addEventListener("click", async (e) => {
+    const rerun = e.target.closest("[data-rerun]");
+    if (rerun) {
+      const run = shownRuns.find((r) => r.jobId === rerun.dataset.rerun);
+      if (run?.rerun) refill(run.rerun);
+      return;
+    }
     if (!e.target.closest("[data-cleanup]")) return;
     const projectId = getProjectId();
     try {
@@ -99,6 +118,7 @@ export async function openUsageDialog(projectId) {
   dlg.showModal();
   try {
     const [{ summary: s, runs }, st] = await Promise.all([api(`/api/projects/${projectId}/usage`), api(`/api/projects/${projectId}/stats`)]);
+    shownRuns = runs;
     const tiles = [
       [t("usage.runs"), s.runs],
       [t("usage.claudeRequests"), s.claudeRequests],
@@ -117,7 +137,7 @@ export async function openUsageDialog(projectId) {
       ${
         runs.length
           ? `<div class="usage-table-wrap"><table class="usage-table">
-        <thead><tr><th>${t("usage.time")}</th><th>${t("usage.request")}</th><th>${t("usage.status")}</th><th>Claude</th><th>${t("usage.inOut")}</th><th>${t("usage.imagesCol")}</th><th>${t("usage.costCol")}</th></tr></thead>
+        <thead><tr><th>${t("usage.time")}</th><th>${t("usage.request")}</th><th>${t("usage.status")}</th><th>Claude</th><th>${t("usage.inOut")}</th><th>${t("usage.imagesCol")}</th><th>${t("usage.costCol")}</th><th><span class="sr-only">${t("usage.actions")}</span></th></tr></thead>
         <tbody>${runs
           .map((r) => {
             const tok = runTokens(r);
@@ -129,6 +149,7 @@ export async function openUsageDialog(projectId) {
               <td>${fmtTokens(tok.input_tokens + tok.cache_creation_input_tokens + tok.cache_read_input_tokens)} / ${fmtTokens(tok.output_tokens)}</td>
               <td>${r.images.calls}${r.images.failed ? ` <span class="bad">(${r.images.failed}✗)</span>` : ""}</td>
               <td>${fmtCost(r.cost.total)}</td>
+              <td>${r.rerun ? `<button type="button" class="btn link" data-rerun="${esc(r.jobId)}">${t("usage.rerun")}</button>` : ""}</td>
             </tr>`;
           })
           .join("")}</tbody></table></div>`

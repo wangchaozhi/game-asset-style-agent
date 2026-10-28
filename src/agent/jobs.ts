@@ -26,6 +26,9 @@ export function startJob(opts: RunOptions): Job {
     budget: resolveBudget(opts.budget),
   };
   job.usage.budget = job.budget;
+  if (!opts.manual && !opts.actionSet && !opts.redraws?.length && (opts.request.trim() || opts.assetTypes.length)) {
+    job.usage.rerun = { request: opts.request, assetTypes: [...opts.assetTypes] };
+  }
   jobs.set(job.id, job);
   // Record the run immediately so a crash before the first image call still leaves a trace.
   reportUsage(job);

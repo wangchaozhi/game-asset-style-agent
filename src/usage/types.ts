@@ -22,6 +22,8 @@ export interface RunUsage {
   status: "running" | "ok" | "error" | "stopped" | "interrupted";
   /** "demo": scripted run; "manual": image model only. Neither calls Claude. */
   mode: "agent" | "demo" | "manual";
+  /** what the user asked for, kept for plain requests (not redraws, action sets or direct regeneration) so it can be run again */
+  rerun?: { request: string; assetTypes: string[] };
   claude: {
     requests: number;
     /** token usage per model actually served (server-side fallback may switch models) */

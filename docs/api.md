@@ -325,6 +325,7 @@ UI 素材的九宫格建议边距：`{ "suggestion": { "left", "top", "right", "
 ```
 
 `cost` 中为 `null` 的部分表示缺少单价（如未配置 `IMAGE_PRICE_OPENAI`），未计入合计。运行状态：`running`、`ok`、`error`、`stopped`、`interrupted`。
+普通需求的运行带 `rerun: { request, assetTypes }`（原始需求与所选类型，界面里「再次运行」用它填回需求面板）；重画、动作套装与直接重生成没有。
 
 ### `GET /api/projects/:id/stats`
 

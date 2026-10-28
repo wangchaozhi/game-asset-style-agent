@@ -707,4 +707,9 @@ export default {
   "similar.onlyVersions": "All are versions or variants of this asset",
   "similar.related": "a version of this asset",
   "similar.distance": "difference {n} (0 = identical)",
+
+  // Usage: run again
+  "usage.actions": "Actions",
+  "usage.rerun": "Run again",
+  "usage.rerunFilled": "Request and types are back in the panel; check them and press Generate",
 };
