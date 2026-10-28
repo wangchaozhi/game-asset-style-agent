@@ -229,6 +229,6 @@
 
 ## 第三十三轮
 
-- [ ] 素材库搜索语法：`#标签`、`type:item_icon`、`status:approved`、`-词`（排除），可与普通关键词组合
+- [x] 素材库搜索语法：`#标签`、`type:item_icon`、`status:approved`、`-词`（排除），可与普通关键词组合
 - [ ] 导出预设：把当前导出选项存成命名预设（如「Unity 精灵」「Phaser 图集」），一键切换
 - [ ] 1.10.0：CHANGELOG 与版本号

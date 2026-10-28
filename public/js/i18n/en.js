@@ -80,7 +80,7 @@ export default {
   "filter.pending_review": "Pending",
   "filter.trash": "Trash",
   "filter.select": "Select",
-  "filter.search": "Search name / notes / prompt",
+  "filter.search": "Search (#tag, type:, status:, -exclude)",
   "filter.searchLabel": "Search assets",
   "filter.type": "Filter by type",
   "filter.tag": "Filter by tag",
@@ -723,4 +723,7 @@ export default {
   "dup.keep": "Keep",
   "dup.trashRest": "Move the other {n} to the trash",
   "dup.showInLibrary": "Show only these in the library",
+
+  // Search syntax
+  "filter.searchTitle": "All words must appear; \"quoted phrases\"; -word excludes; #tag; type:item_icon; status:approved / rejected / pending",
 };

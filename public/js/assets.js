@@ -3,8 +3,41 @@ import { $, api, esc, toast } from "./lib.js";
 import { state, thumbUrl } from "./state.js";
 import { t, typeLabel } from "./i18n.js";
 
-const matchesQuery = (a, q) =>
-  !q || [a.name, a.notes, a.prompt, a.id, ...(a.tags ?? [])].some((v) => String(v ?? "").toLowerCase().includes(q));
+/** Status words accepted after "status:". */
+const STATUS_WORDS = { approved: "approved", rejected: "rejected", pending: "pending_review", pending_review: "pending_review", review: "pending_review" };
+
+/**
+ * Parse the library search box. Plain words (or "quoted phrases") must all appear in the name, notes,
+ * prompt, id or tags; "-word" must not; "#tag" needs that tag; "type:" and "status:" narrow by asset
+ * type (key or start of it) and review status. Repeating a qualifier means "any of these".
+ */
+export function parseQuery(text) {
+  const q = { words: [], exclude: [], tags: [], types: [], statuses: [] };
+  for (const m of String(text).matchAll(/(-?)(?:"([^"]*)"|(\S+))/g)) {
+    const neg = m[1] === "-";
+    const raw = (m[2] ?? m[3]).toLowerCase();
+    if (!raw) continue;
+    if (m[2] === undefined && raw.startsWith("#") && raw.length > 1 && !neg) q.tags.push(raw.slice(1));
+    else if (m[2] === undefined && raw.startsWith("type:") && raw.length > 5) q.types.push(raw.slice(5));
+    else if (m[2] === undefined && raw.startsWith("status:") && STATUS_WORDS[raw.slice(7)]) q.statuses.push(STATUS_WORDS[raw.slice(7)]);
+    else (neg ? q.exclude : q.words).push(raw);
+  }
+  return q;
+}
+
+/** Whether an asset passes a parsed query. */
+export function matchesQuery(a, q) {
+  const text = [a.name, a.notes, a.prompt, a.id, ...(a.tags ?? [])].map((v) => String(v ?? "").toLowerCase());
+  const has = (w) => text.some((v) => v.includes(w));
+  const tags = (a.tags ?? []).map((x) => x.toLowerCase());
+  return (
+    q.words.every(has) &&
+    !q.exclude.some(has) &&
+    q.tags.every((tag) => tags.includes(tag)) &&
+    (!q.types.length || q.types.some((type) => a.assetType.startsWith(type))) &&
+    (!q.statuses.length || q.statuses.includes(a.status))
+  );
+}
 
 const hasTag = (a, tag) => !tag || (a.tags ?? []).some((x) => x.toLowerCase() === tag.toLowerCase());
 
@@ -12,7 +45,7 @@ const hasTag = (a, tag) => !tag || (a.tags ?? []).some((x) => x.toLowerCase() ==
 export const inTrash = () => state.filter === "trash";
 
 export const visibleAssets = () => {
-  const q = state.query.trim().toLowerCase();
+  const q = parseQuery(state.query);
   if (inTrash()) {
     return (state.project.trash ?? [])
       .filter((a) => (!state.typeFilter || a.assetType === state.typeFilter) && hasTag(a, state.tagFilter) && matchesQuery(a, q))

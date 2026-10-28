@@ -80,7 +80,7 @@ export default {
   "filter.pending_review": "待审核",
   "filter.trash": "回收站",
   "filter.select": "选择",
-  "filter.search": "搜索名称 / 意见 / prompt",
+  "filter.search": "搜索（支持 #标签 type: status: -排除）",
   "filter.searchLabel": "搜索素材",
   "filter.type": "按类型筛选",
   "filter.tag": "按标签筛选",
@@ -723,4 +723,7 @@ export default {
   "dup.keep": "保留",
   "dup.trashRest": "把其余 {n} 个移到回收站",
   "dup.showInLibrary": "在素材库中只看这些",
+
+  // Search syntax
+  "filter.searchTitle": "多个词需同时出现；\"带空格的短语\"；-词 排除；#标签；type:item_icon；status:approved / rejected / pending",
 };

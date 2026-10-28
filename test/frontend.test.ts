@@ -13,7 +13,7 @@ const { esc } = await load("../public/js/lib.js");
 const { feedbackOf } = await load("../public/js/consistency.js");
 const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
-const { gridMove, visibleAssets } = await load("../public/js/assets.js");
+const { gridMove, matchesQuery, parseQuery, visibleAssets } = await load("../public/js/assets.js");
 const { processUndo, snapshot } = await load("../public/js/batch.js");
 const { LEVELS, nextZoom } = await load("../public/js/viewer/zoom.js");
 const { neighbours } = await load("../public/js/viewer/sprite.js");
@@ -124,6 +124,31 @@ describe("front end: helpers", () => {
     assert.equal(stepVersion(assets[1], -1, assets).id, "v1");
     assert.equal(stepVersion(assets[0], -1, assets), null, "nothing before the original");
     assert.equal(stepVersion(assets[3], 1, assets), null, "nothing after the newest");
+  });
+});
+
+describe("front end: search syntax", () => {
+  const sword = { id: "ast_1", name: "Iron sword", notes: "蓝色剑身", prompt: "", assetType: "item_icon", status: "approved", tags: ["Weapon", "第一关"] };
+  const tile = { id: "ast_2", name: "Grass", notes: "", prompt: "seamless grass", assetType: "tile", status: "pending_review", tags: [] };
+  const match = (text: string) => [sword, tile].filter((a) => matchesQuery(a, parseQuery(text))).map((a) => a.id);
+
+  it("splits words, phrases, exclusions and qualifiers", () => {
+    assert.deepEqual(parseQuery('iron "blue blade" -wood #Boss type:item status:pending'), {
+      words: ["iron", "blue blade"], exclude: ["wood"], tags: ["boss"], types: ["item"], statuses: ["pending_review"],
+    });
+    assert.deepEqual(parseQuery("status:great # type:").words, ["status:great", "#", "type:"], "malformed qualifiers stay plain words");
+  });
+
+  it("matches every plain word, no excluded one, and each qualifier", () => {
+    assert.deepEqual(match(""), ["ast_1", "ast_2"]);
+    assert.deepEqual(match("iron 蓝色"), ["ast_1"]);
+    assert.deepEqual(match("-sword"), ["ast_2"]);
+    assert.deepEqual(match("#weapon"), ["ast_1"]);
+    assert.deepEqual(match("#第一关 #weapon"), ["ast_1"], "all tags are required");
+    assert.deepEqual(match("type:tile"), ["ast_2"]);
+    assert.deepEqual(match("type:tile type:item"), ["ast_1", "ast_2"], "repeated qualifiers mean any of them");
+    assert.deepEqual(match("status:approved"), ["ast_1"]);
+    assert.deepEqual(match('"seamless grass"'), ["ast_2"]);
   });
 });
 
