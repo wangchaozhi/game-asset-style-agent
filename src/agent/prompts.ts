@@ -28,6 +28,36 @@ Write everything the user reads (messages, the plan, asset names, review notes, 
 
 export const styleGuideText = (sg: StyleGuide) => JSON.stringify(sg, null, 2);
 
+/** Most earlier notes passed to a redraw. */
+const EARLIER_NOTES_MAX = 6;
+
+/**
+ * Review notes already given on this asset and the versions it was redrawn from, newest first, without
+ * the feedback for this redraw: so Claude doesn't bring back a problem that was fixed before.
+ */
+export function earlierNotes(project: Project, target: Asset, feedback: string) {
+  const chain: Asset[] = [];
+  const seen = new Set<string>();
+  for (let a: Asset | undefined = target; a && !seen.has(a.id); a = project.assets.find((x) => x.id === a!.parentId)) {
+    seen.add(a.id);
+    chain.push(a);
+  }
+  const current = feedback.trim();
+  return chain
+    .flatMap((a) => a.noteLog ?? [])
+    .filter((n) => n.notes !== current)
+    .sort((x, y) => y.at.localeCompare(x.at))
+    .slice(0, EARLIER_NOTES_MAX);
+}
+
+const earlierNotesText = (project: Project, target: Asset, feedback: string) => {
+  const notes = earlierNotes(project, target, feedback);
+  if (!notes.length) return "";
+  return `\n   Earlier notes on this asset and its previous versions (newest first; do not bring these problems back):\n${notes
+    .map((n) => `   - ${n.at.slice(0, 10)} ${n.by === "user" ? "user" : "your review"} (${n.status}): ${n.notes}`)
+    .join("\n")}`;
+};
+
 /** The text block that opens each run: project state plus the user's request (or redraw tasks). */
 export function buildIntro(opts: {
   project: Project;
@@ -64,7 +94,7 @@ export function buildIntro(opts: {
 ${redraws
   .map(
     (r, i) => `${i + 1}. asset ${r.target.id} "${r.target.name}" [${r.target.assetType}]
-   Feedback: ${r.feedback || "(none given: fix whatever drifts from the style)"}
+   Feedback: ${r.feedback || "(none given: fix whatever drifts from the style)"}${earlierNotesText(project, r.target, r.feedback)}
    Previous prompt: ${r.target.prompt}
    → generate_image with replaces_asset_id="${r.target.id}" and consistency_asset_ids=["${r.target.id}"]`,
   )

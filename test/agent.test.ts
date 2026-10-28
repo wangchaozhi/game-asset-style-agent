@@ -386,6 +386,21 @@ describe("buildIntro", () => {
     assert.match(text, /old prompt/);
     assert.match(text, /Approved assets so far/);
     assert.doesNotMatch(text, /User request/);
+    assert.doesNotMatch(text, /Earlier notes/, "no history, no section");
+  });
+
+  it("passes earlier notes from the asset and the versions it came from, newest first, without this redraw's feedback", async () => {
+    const project = await projectWithRef();
+    const base = { assetType: "item_icon", prompt: "p", file: "assets/a.png", mime: "image/png", runId: "job", provider: "mock", createdAt: "" } as const;
+    project.assets.push(
+      { ...base, id: "v1", name: "剑", status: "rejected", noteLog: [{ at: "2026-01-01T00:00:00Z", by: "agent", notes: "刀刃太短", status: "rejected" }] },
+      { ...base, id: "v2", name: "剑", status: "rejected", parentId: "v1", noteLog: [{ at: "2026-01-02T00:00:00Z", by: "user", notes: "颜色偏紫", status: "rejected" }, { at: "2026-01-03T00:00:00Z", by: "user", notes: "改成蓝色", status: "rejected" }] },
+      { ...base, id: "other", name: "盾", status: "rejected", noteLog: [{ at: "2026-01-04T00:00:00Z", by: "user", notes: "无关", status: "rejected" }] },
+    );
+    const text = buildIntro({ project, request: "", assetTypes: [], redraws: [{ target: project.assets[1], feedback: "改成蓝色" }] });
+    assert.match(text, /Earlier notes on this asset and its previous versions[^\n]*\n {3}- 2026-01-02 user \(rejected\): 颜色偏紫\n {3}- 2026-01-01 your review \(rejected\): 刀刃太短/);
+    assert.doesNotMatch(text, /无关/, "other assets' notes stay out");
+    assert.equal((text.match(/改成蓝色/g) ?? []).length, 1, "this redraw's feedback is not repeated as history");
   });
 });
 
