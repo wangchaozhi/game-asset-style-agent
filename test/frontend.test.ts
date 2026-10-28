@@ -18,6 +18,7 @@ const { processUndo, snapshot } = await load("../public/js/batch.js");
 const { LEVELS, nextZoom } = await load("../public/js/viewer/zoom.js");
 const { neighbours } = await load("../public/js/viewer/sprite.js");
 const { menuItems } = await load("../public/js/cardMenu.js");
+const { runPrefs } = await load("../public/js/run.js");
 const { DICT, LANGS, defaultLang, fill, getLang, t, typeLabel } = await load("../public/js/i18n.js");
 
 const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048", cocos: false };
@@ -34,6 +35,19 @@ describe("front end: export URL", () => {
     assert.deepEqual(Object.fromEntries(zip.searchParams), { status: "all", tag: "第一关", names: "ascii", sizes: "1", unity: "1", godot: "game/art", tile: "16" });
     const atlas = new URL(exportUrl("p1", { ...all, kind: "atlas" }), "http://x");
     assert.deepEqual(Object.fromEntries(atlas.searchParams), { status: "all", tag: "第一关", names: "ascii", max: "128", size: "4096", cocos: "1" });
+  });
+});
+
+describe("front end: per-project run choices", () => {
+  const types = ["item_icon", "tile", "ui"];
+  it("keeps saved types that still exist and a provider that is still usable", () => {
+    assert.deepEqual(runPrefs('{"types":["tile","gone"],"provider":"mock"}', types, ["mock"]), { types: ["tile"], provider: "mock" });
+    assert.deepEqual(runPrefs('{"types":["ui"],"provider":"openai"}', types, ["mock"]), { types: ["ui"], provider: null });
+  });
+  it("falls back to nothing for missing or broken data", () => {
+    assert.deepEqual(runPrefs(null, types, ["mock"]), { types: [], provider: null });
+    assert.deepEqual(runPrefs("{oops", types, ["mock"]), { types: [], provider: null });
+    assert.deepEqual(runPrefs('{"types":"tile"}', types, ["mock"]), { types: [], provider: null });
   });
 });
 

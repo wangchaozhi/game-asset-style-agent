@@ -207,6 +207,18 @@ function bindBudget() {
   renderBudget();
 }
 
+/**
+ * A project's saved run choices, cleaned up: only asset types that still exist and a provider that is
+ * still usable (otherwise none, so the default applies). `raw` is the stored JSON or null.
+ */
+export function runPrefs(raw, assetTypes, usableProviders) {
+  let saved = null;
+  try { saved = JSON.parse(raw ?? "null"); } catch {}
+  const types = Array.isArray(saved?.types) ? saved.types.filter((type) => assetTypes.includes(type)) : [];
+  const provider = usableProviders.includes(saved?.provider) ? saved.provider : null;
+  return { types, provider };
+}
+
 /** Asset-type chips, provider picker and run controls. */
 export function bindRun() {
   bindBudget();
@@ -230,6 +242,23 @@ export function bindRun() {
   };
   renderControls();
   document.addEventListener("gaa:lang", renderControls);
+
+  // Each project remembers its asset types and image model.
+  const prefsKey = (id) => `gaa.run.${id}`;
+  const savePrefs = () => {
+    if (!state.project) return;
+    try { localStorage.setItem(prefsKey(state.project.id), JSON.stringify({ types: [...state.selectedTypes], provider: ps.value })); } catch {}
+  };
+  document.addEventListener("gaa:project-switch", (e) => {
+    let raw = null;
+    try { raw = localStorage.getItem(prefsKey(e.detail.to)); } catch {}
+    const usable = state.config.providers.filter((p) => p.available).map((p) => p.id);
+    const prefs = runPrefs(raw, Object.keys(state.config.assetTypes), usable);
+    state.selectedTypes = new Set(prefs.types);
+    if (prefs.provider) ps.value = prefs.provider;
+    renderControls();
+  });
+  ps.addEventListener("change", savePrefs);
   if (state.config.demo) logEntry("status", esc(t("run.demo")));
 
   chips.addEventListener("click", (e) => {
@@ -238,6 +267,7 @@ export function bindRun() {
     const type = b.dataset.type;
     state.selectedTypes.has(type) ? state.selectedTypes.delete(type) : state.selectedTypes.add(type);
     b.classList.toggle("on");
+    savePrefs();
   });
 
   $("#runBtn").addEventListener("click", () => run());

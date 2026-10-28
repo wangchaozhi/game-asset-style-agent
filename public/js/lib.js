@@ -24,6 +24,11 @@ export async function api(path, opts = {}) {
 /** A short message at the bottom; with `action` ({ label, run }) it carries a button and stays longer. */
 export function toast(msg, action) {
   const t = $("#toast");
+  // A modal dialog makes the rest of the page inert and covers it: show the toast inside the
+  // topmost open dialog so it stays visible and its button clickable, else back in the page.
+  toast.home ??= t.parentElement;
+  const host = [...document.querySelectorAll("dialog[open]")].pop() ?? toast.home;
+  if (t.parentElement !== host) host.append(t);
   t.textContent = msg;
   if (action) {
     const b = document.createElement("button");
