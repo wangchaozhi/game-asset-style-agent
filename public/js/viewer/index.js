@@ -113,6 +113,8 @@ function bindShortcuts() {
     if (!$("#viewer").open || e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.target.closest?.("input, textarea, select, [contenteditable]")) return;
     const key = e.key.toLowerCase();
+    // A zoomed image pane with focus scrolls with the arrow keys instead of switching assets.
+    if (key.startsWith("arrow") && e.target.id === "viewerImgWrap" && e.target.classList.contains("zoomed")) return;
     if (key === "arrowleft") step(-1);
     else if (key === "arrowright") step(1);
     else if (key === "[" || key === "]") {

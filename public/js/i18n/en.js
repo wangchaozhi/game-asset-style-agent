@@ -690,4 +690,7 @@ export default {
   // Keys: library
   "keys.libraryMove": "Move between assets (Home / End for first / last)",
   "keys.libraryOpen": "Open the viewer; select in selection mode",
+
+  // Viewer: zoom pane
+  "zoom.image": "Image (arrow keys scroll when zoomed)",
 };

@@ -690,4 +690,7 @@ export default {
   // Keys: library
   "keys.libraryMove": "在素材之间移动焦点（Home / End 到首尾）",
   "keys.libraryOpen": "打开查看器；选择模式下勾选",
+
+  // Viewer: zoom pane
+  "zoom.image": "图片（放大后可用方向键滚动）",
 };

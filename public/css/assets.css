@@ -7,7 +7,8 @@
 .assets { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
 .assets .empty { grid-column: 1 / -1; color: var(--muted); padding: 30px 0; text-align: center; }
 .card { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); cursor: zoom-in; display: flex; flex-direction: column; }
-.card.rejected { opacity: 0.55; }
+/* Rejected: fade the picture, not the text, so name and status stay readable. */
+.card.rejected .checker { opacity: 0.55; }
 .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .checker {
   background-color: var(--check-b);
@@ -44,7 +45,7 @@
 .card.selected { outline: 2px solid var(--accent); outline-offset: -2px; }
 .card.selected .tick { background: var(--accent); border-color: var(--accent); }
 .card.selected .tick::after { content: "✓"; color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; height: 100%; line-height: 1; }
-.assets.selecting .card.rejected { opacity: 0.8; }
+.assets.selecting .card.rejected .checker { opacity: 0.8; }
 .asset-search { display: flex; gap: 6px; margin-bottom: 10px; position: relative; flex-wrap: wrap; }
 .asset-search input { flex: 1 1 160px; min-width: 0; font: inherit; font-size: 12px; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 .asset-search select { font-size: 12px; padding: 4px 6px; }
