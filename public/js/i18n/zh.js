@@ -219,7 +219,7 @@ export default {
   "export.tag": "标签",
   "export.original": "保留素材名",
   "export.ascii": "英文安全名",
-  "export.asciiHint": "非英文的改为「类型_序号」，原名记在 manifest 里",
+  "export.asciiHint": "含中文或特殊字符的改为「类型_序号」，原名记在 manifest 里",
   "export.sizes": "附各类型常用尺寸",
   "export.unity": "附 Unity .meta 与精灵表 AnimationClip",
   "export.godot": "Godot 目录",
@@ -665,4 +665,12 @@ export default {
   "zoom.gridNeedsZoom": "像素网格：放大到 {n}× 及以上可见（G 自动放大）",
   "keys.zoom": "放大 / 缩小 / 适应窗口",
   "keys.grid": "像素网格",
+
+  // Export: notes
+  "export.note.unapproved": "另有 {n} 个未通过的素材不会导出（范围选「全部素材」可包含）",
+  "export.note.noBackground": "{n} 张背景图不进图集",
+  "export.note.unsliced": "{n} 张精灵表还没切帧，将按整张图导出（查看器里可切帧）",
+  "export.note.noNine": "{n} 个 UI 素材未设置九宫格边距，引擎里会整体拉伸",
+  "export.note.cocosNine": "Cocos 的 .plist 不含九宫格边距，{n} 个素材需在编辑器里重设",
+  "export.note.renamed": "{n} 个名称含中文或特殊字符，将改为「类型_序号」，原名记在 manifest 里",
 };

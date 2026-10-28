@@ -57,6 +57,32 @@ function read(form) {
   };
 }
 
+/** Same rule as the server's ASCII file names (export/bundle.ts): what isn't [A-Za-z0-9_.-] after cleanup gets "type_number". */
+export const renamedAscii = (name) => !/^[A-Za-z0-9_.-]+$/.test(String(name).replace(/[\\/:*?"<>|\s]+/g, "_").replace(/^_+|_+$/g, "") || "asset");
+
+const hasTag = (a, tag) => !tag || (a.tags ?? []).some((x) => x.toLowerCase() === tag.toLowerCase());
+
+/** The assets an export with options `o` includes (before any format-specific exclusions). */
+export const exportPicks = (assets, o) => assets.filter((a) => (o.scope === "all" || a.status === "approved") && hasTag(a, o.tag));
+
+/**
+ * What to know before downloading: assets left out, files that won't be what one might expect.
+ * Returns [{ key, n }] for the export.note.* messages, only the ones that apply.
+ */
+export function exportNotes(assets, o) {
+  const picks = exportPicks(assets, o);
+  const count = (pred) => picks.filter(pred).length;
+  const notes = [
+    ["unapproved", o.scope === "all" ? 0 : assets.filter((a) => a.status !== "approved" && hasTag(a, o.tag)).length],
+    ["noBackground", o.kind === "atlas" ? count((a) => a.assetType === "background") : 0],
+    ["unsliced", count((a) => a.assetType === "sprite_sheet" && !a.frames?.length)],
+    ["noNine", count((a) => a.assetType === "ui" && !a.nineSlice)],
+    ["cocosNine", o.kind === "atlas" && o.cocos ? count((a) => a.nineSlice) : 0],
+    ["renamed", o.names === "ascii" ? count((a) => renamedAscii(a.name)) : 0],
+  ];
+  return notes.filter(([, n]) => n > 0).map(([key, n]) => ({ key, n }));
+}
+
 /** Show only the options of the chosen format and refresh the download link. */
 function update() {
   const form = $("#exportForm");
@@ -64,10 +90,9 @@ function update() {
   for (const el of form.querySelectorAll("[data-kind]")) el.hidden = el.dataset.kind !== o.kind;
   const link = $("#exportGo");
   link.href = exportUrl(state.project.id, o);
-  const n = state.project.assets.filter(
-    (a) => (o.scope === "all" || a.status === "approved") && (!o.tag || (a.tags ?? []).some((x) => x.toLowerCase() === o.tag.toLowerCase())),
-  ).length;
+  const n = exportPicks(state.project.assets, o).length;
   $("#exportCount").textContent = n ? t("export.count", { n }) : t("export.none");
+  $("#exportNotes").innerHTML = (n ? exportNotes(state.project.assets, o) : []).map(({ key, n: k }) => `<li>${esc(t(`export.note.${key}`, { n: k }))}</li>`).join("");
   link.classList.toggle("disabled", !n);
   link.setAttribute("aria-disabled", String(!n));
   save(o);

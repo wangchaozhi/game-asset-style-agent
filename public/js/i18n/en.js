@@ -219,7 +219,7 @@ export default {
   "export.tag": "Tag",
   "export.original": "Keep asset names",
   "export.ascii": "ASCII-safe names",
-  "export.asciiHint": "Non-ASCII names become \"type_number\"; the original is kept in the manifest",
+  "export.asciiHint": "Names with non-ASCII or special characters become \"type_number\"; the original is kept in the manifest",
   "export.sizes": "Include common sizes per type",
   "export.unity": "Include Unity .meta and sprite sheet AnimationClips",
   "export.godot": "Godot folder",
@@ -665,4 +665,12 @@ export default {
   "zoom.gridNeedsZoom": "Pixel grid: visible from {n}× (G zooms in for you)",
   "keys.zoom": "Zoom in / out / fit to window",
   "keys.grid": "Pixel grid",
+
+  // Export: notes
+  "export.note.unapproved": "{n} more {n|asset isn't|assets aren't} approved and won't be exported (choose \"All assets\" to include them)",
+  "export.note.noBackground": "{n} {n|background stays|backgrounds stay} out of the atlas",
+  "export.note.unsliced": "{n} sprite {n|sheet isn't|sheets aren't} sliced yet and will export as one image (slice in the viewer)",
+  "export.note.noNine": "{n} UI {n|asset has|assets have} no nine-slice borders and will stretch as a whole",
+  "export.note.cocosNine": "Cocos .plist files carry no nine-slice borders; set them again in the editor for {n} {n|asset|assets}",
+  "export.note.renamed": "{n} {n|name has|names have} non-ASCII or special characters and will become \"type_number\"; the originals are kept in the manifest",
 };

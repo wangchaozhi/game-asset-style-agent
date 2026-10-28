@@ -295,7 +295,7 @@
         </fieldset>
         <fieldset><legend data-i18n="export.names">文件名</legend>
           <label><input type="radio" name="names" value="original" /> <span data-i18n="export.original">保留素材名</span></label>
-          <label><input type="radio" name="names" value="ascii" /> <span data-i18n="export.ascii">英文安全名</span> <span class="muted" data-i18n="export.asciiHint">非英文的改为「类型_序号」，原名记在 manifest 里</span></label>
+          <label><input type="radio" name="names" value="ascii" /> <span data-i18n="export.ascii">英文安全名</span> <span class="muted" data-i18n="export.asciiHint">含中文或特殊字符的改为「类型_序号」，原名记在 manifest 里</span></label>
         </fieldset>
         <fieldset data-kind="zip"><legend data-i18n="export.zipOpts">素材包选项</legend>
           <label><input type="checkbox" name="sizes" /> <span data-i18n="export.sizes">附各类型常用尺寸</span></label>
@@ -309,6 +309,7 @@
           <label><input type="checkbox" name="cocos" /> <span data-i18n="export.cocos">附 Cocos Creator 图集（.plist）</span></label>
         </fieldset>
       </form>
+      <ul class="export-notes muted" id="exportNotes" aria-live="polite"></ul>
       <div class="export-go"><span id="exportCount" class="muted"></span><a class="btn primary" id="exportGo" href="#" download data-i18n="export.download">下载</a></div>
     </div>
   </dialog>

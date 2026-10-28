@@ -36,6 +36,8 @@
 .export-form label { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; font-size: 13px; }
 .export-form input[name="godot"], .export-form input[name="name"] { flex: 1; min-width: 120px; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; }
 .export-form select { padding: 3px 6px; font-size: 12px; }
+.export-notes { margin: 0 0 10px; padding-left: 18px; font-size: 12px; display: grid; gap: 2px; }
+.export-notes:empty { display: none; }
 .export-go { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .export-go .disabled { opacity: 0.45; cursor: not-allowed; }
 .drift-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 60vh; overflow-y: auto; }

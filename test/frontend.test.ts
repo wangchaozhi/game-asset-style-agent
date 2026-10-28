@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 // The interface language comes from saved choice, else the browser; pin Chinese so assertions are stable.
 Object.defineProperty(globalThis, "localStorage", { value: { getItem: () => "zh", setItem() {}, removeItem() {} }, configurable: true });
 const load = (path: string) => import(path);
-const { exportUrl } = await load("../public/js/exportDialog.js");
+const { exportNotes, exportUrl, renamedAscii } = await load("../public/js/exportDialog.js");
 const { esc } = await load("../public/js/lib.js");
 const { feedbackOf } = await load("../public/js/consistency.js");
 const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
@@ -32,6 +32,39 @@ describe("front end: export URL", () => {
     assert.deepEqual(Object.fromEntries(zip.searchParams), { status: "all", tag: "第一关", names: "ascii", sizes: "1", unity: "1", godot: "game/art", tile: "16" });
     const atlas = new URL(exportUrl("p1", { ...all, kind: "atlas" }), "http://x");
     assert.deepEqual(Object.fromEntries(atlas.searchParams), { status: "all", tag: "第一关", names: "ascii", max: "128", size: "4096", cocos: "1" });
+  });
+});
+
+describe("front end: pre-export notes", () => {
+  const assets = [
+    { id: "1", status: "approved", assetType: "background", name: "森林" },
+    { id: "2", status: "approved", assetType: "sprite_sheet", name: "walk", frames: [] },
+    { id: "3", status: "approved", assetType: "ui", name: "panel", nineSlice: { left: 4, top: 4, right: 4, bottom: 4 } },
+    { id: "4", status: "approved", assetType: "ui", name: "按钮" },
+    { id: "5", status: "rejected", assetType: "item_icon", name: "sword" },
+  ];
+  const notes = (o: object) => Object.fromEntries(exportNotes(assets, { ...DEFAULTS, ...o }).map((x: { key: string; n: number }) => [x.key, x.n]));
+
+  it("counts what a bundle leaves out or exports as-is", () => {
+    assert.deepEqual(notes({}), { unapproved: 1, unsliced: 1, noNine: 1 });
+    assert.deepEqual(notes({ scope: "all" }), { unsliced: 1, noNine: 1 });
+  });
+
+  it("adds format- and option-specific notes", () => {
+    assert.deepEqual(notes({ kind: "atlas", cocos: true, names: "ascii" }), { unapproved: 1, noBackground: 1, unsliced: 1, noNine: 1, cocosNine: 1, renamed: 2 });
+  });
+
+  it("predicts ASCII renames with the server's rule", async () => {
+    const { stemNamer } = await import("../src/export/bundle.js");
+    for (const name of ["sword", "Scene prop #3", "森林", "coin_01.v2", "  a b  ", "x/y"]) {
+      const server = stemNamer("ascii")({ name, assetType: "prop" }) === "prop_01";
+      assert.equal(renamedAscii(name), server, name);
+    }
+  });
+
+  it("follows the tag filter", () => {
+    const tagged = assets.map((a) => (a.id === "4" ? { ...a, tags: ["UI"] } : a));
+    assert.deepEqual(exportNotes(tagged, { ...DEFAULTS, tag: "ui" }), [{ key: "noNine", n: 1 }]);
   });
 });
 
