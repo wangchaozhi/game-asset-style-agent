@@ -33,10 +33,17 @@ let lang = saved() ?? defaultLang(globalThis.navigator?.languages ?? []);
 
 export const getLang = () => lang;
 
-/** The text for `key` in the current language, with {name} placeholders filled; falls back to Chinese, then the key. */
+/** Fill {name} placeholders, and {name|one|other} with "one" when vars[name] is 1, else "other". */
+export const fill = (s, vars) =>
+  vars
+    ? s
+        .replace(/\{(\w+)\|([^|}]*)\|([^}]*)\}/g, (m, k, one, other) => (k in vars ? (Number(vars[k]) === 1 ? one : other) : m))
+        .replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m))
+    : s;
+
+/** The text for `key` in the current language, with placeholders filled; falls back to Chinese, then the key. */
 export function t(key, vars) {
-  const s = DICT[lang][key] ?? DICT.zh[key] ?? key;
-  return vars ? s.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? String(vars[k]) : m)) : s;
+  return fill(DICT[lang][key] ?? DICT.zh[key] ?? key, vars);
 }
 
 /** Whether `key` has a translation (own keys only, so "constructor" and friends are not). */

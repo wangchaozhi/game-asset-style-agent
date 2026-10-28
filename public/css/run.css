@@ -26,5 +26,7 @@
 .budget[open] summary { border-color: var(--accent); color: var(--ink); }
 .budget-pop { position: absolute; left: 0; top: calc(100% + 6px); z-index: 5; width: 220px; display: grid; gap: 8px; padding: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); }
 .budget-pop label { display: grid; gap: 3px; }
+/* Narrow screens: open towards the left so the popover stays on screen. */
+@media (max-width: 600px) { .budget-pop { left: auto; right: 0; max-width: calc(100vw - 32px); } }
 .budget-pop input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 7px; }
 .log-toggles { display: flex; gap: 12px; }

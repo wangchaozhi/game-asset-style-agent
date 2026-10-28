@@ -279,12 +279,12 @@ const en: Record<MsgKey, string> = {
   "err.spriteTooBig": "Sprite size cannot exceed the atlas page size",
   "err.nothingToPack": "Nothing to pack (backgrounds don't go into atlases)",
   "err.running": "A run is already in progress for this project",
-  "err.maxRedraws": "At most {n} redraws at a time",
+  "err.maxRedraws": "At most {n} {n|redraw|redraws} at a time",
   "err.actionSetType": "Only characters and enemies can get an action set",
   "err.needActions": "Pick at least one action",
   "err.promptShort": "The prompt is too short",
   "err.badOp": "op must be outline / cutout / snap",
-  "err.maxBatch": "At most {n} assets at a time",
+  "err.maxBatch": "At most {n} {n|asset|assets} at a time",
   "err.fps": "FPS must be an integer from 1 to 30",
   "err.overlap": "The blend ratio must be 0.04–0.4",
   "err.alignSheetOnly": "Only sprite sheets can have their frames aligned",
@@ -340,9 +340,9 @@ const en: Record<MsgKey, string> = {
   "err.noRedrawAsset": "The asset to redraw doesn't exist",
   "run.redrawing": "Redrawing \"{name}\" from notes: {feedback}",
   "run.noFeedback": "(no notes)",
-  "run.redrew": "Redrew {n} assets",
-  "run.plan": "Planning {n} assets: {names}.",
-  "run.generated": "Generated {n} assets",
+  "run.redrew": "Redrew {n} {n|asset|assets}",
+  "run.plan": "Planning {n} {n|asset|assets}: {names}.",
+  "run.generated": "Generated {n} {n|asset|assets}",
   "run.demoDone": "Demo finished. Set ANTHROPIC_API_KEY and remove AGENT_MODE=demo to use the real Claude art director.",
   "run.historyReset": "The conversation history is too long; starting a new conversation (style guide and assets are kept)",
   "run.limitImages": "images ≤ {n}",
@@ -354,7 +354,7 @@ const en: Record<MsgKey, string> = {
   "run.toolParseRetry": "Could not parse the tool input; retrying this turn",
   "err.refused": "The model refused this request",
   "err.maxTokens": "The output hit max_tokens and the tool input was cut off",
-  "run.maxTurns": "Reached the maximum of {n} turns; stopping",
+  "run.maxTurns": "Reached the maximum of {n} {n|turn|turns}; stopping",
   "run.stopped": "Stopped",
   "run.budgetBlocked": "{reason}; no more images will be generated",
   "run.retryLimited": "\"{name}\": image API rate-limited ({reason}); retry {n} in {s}s",
@@ -362,8 +362,8 @@ const en: Record<MsgKey, string> = {
   "run.label.manual": "Direct regeneration: {prompt}",
   "run.label.actionSet": "Action set \"{name}\": {actions}",
   "run.label.redraw": "Redraw: {feedback}",
-  "run.label.redrawN": "Redraw {n} assets",
-  "run.maxImages": "Reached this run's limit of {n} image calls",
+  "run.label.redrawN": "Redraw {n} {n|asset|assets}",
+  "run.maxImages": "Reached this run's limit of {n} image {n|call|calls}",
   "run.maxUsd": "Reached this run's cost limit of ${max} (about ${cost} so far)",
   "err.noRegenAsset": "The asset to regenerate doesn't exist",
   "err.unknownType": "Unknown asset type {type}",
@@ -377,7 +377,7 @@ const en: Record<MsgKey, string> = {
   "action.hurt": "Hurt",
   "action.jump": "Jump",
   "action.death": "Death",
-  "provider.mock": "Mock (offline placeholders)",
+  "provider.mock": "Mock (offline)",
   "provider.sdwebui": "Stable Diffusion WebUI (local)",
   "sheet.rendering": "Rendering",
   "sheet.line_and_edges": "Lines & edges",
@@ -436,5 +436,9 @@ export const actionLabel = (key: string) => (has(`action.${key}`) ? msg(`action.
 /** Server text for `key` in the current request's language, with {name} placeholders filled. */
 export function msg(key: MsgKey, vars?: Record<string, string | number>): string {
   const s = MESSAGES[currentLang()][key];
-  return vars ? s.replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m)) : s;
+  if (!vars) return s;
+  // {n|one|other}: English plurals; Chinese text doesn't use them.
+  return s
+    .replace(/\{(\w+)\|([^|}]*)\|([^}]*)\}/g, (m, k: string, one: string, other: string) => (k in vars ? (Number(vars[k]) === 1 ? one : other) : m))
+    .replace(/\{(\w+)\}/g, (m, k: string) => (k in vars ? String(vars[k]) : m));
 }

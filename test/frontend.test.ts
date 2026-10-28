@@ -15,7 +15,7 @@ const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
 const { visibleAssets } = await load("../public/js/assets.js");
 const { snapshot } = await load("../public/js/batch.js");
-const { DICT, LANGS, defaultLang, getLang, t, typeLabel } = await load("../public/js/i18n.js");
+const { DICT, LANGS, defaultLang, fill, getLang, t, typeLabel } = await load("../public/js/i18n.js");
 
 const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048", cocos: false };
 
@@ -121,6 +121,20 @@ describe("front end: i18n", () => {
     assert.equal(typeLabel("tile"), "地图瓦片 / 地形");
     assert.equal(typeLabel("custom", "自定义"), "自定义");
     assert.equal(typeLabel("constructor", "x"), "x");
+  });
+
+  it("picks English singular or plural forms by count", () => {
+    const s = "Moved {n} {n|asset|assets}; {n|it is|they are} in the trash";
+    assert.equal(fill(s, { n: 1 }), "Moved 1 asset; it is in the trash");
+    assert.equal(fill(s, { n: 3 }), "Moved 3 assets; they are in the trash");
+    assert.equal(fill(s, { n: 0 }), "Moved 0 assets; they are in the trash");
+    assert.equal(fill("{x|a|b}", { n: 1 }), "{x|a|b}", "unknown variables stay as written");
+  });
+
+  it("uses plural forms only with variables the Chinese text also has", () => {
+    for (const [k, en] of Object.entries(DICT.en) as [string, string][]) {
+      for (const m of en.matchAll(/\{(\w+)\|/g)) assert.ok(DICT.zh[k].includes(`{${m[1]}}`), `${k}: {${m[1]}|…}`);
+    }
   });
 
   it("defaults to the first supported browser language, else English", () => {

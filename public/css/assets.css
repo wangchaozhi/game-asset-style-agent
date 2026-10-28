@@ -24,7 +24,8 @@
 .card.new { animation: pop 0.4s ease-out; }
 @keyframes pop { from { transform: scale(0.94); opacity: 0; } to { transform: none; opacity: 1; } }
 .btn.small { padding: 3px 10px; font-size: 12px; text-decoration: none; }
-.export { display: flex; gap: 6px; margin-bottom: 10px; }
+.export { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.export .btn { white-space: nowrap; }
 .badge { font-size: 11px; font-weight: 600; }
 .badge.approved { color: var(--ok); }
 .badge.rejected { color: var(--bad); }

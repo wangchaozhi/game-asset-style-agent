@@ -26,6 +26,12 @@ describe("server i18n", () => {
     for (const k of Object.keys(MESSAGES.zh) as (keyof typeof MESSAGES.zh)[]) assert.deepEqual(vars(MESSAGES.en[k]), vars(MESSAGES.zh[k]), k);
   });
 
+  it("picks English singular or plural forms by count", () => {
+    assert.equal(withLang("en", () => msg("run.generated", { n: 1 })), "Generated 1 asset");
+    assert.equal(withLang("en", () => msg("run.generated", { n: 2 })), "Generated 2 assets");
+    assert.equal(msg("run.generated", { n: 1 }), "生成了 1 个素材");
+  });
+
   it("keeps the language across awaits", async () => {
     const lang = await withLang("en", async () => {
       await new Promise((r) => setTimeout(r, 5));

@@ -98,11 +98,11 @@ export default {
   "badge.pending_review": "… In review",
   "filter.trashN": "Trash {n}",
   "filter.done": "Done",
-  "filter.colorFound": "{n} assets use colours near {hex}",
+  "filter.colorFound": "{n} {n|asset uses|assets use} colours near {hex}",
   "filter.colorNone": "No asset clearly uses {hex}",
   "lib.shown": "Showing {shown} / {total}",
   "mark.frames": "{n} fr",
-  "mark.framesTitle": "Sprite sheet, sliced into {n} frames",
+  "mark.framesTitle": "Sprite sheet, sliced into {n} {n|frame|frames}",
   "mark.nineSlice": "9-slice",
   "mark.nineSliceTitle": "Nine-slice borders set",
   "mark.colorTitle": "Share of pixels near {hex}",
@@ -111,7 +111,7 @@ export default {
   "mark.old": "Old",
   "mark.oldTitle": "A newer version exists",
   "batch.count": "{n} selected",
-  "batch.trashHint": "Deleted assets are kept for {n} days; select them to restore",
+  "batch.trashHint": "Deleted assets are kept for {n} {n|day|days}; select them to restore",
   "batch.hint": "Click assets to select (Shift for a range)",
   "lib.purgeIn": "Purged in {n} d",
   "lib.deletedAt": "Deleted {when}",
@@ -292,12 +292,12 @@ export default {
   "viewer.tagsPrompt": "Tags (separate with commas or spaces; empty clears them)",
   "viewer.namePrompt": "Asset name",
   "viewer.feedbackFirst": "Write your change notes first",
-  "viewer.trashed": "Moved to the trash; restorable for {n} days",
+  "viewer.trashed": "Moved to the trash; restorable for {n} {n|day|days}",
   "viewer.continuePrompt": "Using asset {id} ({name}) as the consistency reference, ",
 
   // Viewer: history
   "history.title": "Version history",
-  "history.count": "{n} versions",
+  "history.count": "{n} {n|version|versions}",
   "history.origin.postprocess": "Post-processed",
   "history.origin.import": "Imported",
   "history.origin.mock": "Generated (mock)",
@@ -401,7 +401,7 @@ export default {
   "sprite.alignSubmit": "Align frames (new version)",
   "sprite.jitter": "Frame jitter: horizontal {h}px · vertical {v}px",
   "sprite.jitterBottom": "Frame jitter: horizontal {h}px · bottom {v}px",
-  "sprite.saved": "Saved: {n} frames · {fps} FPS",
+  "sprite.saved": "Saved: {n} {n|frame|frames} · {fps} FPS",
   "sprite.aligned": "Aligned: horizontal {h0}→{h1}px, vertical {v0}→{v1}px",
 
   // Usage dialog
@@ -426,7 +426,7 @@ export default {
   "run.status.error": "Error",
   "run.status.stopped": "Stopped",
   "run.status.interrupted": "Interrupted",
-  "usage.cleaned": "Removed {n} files, freed {size}",
+  "usage.cleaned": "Removed {n} {n|file|files}, freed {size}",
   "usage.nothingToClean": "Nothing to clean up",
   "usage.progress": "Project progress",
   "usage.current": "Current assets",
@@ -463,7 +463,7 @@ export default {
   "drift.feedback": "{reasons}. Please return to the style guide's palette and the references' art style.",
   "drift.medianGroup": "Group median: {coverage} in palette · mean ΔE {de}.",
   "drift.medianProject": "Project median: {coverage} in palette · mean ΔE {de}.",
-  "drift.found": "{n} assets drift noticeably and are pre-selected (up to {max}).",
+  "drift.found": "{n} {n|asset drifts|assets drift} noticeably and {n|is|are} pre-selected (up to {max}).",
   "drift.none": "No asset drifts noticeably.",
   "drift.pick": "Select {name}",
   "drift.open": "Open in viewer",
@@ -477,9 +477,9 @@ export default {
   "drift.generic": "The art style doesn't quite match the rest of the project; adjust it against the references.",
 
   // Import dialog
-  "import.count": "{n} images selected",
+  "import.count": "{n} {n|image|images} selected",
   "import.max": "; at most 20 at a time",
-  "import.done": "Imported {n} assets",
+  "import.done": "Imported {n} {n|asset|assets}",
 
   // Scene dialog
   "scene.grass": "Grass green",
@@ -493,12 +493,12 @@ export default {
   "scene.file": "scene",
 
   // Export dialog
-  "export.count": "{n} assets",
+  "export.count": "{n} {n|asset|assets}",
   "export.none": "No assets match",
 
   // Projects
   "project.first": "My first project",
-  "conv.rounds": "{n} conversation rounds",
+  "conv.rounds": "{n} conversation {n|round|rounds}",
   "conv.new": "New conversation",
   "conv.confirmNew": "Clear the agent's conversation memory? The style guide and generated assets are kept.",
   "conv.started": "Started a new conversation",
@@ -534,26 +534,26 @@ export default {
   "run.needInput": "Pick asset types or describe what you need",
   "run.default": "Default {v}",
   "run.defaultNone": "No limit by default",
-  "run.nImages": "{n} images",
+  "run.nImages": "{n} {n|image|images}",
   "run.anyImages": "any number of images",
   "run.anyCost": "any cost",
   "run.budgetIs": "Budget: {parts}",
   "run.demo": "Demo mode (AGENT_MODE=demo): Claude is not called; the pipeline just runs through.",
 
   // Batch
-  "batch.renamePrompt": "Rename the {n} selected assets in order to \"prefix + number\", e.g. coin_ → coin_01, coin_02…\nName prefix:",
+  "batch.renamePrompt": "Rename the {n} selected {n|asset|assets} in order to \"prefix + number\", e.g. coin_ → coin_01, coin_02…\nName prefix:",
   "batch.tagPrompt": "Tags to add (separate with commas or spaces)",
   "batch.untagPrompt": "Tags to remove (separate with commas or spaces)",
-  "batch.confirmPurge": "Permanently delete the {n} selected assets and their files? This cannot be undone.",
-  "batch.did.approve": "Approved {n} assets",
-  "batch.did.reject": "Rejected {n} assets",
-  "batch.did.pending": "Marked {n} assets as pending",
-  "batch.did.delete": "Moved {n} assets to the trash",
-  "batch.did.restore": "Restored {n} assets",
-  "batch.did.purge": "Permanently deleted {n} assets",
-  "batch.did.tag": "Tagged {n} assets",
-  "batch.did.untag": "Untagged {n} assets",
-  "batch.did.rename": "Renamed {n} assets",
+  "batch.confirmPurge": "Permanently delete the {n} selected {n|asset|assets} and their files? This cannot be undone.",
+  "batch.did.approve": "Approved {n} {n|asset|assets}",
+  "batch.did.reject": "Rejected {n} {n|asset|assets}",
+  "batch.did.pending": "Marked {n} {n|asset|assets} as pending",
+  "batch.did.delete": "Moved {n} {n|asset|assets} to the trash",
+  "batch.did.restore": "Restored {n} {n|asset|assets}",
+  "batch.did.purge": "Permanently deleted {n} {n|asset|assets}",
+  "batch.did.tag": "Tagged {n} {n|asset|assets}",
+  "batch.did.untag": "Untagged {n} {n|asset|assets}",
+  "batch.did.rename": "Renamed {n} {n|asset|assets}",
   "batch.max30": "At most 30 assets at a time; select fewer",
   "batch.doing.outline": "Adding outlines ({n})…",
   "batch.doing.cutout": "Removing backgrounds ({n})…",
@@ -563,13 +563,13 @@ export default {
   "batch.done.snap": "Snapped {n} to the palette",
   "batch.skipped": "; skipped {n} ({reasons})",
   "batch.max10": "At most 10 redraws at a time; select fewer",
-  "batch.confirmNoNotes": "{n} assets have no review notes; the agent will judge what's off by itself. Continue?",
-  "batch.confirmEmpty": "Permanently delete the {n} assets in the trash and their files? This cannot be undone.",
+  "batch.confirmNoNotes": "{n} {n|asset has|assets have} no review notes; the agent will judge what's off by itself. Continue?",
+  "batch.confirmEmpty": "Permanently delete the {n} {n|asset|assets} in the trash and their files? This cannot be undone.",
   "batch.emptied": "Trash emptied ({n})",
   "batch.compareRange": "Select 2–6 assets to compare",
   "batch.noOld": "No old versions to clean up (only those with an approved newer version)",
-  "batch.confirmCleanup": "Move {n} old versions that have an approved newer version to the trash? Restorable for {days} days.",
-  "batch.cleaned": "Moved {n} old versions to the trash",
+  "batch.confirmCleanup": "Move {n} old {n|version that has|versions that have} an approved newer version to the trash? Restorable for {days} {days|day|days}.",
+  "batch.cleaned": "Moved {n} old {n|version|versions} to the trash",
 
   // Notifications
   "notify.running": "Generating",
@@ -583,7 +583,7 @@ export default {
   "refs.addNote": "+ Note",
   "refs.notePrompt": "What should this reference be used for? (e.g. colours only / character proportions / line style; empty clears it)",
   "refs.uploading": "Uploading…",
-  "refs.added": "Added {n} reference images",
+  "refs.added": "Added {n} reference {n|image|images}",
 
   // Style guide
   "sg.rendering": "Rendering",
@@ -611,7 +611,7 @@ export default {
   "sg.save": "Save",
   "sg.cancel": "Cancel",
   "sg.saved": "Style guide saved; every later generation uses it",
-  "sg.conventionsSet": "Set ({n} characters)",
+  "sg.conventionsSet": "Set ({n} {n|character|characters})",
   "sg.confirmReset": "Clear the current style guide? The agent will extract it again from the references on the next run.",
   "sg.source.agent": "Extracted by the agent",
   "sg.source.user": "Edited by hand",
@@ -643,7 +643,7 @@ export default {
   "filter.anyType": "All types",
 
   // Providers
-  "provider.mock": "Mock (offline placeholders)",
+  "provider.mock": "Mock (offline)",
   "provider.sdwebui": "Stable Diffusion WebUI (local)",
 
   // Common
