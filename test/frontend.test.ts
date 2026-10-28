@@ -13,7 +13,7 @@ const { esc } = await load("../public/js/lib.js");
 const { feedbackOf } = await load("../public/js/consistency.js");
 const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
-const { visibleAssets } = await load("../public/js/assets.js");
+const { gridMove, visibleAssets } = await load("../public/js/assets.js");
 const { processUndo, snapshot } = await load("../public/js/batch.js");
 const { LEVELS, nextZoom } = await load("../public/js/viewer/zoom.js");
 const { neighbours } = await load("../public/js/viewer/sprite.js");
@@ -33,6 +33,20 @@ describe("front end: export URL", () => {
     assert.deepEqual(Object.fromEntries(zip.searchParams), { status: "all", tag: "第一关", names: "ascii", sizes: "1", unity: "1", godot: "game/art", tile: "16" });
     const atlas = new URL(exportUrl("p1", { ...all, kind: "atlas" }), "http://x");
     assert.deepEqual(Object.fromEntries(atlas.searchParams), { status: "all", tag: "第一关", names: "ascii", max: "128", size: "4096", cocos: "1" });
+  });
+});
+
+describe("front end: library keyboard", () => {
+  it("moves focus through a 4-wide grid of 10 cards", () => {
+    assert.equal(gridMove(0, "ArrowRight", 4, 10), 1);
+    assert.equal(gridMove(3, "ArrowRight", 4, 10), 4, "wraps to the next row");
+    assert.equal(gridMove(1, "ArrowDown", 4, 10), 5);
+    assert.equal(gridMove(7, "ArrowDown", 4, 10), 7, "no card below: stays");
+    assert.equal(gridMove(2, "ArrowUp", 4, 10), 2);
+    assert.equal(gridMove(0, "ArrowLeft", 4, 10), 0);
+    assert.equal(gridMove(5, "Home", 4, 10), 0);
+    assert.equal(gridMove(5, "End", 4, 10), 9);
+    assert.equal(gridMove(5, "a", 4, 10), null);
   });
 });
 

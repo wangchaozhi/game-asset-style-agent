@@ -686,4 +686,8 @@ export default {
   "sprite.onion": "洋葱皮",
   "sprite.onionTitle": "半透明叠加前后帧，检查动作是否连贯",
   "keys.frames": "精灵表：上一帧 / 下一帧（暂停播放）",
+
+  // Keys: library
+  "keys.libraryMove": "在素材之间移动焦点（Home / End 到首尾）",
+  "keys.libraryOpen": "打开查看器；选择模式下勾选",
 };

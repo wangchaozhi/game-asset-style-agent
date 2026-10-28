@@ -686,4 +686,8 @@ export default {
   "sprite.onion": "Onion skin",
   "sprite.onionTitle": "Overlay the previous and next frames to check the motion flows",
   "keys.frames": "Sprite sheet: previous / next frame (pauses playback)",
+
+  // Keys: library
+  "keys.libraryMove": "Move between assets (Home / End for first / last)",
+  "keys.libraryOpen": "Open the viewer; select in selection mode",
 };

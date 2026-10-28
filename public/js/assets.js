@@ -62,6 +62,30 @@ function renderTagFilter() {
 
 /** Cards rendered per page of the library. */
 const PAGE = 60;
+
+/**
+ * Where a key press moves focus in a grid of `total` cards laid out `cols` wide; null for other keys.
+ * Left / right wrap across rows; up / down move a whole row and stop at the edges.
+ */
+export function gridMove(index, key, cols, total) {
+  const to = {
+    ArrowLeft: index - 1,
+    ArrowRight: index + 1,
+    ArrowUp: index - cols,
+    ArrowDown: index + cols,
+    Home: 0,
+    End: total - 1,
+  }[key];
+  if (to === undefined) return null;
+  return to < 0 || to >= total ? index : to;
+}
+
+/** Cards per row, from where they actually landed. */
+const columns = (cards) => {
+  const top = cards[0]?.offsetTop;
+  const n = cards.findIndex((c) => c.offsetTop !== top);
+  return n === -1 ? cards.length : n;
+};
 let limit = PAGE;
 let pageKey = "";
 /** Loads the next page when the "more" button scrolls into view; created on first use. */
@@ -110,7 +134,12 @@ export function renderAssets(newId) {
   // Big libraries render in pages; the count survives re-renders until the filters change.
   const key = [state.project.id, state.filter, state.typeFilter, state.tagFilter, state.query, state.colorFilter?.hex ?? ""].join("|");
   if (key !== pageKey) [pageKey, limit] = [key, PAGE];
-  const card = (a) => `<div class="card ${a.status} ${a.id === newId ? "new" : ""} ${state.selected.has(a.id) ? "selected" : ""}" data-asset="${a.id}">
+  // One card is in the tab order (roving focus); arrow keys move between them.
+  const focusId = shown.slice(0, limit).some((a) => a.id === state.focusAsset) ? state.focusAsset : shown[0]?.id;
+  const hadFocus = document.activeElement?.closest?.("#assets .card")?.dataset.asset;
+  const selectable = state.selecting || inTrash();
+  const card = (a) => `<div class="card ${a.status} ${a.id === newId ? "new" : ""} ${state.selected.has(a.id) ? "selected" : ""}" data-asset="${a.id}"
+            role="button" tabindex="${a.id === focusId ? 0 : -1}" aria-label="${esc(a.name)}"${selectable ? ` aria-pressed="${state.selected.has(a.id)}"` : ""}>
             <span class="tick" aria-hidden="true"></span>
             <div class="checker"><img loading="lazy" decoding="async" src="${thumbUrl(a.gif ?? a.file)}" alt="${esc(a.name)}" /><span class="marks">${marks(a)}</span></div>
             <div class="meta"><span class="name">${esc(a.name)}</span>
@@ -126,6 +155,7 @@ export function renderAssets(newId) {
     ? shown.slice(0, limit).map(card).join("") +
       (more > 0 ? `<button type="button" class="btn ghost more" id="assetsMore">${esc(t("lib.more", { n: more }))}</button>` : "")
     : `<p class="empty">${esc(t(inTrash() ? "lib.emptyTrash" : all.length ? "lib.noMatch" : "lib.empty"))}</p>`;
+  if (hadFocus) grid.querySelector(`.card[data-asset="${CSS.escape(hadFocus)}"]`)?.focus();
   const sentinel = $("#assetsMore");
   if (sentinel) observeMore(sentinel);
   renderBatchBar();
@@ -220,8 +250,31 @@ export function bindAssets({ onOpen }) {
     if (e.target.id === "assetsMore") return showMore();
     const card = e.target.closest(".card");
     if (!card) return;
+    state.focusAsset = card.dataset.asset;
     if (state.selecting || inTrash()) toggleSelection(card.dataset.asset, e.shiftKey);
     else onOpen(card.dataset.asset);
+  });
+  $("#assets").addEventListener("keydown", (e) => {
+    const card = e.target.closest?.(".card");
+    if (!card || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      card.click();
+      return;
+    }
+    const cards = [...$("#assets").querySelectorAll(".card")];
+    const to = gridMove(cards.indexOf(card), e.key, columns(cards), cards.length);
+    if (to === null) return;
+    e.preventDefault();
+    cards[to].focus();
+  });
+  // Keep the roving tab stop on whichever card has focus.
+  $("#assets").addEventListener("focusin", (e) => {
+    const card = e.target.closest?.(".card");
+    if (!card) return;
+    state.focusAsset = card.dataset.asset;
+    for (const c of $("#assets").querySelectorAll('.card[tabindex="0"]')) if (c !== card) c.tabIndex = -1;
+    card.tabIndex = 0;
   });
   $("#selectToggle").addEventListener("click", () => setSelecting(!state.selecting));
   document.addEventListener("keydown", (e) => {

@@ -17,6 +17,8 @@ export const state = {
   selecting: false,
   selected: new Set(),
   lastSelected: null,
+  /** asset card that holds the library's keyboard focus */
+  focusAsset: null,
   /** id of the asset open in the viewer */
   viewing: null,
   /** the attached job's tally: { projectId, known: Set<assetId>, made, error } */
