@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.10.0 — 2026-10-29
+
+ROADMAP 第三十三轮。
+
+### 新功能
+
+- **搜索语法**：素材库搜索支持 `#标签`、`type:`、`status:`（approved / rejected / pending）、`-排除词` 与 `"短语"`，可任意组合；同一限定重复时为「任一」
+- **导出预设**：内置 Unity 精灵、Godot、Phaser / PixiJS 图集、Cocos Creator 图集；可把当前选项保存为自己的预设（只存格式与选项，不改范围与标签）
+
 ## 1.9.0 — 2026-10-29
 
 ROADMAP 第三十二轮。
