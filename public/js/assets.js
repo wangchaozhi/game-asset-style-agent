@@ -8,21 +8,43 @@ const STATUS_WORDS = { approved: "approved", rejected: "rejected", pending: "pen
 
 /**
  * Parse the library search box. Plain words (or "quoted phrases") must all appear in the name, notes,
- * prompt, id or tags; "-word" must not; "#tag" needs that tag; "type:" and "status:" narrow by asset
+ * prompt, id or tags; "-word" must not; "#tag" (or #"tag with spaces") needs that tag; "type:" and "status:" narrow by asset
  * type (key or start of it) and review status. Repeating a qualifier means "any of these".
  */
 export function parseQuery(text) {
   const q = { words: [], exclude: [], tags: [], types: [], statuses: [] };
-  for (const m of String(text).matchAll(/(-?)(?:"([^"]*)"|(\S+))/g)) {
+  for (const m of String(text).matchAll(/(-?)(#"([^"]*)"|"([^"]*)"|(\S+))/g)) {
     const neg = m[1] === "-";
-    const raw = (m[2] ?? m[3]).toLowerCase();
+    // #"tag with spaces" is a tag even though it is quoted.
+    if (m[3] !== undefined) {
+      if (m[3].trim() && !neg) q.tags.push(m[3].trim().toLowerCase());
+      continue;
+    }
+    const quoted = m[4] !== undefined;
+    const raw = (m[4] ?? m[5]).toLowerCase();
     if (!raw) continue;
-    if (m[2] === undefined && raw.startsWith("#") && raw.length > 1 && !neg) q.tags.push(raw.slice(1));
-    else if (m[2] === undefined && raw.startsWith("type:") && raw.length > 5) q.types.push(raw.slice(5));
-    else if (m[2] === undefined && raw.startsWith("status:") && STATUS_WORDS[raw.slice(7)]) q.statuses.push(STATUS_WORDS[raw.slice(7)]);
+    if (!quoted && raw.startsWith("#") && raw.length > 1 && !neg) q.tags.push(raw.slice(1));
+    else if (!quoted && raw.startsWith("type:") && raw.length > 5) q.types.push(raw.slice(5));
+    else if (!quoted && raw.startsWith("status:") && STATUS_WORDS[raw.slice(7)]) q.statuses.push(STATUS_WORDS[raw.slice(7)]);
     else (neg ? q.exclude : q.words).push(raw);
   }
   return q;
+}
+
+/**
+ * Completions for the search box while the last word is a "#tag" being typed: the whole box text with
+ * that word replaced by each matching tag (quoted when it has spaces), most-used tags first.
+ */
+export function tagSuggestions(text, tagCounts, max = 12) {
+  const m = /(^|\s)(#"?)([^"\s]*)$/.exec(text);
+  if (!m) return [];
+  const before = text.slice(0, m.index + m[1].length);
+  const partial = m[3].toLowerCase();
+  return [...tagCounts]
+    .filter(([tag]) => tag.toLowerCase().startsWith(partial))
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, max)
+    .map(([tag]) => `${before}${/\s/.test(tag) ? `#"${tag}"` : `#${tag}`} `);
 }
 
 /** Whether an asset passes a parsed query. */
@@ -254,6 +276,9 @@ export function bindAssets({ onOpen }) {
   });
   $("#assetSearch").addEventListener("input", (e) => {
     state.query = e.target.value;
+    const counts = new Map();
+    for (const a of state.project.assets) for (const tag of a.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    $("#tagSuggest").innerHTML = tagSuggestions(e.target.value, counts).map((v) => `<option value="${esc(v)}"></option>`).join("");
     renderAssets();
   });
   $("#typeFilter").addEventListener("change", (e) => {

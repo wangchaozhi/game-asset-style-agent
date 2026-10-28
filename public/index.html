@@ -116,7 +116,8 @@
         </div>
       </div>
       <div class="asset-search">
-        <input type="search" id="assetSearch" placeholder="搜索（支持 #标签 type: status: -排除）" aria-label="搜索素材" title="多个词需同时出现；&quot;带空格的短语&quot;；-词 排除；#标签；type:item_icon；status:approved / rejected / pending" data-i18n-placeholder="filter.search" data-i18n-aria="filter.searchLabel" data-i18n-title="filter.searchTitle" />
+        <datalist id="tagSuggest"></datalist>
+        <input type="search" id="assetSearch" list="tagSuggest" autocomplete="off" placeholder="搜索（支持 #标签 type: status: -排除）" aria-label="搜索素材" title="多个词需同时出现；&quot;带空格的短语&quot;；-词 排除；#标签；type:item_icon；status:approved / rejected / pending" data-i18n-placeholder="filter.search" data-i18n-aria="filter.searchLabel" data-i18n-title="filter.searchTitle" />
         <select id="typeFilter" aria-label="按类型筛选" data-i18n-aria="filter.type"><option value="" data-i18n="filter.anyType">全部类型</option></select>
         <select id="tagFilter" aria-label="按标签筛选" data-i18n-aria="filter.tag" hidden><option value="" data-i18n="filter.allTags">全部标签</option></select>
         <span class="color-filter"><label title="按颜色找素材：列出主要使用该颜色的素材" data-i18n-title="filter.byColorTitle"><span data-i18n="filter.byColor">按颜色</span> <input type="color" id="colorFilter" value="#d84848" /></label><button class="btn link" id="colorFilterClear" type="button" hidden data-i18n="filter.clearColor">清除颜色</button></span>

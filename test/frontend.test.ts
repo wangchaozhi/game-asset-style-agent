@@ -13,7 +13,7 @@ const { esc } = await load("../public/js/lib.js");
 const { feedbackOf } = await load("../public/js/consistency.js");
 const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
-const { gridMove, matchesQuery, parseQuery, visibleAssets } = await load("../public/js/assets.js");
+const { gridMove, matchesQuery, parseQuery, tagSuggestions, visibleAssets } = await load("../public/js/assets.js");
 const { processUndo, snapshot } = await load("../public/js/batch.js");
 const { LEVELS, nextZoom } = await load("../public/js/viewer/zoom.js");
 const { neighbours } = await load("../public/js/viewer/sprite.js");
@@ -155,6 +155,15 @@ describe("front end: search syntax", () => {
     assert.deepEqual(parseQuery("status:great # type:").words, ["status:great", "#", "type:"], "malformed qualifiers stay plain words");
   });
 
+  it("suggests tags for the #word being typed, quoting ones with spaces", () => {
+    const counts = new Map([["Boss Fight", 3], ["boss", 5], ["grass", 1]]);
+    assert.deepEqual(tagSuggestions("type:tile #bo", counts), ["type:tile #boss ", 'type:tile #"Boss Fight" ']);
+    assert.deepEqual(tagSuggestions('#"Bo', counts), ["#boss ", '#"Boss Fight" ']);
+    assert.deepEqual(tagSuggestions("#", counts).length, 3);
+    assert.deepEqual(tagSuggestions("boss", counts), [], "only after a #");
+    assert.deepEqual(tagSuggestions("#boss grass", counts), [], "only for the last word");
+  });
+
   it("matches every plain word, no excluded one, and each qualifier", () => {
     assert.deepEqual(match(""), ["ast_1", "ast_2"]);
     assert.deepEqual(match("iron 蓝色"), ["ast_1"]);
@@ -165,6 +174,9 @@ describe("front end: search syntax", () => {
     assert.deepEqual(match("type:tile type:item"), ["ast_1", "ast_2"], "repeated qualifiers mean any of them");
     assert.deepEqual(match("status:approved"), ["ast_1"]);
     assert.deepEqual(match('"seamless grass"'), ["ast_2"]);
+    assert.deepEqual(parseQuery('#"Boss Fight" grass').tags, ["boss fight"]);
+    assert.deepEqual(match('#"第一关"'), ["ast_1"]);
+    assert.deepEqual(match('#"weapon" type:item'), ["ast_1"]);
   });
 });
 
