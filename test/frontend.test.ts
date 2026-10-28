@@ -16,6 +16,7 @@ const { state } = await load("../public/js/state.js");
 const { visibleAssets } = await load("../public/js/assets.js");
 const { snapshot } = await load("../public/js/batch.js");
 const { LEVELS, nextZoom } = await load("../public/js/viewer/zoom.js");
+const { neighbours } = await load("../public/js/viewer/sprite.js");
 const { DICT, LANGS, defaultLang, fill, getLang, t, typeLabel } = await load("../public/js/i18n.js");
 
 const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048", cocos: false };
@@ -110,6 +111,14 @@ describe("front end: library filters", () => {
     assert.deepEqual(ids(), ["d"], "search covers notes");
     Object.assign(state, { query: "", colorFilter: { hex: "#ff0000", shares: new Map([["a", 0.2], ["c", 0.6]]) } });
     assert.deepEqual(ids(), ["c", "a"]);
+  });
+});
+
+describe("front end: sprite onion skin", () => {
+  it("wraps around the loop for the first and last frame", () => {
+    assert.deepEqual(neighbours(0, 6), { prev: 5, next: 1 });
+    assert.deepEqual(neighbours(5, 6), { prev: 4, next: 0 });
+    assert.deepEqual(neighbours(1, 2), { prev: 0, next: 0 });
   });
 });
 

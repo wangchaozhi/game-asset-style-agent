@@ -10,7 +10,16 @@ export function html(a) {
   return `<div class="sprite">
       ${
         frameFiles.length
-          ? `<div class="checker sprite-gif"><img class="sprite-live" src="${fileUrl(frameFiles[0])}?t=${Date.now()}" alt="${t("sprite.preview")}" /></div>`
+          ? `<div class="checker sprite-gif"><div class="sprite-stage">
+              <img class="onion prev" alt="" hidden /><img class="onion next" alt="" hidden />
+              <img class="sprite-live" src="${fileUrl(frameFiles[0])}?t=${Date.now()}" alt="${t("sprite.preview")}" /></div></div>
+            <div class="sprite-controls" role="toolbar" aria-label="${t("sprite.controls")}">
+              <button type="button" class="btn link" data-frame-step="-1" title="${t("sprite.prevTitle")}" aria-label="${t("sprite.prevTitle")}">◀</button>
+              <button type="button" class="btn link" data-play title="${t("sprite.pauseTitle")}">${t("sprite.pause")}</button>
+              <button type="button" class="btn link" data-frame-step="1" title="${t("sprite.nextTitle")}" aria-label="${t("sprite.nextTitle")}">▶</button>
+              <span class="frame-no muted" aria-live="polite"></span>
+              <label class="toggle" title="${t("sprite.onionTitle")}"><input type="checkbox" data-onion ${player.onion ? "checked" : ""} /> ${t("sprite.onion")}</label>
+            </div>`
           : a.gif
             ? `<div class="checker sprite-gif"><img src="${fileUrl(a.gif)}?t=${Date.now()}" alt="${t("sprite.preview")}" /></div>`
             : ""
@@ -36,22 +45,61 @@ export function load(a) {
   if (a.frames?.length) play(a, a.fps ?? 8);
 }
 
-/** Preview loop in the browser, so a new FPS can be judged before it is saved. */
-let player = 0;
-function play(a, fps) {
-  clearTimeout(player);
+/** The frames either side of `i` in a looping animation of `n` frames (an onion skin shows both). */
+export const neighbours = (i, n) => ({ prev: (i - 1 + n) % n, next: (i + 1) % n });
+
+/**
+ * Preview player: plays at the slider's FPS (so a new rate can be judged before saving), pauses,
+ * steps frame by frame and can overlay the neighbouring frames. Onion skin is remembered across assets.
+ */
+const player = { timer: 0, urls: [], i: 0, fps: 8, playing: true, onion: false };
+
+function show() {
   const img = $("#viewerMeta .sprite-live");
-  if (!img) return;
-  // Preload so frames don't flicker on the first loop.
+  if (!img?.isConnected || !player.urls.length) return false;
+  const n = player.urls.length;
+  img.src = player.urls[player.i];
+  const { prev, next } = neighbours(player.i, n);
+  const skins = [[".onion.prev", prev], [".onion.next", next]];
+  for (const [sel, j] of skins) {
+    const el = $(`#viewerMeta ${sel}`);
+    el.hidden = !player.onion || n < 2;
+    if (!el.hidden) el.src = player.urls[j];
+  }
+  $("#viewerMeta .frame-no").textContent = t("sprite.frameNo", { i: player.i + 1, n });
+  const btn = $("#viewerMeta [data-play]");
+  btn.textContent = t(player.playing ? "sprite.pause" : "sprite.play");
+  btn.title = t(player.playing ? "sprite.pauseTitle" : "sprite.playTitle");
+  return true;
+}
+
+function schedule() {
+  clearTimeout(player.timer);
+  if (!player.playing) return;
+  player.timer = setTimeout(() => {
+    player.i = (player.i + 1) % player.urls.length;
+    if (show()) schedule();
+  }, 1000 / player.fps);
+}
+
+/** Start the preview for a freshly opened asset (frames are re-fetched: slicing rewrites them in place). */
+function play(a, fps) {
   const urls = a.frames.map((f) => `${fileUrl(f)}?t=${Date.now()}`);
+  // Preload so frames don't flicker on the first loop.
   for (const u of urls) new Image().src = u;
-  let i = 0;
-  const tick = () => {
-    if (!img.isConnected) return;
-    img.src = urls[(i = (i + 1) % urls.length)];
-    player = setTimeout(tick, 1000 / fps);
-  };
-  player = setTimeout(tick, 1000 / fps);
+  Object.assign(player, { urls, i: 0, fps, playing: true });
+  show();
+  schedule();
+}
+
+/** Step one frame (pausing playback), for the buttons and the , / . keys. */
+export function stepFrame(dir) {
+  if (!$("#viewerMeta .sprite-live")?.isConnected || !player.urls.length) return false;
+  player.playing = false;
+  player.i = (player.i + dir + player.urls.length) % player.urls.length;
+  show();
+  schedule();
+  return true;
 }
 
 /** How far the content drifts between frames; > 2px is visible as jitter. */
@@ -87,10 +135,24 @@ export function bind(root, ctx) {
     const form = e.target.closest("form[data-slice]");
     if (!form || e.target.name !== "fps") return;
     const fps = Number(e.target.value);
-    const a = state.project.assets.find((x) => x.id === form.dataset.slice);
-    if (a?.frames?.length && fps >= 1 && fps <= 30) play(a, fps);
+    if (!(fps >= 1 && fps <= 30)) return;
+    // A new rate takes effect in place, without restarting the animation.
+    player.fps = fps;
+    schedule();
+  });
+  root.addEventListener("click", (e) => {
+    const step = e.target.closest("[data-frame-step]");
+    if (step) return void stepFrame(Number(step.dataset.frameStep));
+    if (!e.target.closest("[data-play]")) return;
+    player.playing = !player.playing;
+    show();
+    schedule();
   });
   root.addEventListener("change", (e) => {
+    if (e.target.matches("[data-onion]")) {
+      player.onion = e.target.checked;
+      return void show();
+    }
     const form = e.target.closest("form[data-align]");
     if (form && e.target.name === "mode") loadJitter(form.dataset.align, e.target.value);
   });

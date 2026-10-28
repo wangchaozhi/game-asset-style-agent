@@ -126,6 +126,9 @@ function bindShortcuts() {
     else if (key === "-") zoomBy(-1);
     else if (key === "0") setZoom(0);
     else if (key === "g") toggleGrid();
+    else if (key === "," || key === ".") {
+      if (!sprite.stepFrame(key === "," ? -1 : 1)) return;
+    }
     else if (key === "a") setVerdict(state.viewing, "approved").catch((err) => toast(err.message));
     else if (key === "r") setVerdict(state.viewing, "rejected").catch((err) => toast(err.message));
     else return;

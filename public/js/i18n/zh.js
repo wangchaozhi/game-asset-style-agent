@@ -673,4 +673,17 @@ export default {
   "export.note.noNine": "{n} 个 UI 素材未设置九宫格边距，引擎里会整体拉伸",
   "export.note.cocosNine": "Cocos 的 .plist 不含九宫格边距，{n} 个素材需在编辑器里重设",
   "export.note.renamed": "{n} 个名称含中文或特殊字符，将改为「类型_序号」，原名记在 manifest 里",
+
+  // Viewer: sprite player
+  "sprite.controls": "动画播放",
+  "sprite.pause": "暂停",
+  "sprite.play": "播放",
+  "sprite.pauseTitle": "暂停播放",
+  "sprite.playTitle": "继续播放",
+  "sprite.prevTitle": "上一帧（,）",
+  "sprite.nextTitle": "下一帧（.）",
+  "sprite.frameNo": "第 {i} / {n} 帧",
+  "sprite.onion": "洋葱皮",
+  "sprite.onionTitle": "半透明叠加前后帧，检查动作是否连贯",
+  "keys.frames": "精灵表：上一帧 / 下一帧（暂停播放）",
 };

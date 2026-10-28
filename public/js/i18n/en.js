@@ -673,4 +673,17 @@ export default {
   "export.note.noNine": "{n} UI {n|asset has|assets have} no nine-slice borders and will stretch as a whole",
   "export.note.cocosNine": "Cocos .plist files carry no nine-slice borders; set them again in the editor for {n} {n|asset|assets}",
   "export.note.renamed": "{n} {n|name has|names have} non-ASCII or special characters and will become \"type_number\"; the originals are kept in the manifest",
+
+  // Viewer: sprite player
+  "sprite.controls": "Animation playback",
+  "sprite.pause": "Pause",
+  "sprite.play": "Play",
+  "sprite.pauseTitle": "Pause playback",
+  "sprite.playTitle": "Resume playback",
+  "sprite.prevTitle": "Previous frame (,)",
+  "sprite.nextTitle": "Next frame (.)",
+  "sprite.frameNo": "Frame {i} / {n}",
+  "sprite.onion": "Onion skin",
+  "sprite.onionTitle": "Overlay the previous and next frames to check the motion flows",
+  "keys.frames": "Sprite sheet: previous / next frame (pauses playback)",
 };
