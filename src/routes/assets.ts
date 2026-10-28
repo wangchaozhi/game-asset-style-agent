@@ -79,6 +79,38 @@ assetsRouter.post("/api/projects/:id/assets/batch", async (req, res) => {
   res.json({ affected, project });
 });
 
+/**
+ * Undo a batch edit: put back each asset's review state, tags and name as they were before it
+ * ({ items: [{ id, status, reviewer?, tags?, name }] }). Assets that are gone since are skipped.
+ */
+assetsRouter.post("/api/projects/:id/assets/revert", async (req, res) => {
+  const items: unknown = req.body?.items;
+  if (!Array.isArray(items) || !items.length || items.length > 1000) return void res.status(400).json({ error: msg("err.needIds") });
+  const valid = items.every(
+    (i) =>
+      i && typeof i.id === "string" && STATUSES.includes(i.status) && typeof i.name === "string" && i.name.trim() &&
+      (i.reviewer === undefined || i.reviewer === "user" || i.reviewer === "agent") && (i.tags === undefined || Array.isArray(i.tags)),
+  );
+  if (!valid) return void res.status(400).json({ error: msg("err.badRevert") });
+  const byId = new Map((items as { id: string; status: Asset["status"]; reviewer?: Asset["reviewer"]; tags?: unknown; name: string }[]).map((i) => [i.id, i]));
+  let affected = 0;
+  const project = await updateProject(pid(req), (p) => {
+    for (const a of p.assets) {
+      const before = byId.get(a.id);
+      if (!before) continue;
+      a.status = before.status;
+      if (before.reviewer) a.reviewer = before.reviewer;
+      else delete a.reviewer;
+      const tags = normalizeTags(before.tags ?? []);
+      if (tags.length) a.tags = tags;
+      else delete a.tags;
+      a.name = before.name.trim().slice(0, 80);
+      affected++;
+    }
+  });
+  res.json({ affected, project });
+});
+
 /** Empty the trash: permanently delete everything in it. */
 assetsRouter.post("/api/projects/:id/trash/empty", async (req, res) => {
   let purged: string[] = [];

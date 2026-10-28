@@ -651,4 +651,8 @@ export default {
 
   // Export: Cocos
   "export.cocos": "附 Cocos Creator 图集（.plist）",
+
+  // Batch: undo
+  "batch.undo": "撤销",
+  "batch.undone": "已撤销",
 };

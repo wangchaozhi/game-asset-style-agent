@@ -21,10 +21,22 @@ export async function api(path, opts = {}) {
   return data;
 }
 
-export function toast(msg) {
+/** A short message at the bottom; with `action` ({ label, run }) it carries a button and stays longer. */
+export function toast(msg, action) {
   const t = $("#toast");
   t.textContent = msg;
+  if (action) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "toast-action";
+    b.textContent = action.label;
+    b.addEventListener("click", () => {
+      t.hidden = true;
+      action.run();
+    }, { once: true });
+    t.append(" ", b);
+  }
   t.hidden = false;
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => (t.hidden = true), 3500);
+  toast.timer = setTimeout(() => (t.hidden = true), action ? 8000 : 3500);
 }

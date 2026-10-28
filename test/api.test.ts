@@ -748,6 +748,27 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await req(`/api/projects/${id}/assets/${asset.id}/outline?lang=en`, outline)).error, "Outline width must be 1–16 px");
   });
 
+  it("reverts a batch edit to the values recorded before it", async () => {
+    const assets = (await json(`/api/projects/${id}`)).body.assets.slice(0, 2) as { id: string; status: string; reviewer?: string; tags?: string[]; name: string }[];
+    const before = assets.map((a) => ({ id: a.id, status: a.status, reviewer: a.reviewer, tags: a.tags ?? [], name: a.name }));
+    const ids = assets.map((a) => a.id);
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "reject", ids } });
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "rename", ids, prefix: "undo_" } });
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "tag", ids, tags: ["临时"] } });
+    const r = await json(`/api/projects/${id}/assets/revert`, { method: "POST", body: { items: [...before, { ...before[0], id: "ast_gone" }] } });
+    assert.equal(r.body.affected, 2);
+    const after = r.body.project.assets.filter((a: { id: string }) => ids.includes(a.id));
+    assert.deepEqual(
+      after.map((a: { id: string; status: string; reviewer?: string; tags?: string[]; name: string }) => ({ id: a.id, status: a.status, reviewer: a.reviewer, tags: a.tags ?? [], name: a.name })),
+      before,
+    );
+    const bad = (items: unknown) => json(`/api/projects/${id}/assets/revert`, { method: "POST", body: { items } });
+    assert.equal((await bad([])).status, 400);
+    assert.equal((await bad([{ ...before[0], status: "great" }])).status, 400);
+    assert.equal((await bad([{ ...before[0], name: " " }])).status, 400);
+    assert.equal((await bad([{ ...before[0], reviewer: "boss" }])).status, 400);
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

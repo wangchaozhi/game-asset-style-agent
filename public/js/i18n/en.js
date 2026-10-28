@@ -651,4 +651,8 @@ export default {
 
   // Export: Cocos
   "export.cocos": "Include Cocos Creator atlases (.plist)",
+
+  // Batch: undo
+  "batch.undo": "Undo",
+  "batch.undone": "Undone",
 };

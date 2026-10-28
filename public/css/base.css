@@ -56,5 +56,6 @@ a.btn, label.btn { text-decoration: none; display: inline-flex; align-items: cen
 .btn.ghost { background: transparent; }
 .btn.danger:hover { color: var(--bad); border-color: var(--bad); }
 .btn.link { border: 0; background: none; color: var(--accent); padding: 0; }
+.toast-action { margin-left: 8px; background: none; border: 1px solid currentColor; color: inherit; border-radius: 6px; padding: 2px 10px; font: inherit; cursor: pointer; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 8px; font-size: 13px; z-index: 10; max-width: 90vw; }
 [hidden] { display: none !important; }

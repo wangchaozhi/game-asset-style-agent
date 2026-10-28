@@ -212,6 +212,7 @@ const zh = {
   "sheet.refs": "参考图",
   "sheet.samples": "已通过素材样例",
   "sheet.footer": "由 Game Asset Agent 生成",
+  "err.badRevert": "撤销数据无效",
 } as const;
 
 export type MsgKey = keyof typeof zh;
@@ -399,6 +400,7 @@ const en: Record<MsgKey, string> = {
   "sheet.refs": "References",
   "sheet.samples": "Approved samples",
   "sheet.footer": "Made with Game Asset Agent",
+  "err.badRevert": "Invalid undo data",
 };
 
 export const MESSAGES: Record<Lang, Record<MsgKey, string>> = { zh, en };

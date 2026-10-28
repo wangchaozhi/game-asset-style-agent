@@ -14,6 +14,7 @@ const { feedbackOf } = await load("../public/js/consistency.js");
 const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
 const { visibleAssets } = await load("../public/js/assets.js");
+const { snapshot } = await load("../public/js/batch.js");
 const { DICT, LANGS, defaultLang, getLang, t, typeLabel } = await load("../public/js/i18n.js");
 
 const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048", cocos: false };
@@ -75,6 +76,20 @@ describe("front end: library filters", () => {
     assert.deepEqual(ids(), ["d"], "search covers notes");
     Object.assign(state, { query: "", colorFilter: { hex: "#ff0000", shares: new Map([["a", 0.2], ["c", 0.6]]) } });
     assert.deepEqual(ids(), ["c", "a"]);
+  });
+});
+
+describe("front end: batch undo", () => {
+  it("snapshots only the selected assets, with the fields a revert restores", () => {
+    const assets = [
+      { id: "a", status: "approved", reviewer: "agent", tags: ["x"], name: "剑", file: "f" },
+      { id: "b", status: "pending_review", name: "盾" },
+      { id: "c", status: "rejected", name: "弓" },
+    ];
+    assert.deepEqual(snapshot(assets, ["b", "a"]), [
+      { id: "a", status: "approved", reviewer: "agent", tags: ["x"], name: "剑" },
+      { id: "b", status: "pending_review", reviewer: undefined, tags: [], name: "盾" },
+    ]);
   });
 });
 

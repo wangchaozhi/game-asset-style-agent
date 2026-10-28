@@ -203,6 +203,10 @@ curl -s -F assetType=item_icon -F images=@sword.png -F images=@shield.png "$BASE
 
 `{ "action": "approve" | "reject" | "pending" | "delete" | "restore" | "purge", "ids": ["ast_…"] }`，返回 `{ affected, project }`。`delete` 移到回收站，`restore` 从回收站恢复，`purge` 彻底删除（素材库或回收站中的都可以）；`"tag"` / `"untag"` 需额外带 `"tags": ["…"]`，为所选素材添加或移除标签；`"rename"` 需带 `"prefix": "coin_"`（可选 `"start": 1`），按 `ids` 的顺序改名为 `coin_01`、`coin_02`…（位数随最大序号补零）。
 
+### `POST /api/projects/:id/assets/revert`
+
+撤销一次批量修改：`{ "items": [{ "id": "ast_…", "status": "approved", "reviewer": "user", "tags": ["…"], "name": "…" }] }`，把每个素材的审核状态、审核人、标签与名称恢复成给定的值（前端在批量操作前记下原值），返回 `{ affected, project }`。已不在素材库里的 id 会被跳过；最多 1000 个。撤销删除用 `batch` 的 `restore`。
+
 ### `POST /api/projects/:id/assets/batch-process`
 
 批量后处理（最多 30 个）：`{ "op": "outline", "ids": ["ast_…"], "width": 2, "color": "#1a1020" }`；`op` 为 `outline`（加描边，生成新版本）、`cutout`（去背景，原地，可带 `tolerance`）或 `snap`（吸附色板，生成新版本，可带 `dither`）。不适用的素材（如背景、瓦片、不透明素材描边）跳过并给出原因。返回 `{ done: [{ id, result }], skipped: [{ id, reason }], project }`，`result` 为新版本或处理后素材的 id。

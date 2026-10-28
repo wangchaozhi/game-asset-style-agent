@@ -8,6 +8,28 @@ import { t } from "./i18n.js";
 
 const splitTags = (s) => s.split(/[,，、\s]+/).map((x) => x.trim()).filter(Boolean);
 const REMOVES = new Set(["delete", "restore", "purge"]);
+/** Batch edits that /assets/revert can put back from a snapshot; delete and restore undo each other. */
+const EDITS = new Set(["approve", "reject", "pending", "tag", "untag", "rename"]);
+const OPPOSITE = { delete: "restore", restore: "delete" };
+
+/** What an undo needs from each asset before a batch edit. */
+export const snapshot = (assets, ids) =>
+  assets.filter((a) => ids.includes(a.id)).map((a) => ({ id: a.id, status: a.status, reviewer: a.reviewer, tags: a.tags ?? [], name: a.name }));
+
+/** Put back the last batch action: a snapshot for edits, the opposite action for delete / restore. */
+async function undo(action, ids, before) {
+  try {
+    const { project } = EDITS.has(action)
+      ? await api(`/api/projects/${state.project.id}/assets/revert`, { method: "POST", body: { items: before } })
+      : await api(`/api/projects/${state.project.id}/assets/batch`, { method: "POST", body: { action: OPPOSITE[action], ids } });
+    state.project = project;
+    renderAssets();
+    if (REMOVES.has(action)) loadProjectsQuiet();
+    toast(t("batch.undone"));
+  } catch (e) {
+    toast(e.message);
+  }
+}
 
 async function apply(action) {
   // Library order, so a rename numbers the assets the way they are shown.
@@ -28,13 +50,20 @@ async function apply(action) {
     if (!tags.length) return;
   }
   if (action === "purge" && !confirm(t("batch.confirmPurge", { n: ids.length }))) return;
+  const before = EDITS.has(action) ? snapshot(state.project.assets, ids) : null;
+  const projectId = state.project.id;
   try {
     const { affected, project } = await api(`/api/projects/${state.project.id}/assets/batch`, { method: "POST", body: { action, ids, ...(tags ? { tags } : {}), ...(rename ?? {}) } });
     state.project = project;
     if (REMOVES.has(action)) state.selected.clear();
     renderAssets();
     if (REMOVES.has(action)) loadProjectsQuiet();
-    toast(t(`batch.did.${action}`, { n: affected }));
+    const canUndo = affected && (before || OPPOSITE[action]);
+    // The undo button only applies while the same project is open.
+    toast(
+      t(`batch.did.${action}`, { n: affected }),
+      canUndo ? { label: t("batch.undo"), run: () => state.project.id === projectId && undo(action, ids, before) } : undefined,
+    );
   } catch (e) {
     toast(e.message);
   }
