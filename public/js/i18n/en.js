@@ -693,4 +693,10 @@ export default {
 
   // Viewer: zoom pane
   "zoom.image": "Image (arrow keys scroll when zoomed)",
+
+  // Card menu
+  "menu.open": "Open",
+  "menu.pending": "Mark as pending",
+  "menu.rename": "Rename…",
+  "keys.cardMenu": "Asset menu (or right-click / long-press)",
 };

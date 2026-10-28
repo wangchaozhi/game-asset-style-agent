@@ -31,10 +31,11 @@ async function undo(action, ids, before) {
   }
 }
 
-async function apply(action) {
+/** Run a batch action on the selection, or on `only` (e.g. one card from its menu). */
+export async function apply(action, only) {
   // Library order, so a rename numbers the assets the way they are shown.
   const shown = visibleAssets().map((a) => a.id).filter((id) => state.selected.has(id));
-  const ids = [...shown, ...[...state.selected].filter((id) => !shown.includes(id))];
+  const ids = only ?? [...shown, ...[...state.selected].filter((id) => !shown.includes(id))];
   if (!ids.length) return;
   let tags;
   let rename;
@@ -55,7 +56,7 @@ async function apply(action) {
   try {
     const { affected, project } = await api(`/api/projects/${state.project.id}/assets/batch`, { method: "POST", body: { action, ids, ...(tags ? { tags } : {}), ...(rename ?? {}) } });
     state.project = project;
-    if (REMOVES.has(action)) state.selected.clear();
+    if (REMOVES.has(action)) for (const id of ids) state.selected.delete(id);
     renderAssets();
     if (REMOVES.has(action)) loadProjectsQuiet();
     const canUndo = affected && (before || OPPOSITE[action]);

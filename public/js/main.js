@@ -10,6 +10,7 @@ import { bindExportDialog } from "./exportDialog.js";
 import { bindConsistency } from "./consistency.js";
 import { bindImport } from "./importAssets.js";
 import { bindScene } from "./scene.js";
+import { bindCardMenu } from "./cardMenu.js";
 import { applyI18n, getLang, setLang } from "./i18n.js";
 import { bindAssets, renderAssets } from "./assets.js";
 import { bindStyleGuide, renderStyle } from "./styleGuide.js";
@@ -61,6 +62,7 @@ async function init() {
   bindAssets({ onOpen: openViewer });
   bindViewer();
   bindBatch({ onOpen: openViewer });
+  bindCardMenu({ onOpen: openViewer });
   bindExportDialog();
   bindConsistency({ onOpen: openViewer });
   bindImport();

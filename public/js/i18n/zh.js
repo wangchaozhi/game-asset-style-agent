@@ -693,4 +693,10 @@ export default {
 
   // Viewer: zoom pane
   "zoom.image": "图片（放大后可用方向键滚动）",
+
+  // Card menu
+  "menu.open": "打开",
+  "menu.pending": "设为待审核",
+  "menu.rename": "改名…",
+  "keys.cardMenu": "素材菜单（也可右键或长按）",
 };

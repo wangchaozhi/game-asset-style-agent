@@ -17,6 +17,7 @@ const { gridMove, visibleAssets } = await load("../public/js/assets.js");
 const { processUndo, snapshot } = await load("../public/js/batch.js");
 const { LEVELS, nextZoom } = await load("../public/js/viewer/zoom.js");
 const { neighbours } = await load("../public/js/viewer/sprite.js");
+const { menuItems } = await load("../public/js/cardMenu.js");
 const { DICT, LANGS, defaultLang, fill, getLang, t, typeLabel } = await load("../public/js/i18n.js");
 
 const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048", cocos: false };
@@ -37,6 +38,13 @@ describe("front end: export URL", () => {
 });
 
 describe("front end: library keyboard", () => {
+  it("offers only the review actions that change something, and restore / purge in the trash", () => {
+    const acts = (status: string, trash = false) => menuItems({ status }, trash).filter((x: unknown) => x !== "-").map((x: string[]) => x[0]);
+    assert.deepEqual(acts("approved"), ["open", "reject", "pending", "tag", "rename", "delete"]);
+    assert.deepEqual(acts("pending_review"), ["open", "approve", "reject", "tag", "rename", "delete"]);
+    assert.deepEqual(acts("rejected", true), ["restore", "purge"]);
+  });
+
   it("moves focus through a 4-wide grid of 10 cards", () => {
     assert.equal(gridMove(0, "ArrowRight", 4, 10), 1);
     assert.equal(gridMove(3, "ArrowRight", 4, 10), 4, "wraps to the next row");
