@@ -7,6 +7,7 @@ import { projectDir, newId, readJson, writeAtomic } from "./fs.js";
 import { isProjectFile, loadProject } from "./projects.js";
 import type { Asset, Project, RefImage, TrashedAsset } from "./types.js";
 import { msg } from "../i18n.js";
+import { NOTE_LOG_MAX } from "../domain/noteLog.js";
 
 export const BACKUP_FORMAT = "game-asset-agent/project-backup";
 const DATA_FILES = ["conversation.json", "usage.json", "style-history.json"] as const;
@@ -51,6 +52,12 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
   // Every path an asset carries must point into the backup; drop optional ones that don't.
   const cleanAsset = <T extends Asset>(a: T): T => {
     const c = { ...a };
+    // Untrusted input: keep only well-formed note history entries.
+    if (c.noteLog !== undefined) {
+      const ok = Array.isArray(c.noteLog) ? c.noteLog.filter((n) => n && typeof n.at === "string" && typeof n.notes === "string" && (n.by === "user" || n.by === "agent")) : [];
+      if (ok.length) c.noteLog = ok.slice(-NOTE_LOG_MAX);
+      else delete c.noteLog;
+    }
     if (c.originalFile !== undefined && !hasFile(c.originalFile)) delete c.originalFile;
     if (c.gif !== undefined && !hasFile(c.gif)) delete c.gif;
     if (c.frames !== undefined && !(Array.isArray(c.frames) && c.frames.every(hasFile))) {

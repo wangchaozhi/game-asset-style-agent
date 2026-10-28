@@ -11,6 +11,7 @@ import { hasTag, normalizeTags } from "../domain/tags.js";
 import { replaceableVersions } from "../domain/versions.js";
 import { findAsset, pid } from "./util.js";
 import { msg } from "../i18n.js";
+import { recordNote } from "../domain/noteLog.js";
 
 // Asset library routes: review and edits, batch actions, trash, import, version cleanup.
 export const assetsRouter = Router();
@@ -231,6 +232,7 @@ assetsRouter.patch("/api/projects/:id/assets/:assetId", async (req, res) => {
     if (typeof notes === "string") {
       asset.notes = notes.slice(0, 2000);
       asset.reviewer = "user";
+      recordNote(asset, "user", asset.notes);
     }
     if (typeof name === "string") asset.name = name.trim().slice(0, 80);
     if (tags !== undefined) {

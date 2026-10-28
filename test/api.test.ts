@@ -819,6 +819,18 @@ describe("HTTP API (demo mode)", () => {
     await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: copies } });
   });
 
+  it("keeps a history of review notes", async () => {
+    const target = (await json(`/api/projects/${id}`)).body.assets[0];
+    const before = target.noteLog?.length ?? 0;
+    const patch = (body: unknown) => json(`/api/projects/${id}/assets/${target.id}`, { method: "PATCH", body });
+    await patch({ status: "rejected", notes: "剑太亮" });
+    await patch({ notes: "剑太亮" });
+    const after = (await patch({ status: "approved", notes: "改好了" })).body;
+    const log = after.noteLog.slice(before);
+    assert.deepEqual(log.map((n: { by: string; notes: string; status: string }) => [n.by, n.notes, n.status]), [["user", "剑太亮", "rejected"], ["user", "改好了", "approved"]]);
+    assert.equal(after.notes, "改好了");
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

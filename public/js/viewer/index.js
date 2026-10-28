@@ -18,6 +18,7 @@ import * as history from "./history.js";
 import * as promptSection from "./prompt.js";
 import * as similar from "./similar.js";
 import * as refCompare from "./refCompare.js";
+import * as noteLog from "./noteLog.js";
 import { t, typeLabel } from "../i18n.js";
 import { bindZoom, setZoom, toggleGrid, zoomBy } from "./zoom.js";
 
@@ -51,6 +52,7 @@ export function openViewer(id) {
     <div class="viewer-tags">${(a.tags ?? []).map((tag) => `<span class="tag">#${esc(tag)}</span>`).join("")}
       <button class="btn link" data-edit-tags="${a.id}">${t(a.tags?.length ? "viewer.editTags" : "viewer.addTag")}</button></div>
     ${versionLinks(a)}
+    ${noteLog.html(a)}
     <div class="review">
       <div class="verdict">
         <button class="btn ghost ${a.status === "approved" ? "on-ok" : ""}" data-verdict="approved">${t("badge.approved")}</button>

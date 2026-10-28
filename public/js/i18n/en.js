@@ -746,4 +746,8 @@ export default {
   "refCompare.ref": "Reference {n}",
   "refCompare.note": "Reference note",
   "refCompare.hint": "Left: reference · right: asset",
+
+  // Viewer: note history
+  "noteLog.title": "Review notes",
+  "noteLog.count": "{n} {n|note|notes}, newest first",
 };

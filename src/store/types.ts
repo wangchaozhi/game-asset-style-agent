@@ -58,6 +58,8 @@ export interface Asset {
   tags?: string[];
   /** ui only: 9-slice margins in pixels of `file` */
   nineSlice?: NineSlice;
+  /** review notes over time, oldest first; the latest is also in `notes` */
+  noteLog?: { at: string; by: "agent" | "user"; notes: string; status: AssetStatus; score?: number }[];
   /** palette consistency, measured against the style guide when the asset was made */
   palette?: { coverage: number; meanDeltaE: number; offPalette: { hex: string; share: number }[] };
 }

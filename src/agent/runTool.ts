@@ -17,6 +17,7 @@ import { type Job, emit } from "./events.js";
 import {
   AlignFramesInput, CheckConsistencyInput, FixSeamsInput, GenerateInput, NineSliceToolInput, OutlineInput, RecolorInput, RemoveBackgroundInput, ReviewInput, SnapPaletteInput, StyleGuideInput,
 } from "./schemas.js";
+import { recordNote } from "../domain/noteLog.js";
 
 type ToolResult = Anthropic.Beta.BetaToolResultBlockParam;
 
@@ -110,6 +111,7 @@ export async function runTool(job: Job, provider: ImageProvider, block: Anthropi
         updated.score = parsed.data.consistency_score;
         updated.notes = parsed.data.notes;
         updated.reviewer = "agent";
+        recordNote(updated, "agent", parsed.data.notes);
       });
       if (!updated) return errResult(block.id, `Unknown asset_id ${parsed.data.asset_id}`);
       emit(job, { type: "asset", asset: updated });

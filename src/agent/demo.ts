@@ -9,6 +9,7 @@ import { BudgetExceededError } from "./budget.js";
 import { type Job, type RunOptions, emit, requestLabel } from "./events.js";
 import type { GenerateInput } from "./schemas.js";
 import { assetTypeLabel, msg, providerLabel } from "../i18n.js";
+import { recordNote } from "../domain/noteLog.js";
 
 // Demo mode: a scripted run with no Claude call, for trying the UI without an API key.
 
@@ -130,6 +131,7 @@ export async function runDemo(job: Job, opts: RunOptions) {
         a.score = 7;
         a.notes = msg("note.demoApproved");
         a.reviewer = "agent";
+        recordNote(a, "agent", a.notes);
         Object.assign(asset, a);
       });
       emit(job, { type: "asset", asset });

@@ -746,4 +746,8 @@ export default {
   "refCompare.ref": "参考图 {n}",
   "refCompare.note": "参考图备注",
   "refCompare.hint": "左：参考图 · 右：素材",
+
+  // Viewer: note history
+  "noteLog.title": "意见记录",
+  "noteLog.count": "{n} 条，最新在前",
 };
