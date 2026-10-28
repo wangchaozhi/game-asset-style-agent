@@ -14,7 +14,7 @@ const { feedbackOf } = await load("../public/js/consistency.js");
 const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
 const { visibleAssets } = await load("../public/js/assets.js");
-const { snapshot } = await load("../public/js/batch.js");
+const { processUndo, snapshot } = await load("../public/js/batch.js");
 const { LEVELS, nextZoom } = await load("../public/js/viewer/zoom.js");
 const { neighbours } = await load("../public/js/viewer/sprite.js");
 const { DICT, LANGS, defaultLang, fill, getLang, t, typeLabel } = await load("../public/js/i18n.js");
@@ -135,6 +135,20 @@ describe("front end: viewer zoom", () => {
 });
 
 describe("front end: batch undo", () => {
+  it("offers to undo post-processing only when it can give the previous image back", () => {
+    const before = new Map([
+      ["a", { id: "a", file: "assets/a.png" }],
+      ["b", { id: "b", file: "assets/b_cut1.png", originalFile: "assets/b_orig.png" }],
+      ["c", { id: "c", file: "assets/c_orig.png", originalFile: "assets/c_orig.png" }],
+    ]);
+    const done = (...ids: string[]) => ids.map((id) => ({ id, result: `${id}2` }));
+    assert.equal(typeof processUndo("outline", done("a", "b"), before), "function");
+    assert.equal(typeof processUndo("snap", done("a"), before), "function");
+    assert.equal(typeof processUndo("cutout", done("a", "c"), before), "function", "never cut, or already restored");
+    assert.equal(processUndo("cutout", done("a", "b"), before), null, "an earlier cut-out is gone for good");
+    assert.equal(processUndo("outline", [], before), null);
+  });
+
   it("snapshots only the selected assets, with the fields a revert restores", () => {
     const assets = [
       { id: "a", status: "approved", reviewer: "agent", tags: ["x"], name: "剑", file: "f" },

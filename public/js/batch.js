@@ -76,12 +76,51 @@ async function postProcess(op) {
   if (!ids.length) return;
   if (ids.length > 30) return toast(t("batch.max30"));
   toast(t(`batch.doing.${op}`, { n: ids.length }));
+  const projectId = state.project.id;
+  const before = new Map(state.project.assets.map((a) => [a.id, a]));
   try {
-    const { done, skipped, project } = await api(`/api/projects/${state.project.id}/assets/batch-process`, { method: "POST", body: { op, ids } });
+    const { done, skipped, project } = await api(`/api/projects/${projectId}/assets/batch-process`, { method: "POST", body: { op, ids } });
     state.project = project;
     renderAssets();
-    const reasons = [...new Set(skipped.map((s) => s.reason))].join("；");
-    toast(t(`batch.done.${op}`, { n: done.length }) + (skipped.length ? t("batch.skipped", { n: skipped.length, reasons }) : ""));
+    const reasons = [...new Set(skipped.map((s) => s.reason))].join(t("drift.sep"));
+    const takeBack = processUndo(op, done, before);
+    toast(
+      t(`batch.done.${op}`, { n: done.length }) + (skipped.length ? t("batch.skipped", { n: skipped.length, reasons }) : ""),
+      takeBack ? { label: t("batch.undo"), run: () => state.project.id === projectId && takeBack() } : undefined,
+    );
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+/**
+ * How to take back a batch post-process, or null when it can't be: outline and snap made new
+ * versions, which go to the trash; a cut-out is undone by restoring the original, which only gives
+ * the previous image back when the asset hadn't been cut out before.
+ */
+export function processUndo(op, done, before) {
+  if (!done.length) return null;
+  if (op === "outline" || op === "snap") {
+    const made = done.map((d) => d.result);
+    return () => finishUndo(api(`/api/projects/${state.project.id}/assets/batch`, { method: "POST", body: { action: "delete", ids: made } }).then((r) => r.project));
+  }
+  if (op === "cutout" && done.every((d) => { const a = before.get(d.id); return a && (!a.originalFile || a.file === a.originalFile); })) {
+    return () =>
+      finishUndo(
+        Promise.all(done.map((d) => api(`/api/projects/${state.project.id}/assets/${d.id}/cutout`, { method: "POST", body: { restore: true } }))).then(() =>
+          api(`/api/projects/${state.project.id}`),
+        ),
+      );
+  }
+  return null;
+}
+
+async function finishUndo(projectPromise) {
+  try {
+    state.project = await projectPromise;
+    renderAssets();
+    loadProjectsQuiet();
+    toast(t("batch.undone"));
   } catch (e) {
     toast(e.message);
   }
