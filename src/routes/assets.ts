@@ -10,6 +10,7 @@ import type { Asset } from "../store/types.js";
 import { hasTag, normalizeTags } from "../domain/tags.js";
 import { replaceableVersions } from "../domain/versions.js";
 import { findAsset, pid } from "./util.js";
+import { msg } from "../i18n.js";
 
 // Asset library routes: review and edits, batch actions, trash, import, version cleanup.
 export const assetsRouter = Router();
@@ -96,7 +97,7 @@ const importUpload = multer({
 const fileName = (raw: string) => {
   const utf8 = Buffer.from(raw, "latin1").toString("utf8");
   const name = (utf8.includes("\uFFFD") ? raw : utf8).replace(/\.[a-z0-9]+$/i, "").trim();
-  return name.slice(0, 80) || "导入的素材";
+  return name.slice(0, 80) || msg("import.defaultName");
 };
 
 /**
@@ -128,7 +129,7 @@ assetsRouter.post("/api/projects/:id/assets/import", importUpload.array("images"
       mime: "image/png",
       status: "approved",
       reviewer: "user",
-      notes: "导入的素材",
+      notes: msg("note.imported"),
       runId: "import",
       provider: "import",
       createdAt: new Date().toISOString(),

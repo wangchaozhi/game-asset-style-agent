@@ -1,5 +1,4 @@
 import { Router } from "express";
-import { ASSET_TYPES, isAssetType } from "../domain/assetTypes.js";
 import { toCsv } from "../export/csv.js";
 import { jitterOf, parseAlignMode, seamsOf } from "../ops/assetOps.js";
 import { analyzePalette } from "../image/palette.js";
@@ -10,6 +9,7 @@ import { detectNineSlice } from "../image/nineSlice.js";
 import { colorShare, dominantColors } from "../image/recolor.js";
 import { measureConsistency } from "../ops/consistency.js";
 import { attachment, findAsset, pid } from "./util.js";
+import { assetTypeLabel, msg } from "../i18n.js";
 
 // Read-only checks and previews of assets: nothing here writes to the project.
 export const analysisRouter = Router();
@@ -85,14 +85,13 @@ analysisRouter.get("/api/projects/:id/consistency.csv", async (req, res) => {
   const report = await measureConsistency(project, { tag });
   if (!report) return void res.status(400).json({ error: "项目还没有风格指南色板" });
   const byId = new Map(project.assets.map((a) => [a.id, a]));
-  const STATUS = { approved: "已通过", rejected: "已驳回", pending_review: "待审核" } as const;
-  const rows: unknown[][] = [["排名", "素材 id", "名称", "类型", "状态", "色板内占比", "平均色差 ΔE", "偏离度", "原因"]];
+  const rows: unknown[][] = [msg("csv.header").split("|")];
   for (const [i, item] of report.items.entries()) {
     const a = byId.get(item.id)!;
-    rows.push([i + 1, a.id, a.name, isAssetType(a.assetType) ? ASSET_TYPES[a.assetType] : a.assetType, STATUS[a.status], `${Math.round(item.coverage * 100)}%`, item.meanDeltaE, item.drift, item.reasons.join("；")]);
+    rows.push([i + 1, a.id, a.name, assetTypeLabel(a.assetType), msg(`status.${a.status}`), `${Math.round(item.coverage * 100)}%`, item.meanDeltaE, item.drift, item.reasons.join(msg("csv.reasonSep"))]);
   }
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
-  res.setHeader("Content-Disposition", attachment("consistency.csv", `${project.name}${tag ? `_${tag}` : ""}_一致性.csv`));
+  res.setHeader("Content-Disposition", attachment("consistency.csv", `${project.name}${tag ? `_${tag}` : ""}_${msg("csv.fileSuffix")}.csv`));
   res.send(toCsv(rows));
 });
 

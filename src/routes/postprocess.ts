@@ -3,6 +3,7 @@ import { isOpaqueType } from "../domain/assetTypes.js";
 import { alignedVersion, cutoutAsset, paletteSnapVersion, parseAlignMode, seamlessVersion, outlineVersion, recolorVariant, sliceAssetFrames } from "../ops/assetOps.js";
 import { loadProject, readProjectFile, updateProject } from "../store/index.js";
 import { findAsset, pid } from "./util.js";
+import { msg } from "../i18n.js";
 
 // Post-processing routes: everything that makes or changes an asset image.
 export const postprocessRouter = Router();
@@ -26,7 +27,7 @@ postprocessRouter.post("/api/projects/:id/assets/batch-process", async (req, res
   for (const id of new Set(ids.map(String))) {
     const asset = project.assets.find((a) => a.id === id);
     if (!asset) {
-      skipped.push({ id, reason: "素材不存在" });
+      skipped.push({ id, reason: msg("skip.missing") });
       continue;
     }
     if (op === "outline") {
@@ -34,7 +35,7 @@ postprocessRouter.post("/api/projects/:id/assets/batch-process", async (req, res
       if (typeof r === "string") skipped.push({ id, reason: r });
       else done.push({ id, result: r.id });
     } else if (op === "cutout") {
-      if (isOpaqueType(asset.assetType)) skipped.push({ id, reason: "背景和瓦片铺满画面，不需要去背景" });
+      if (isOpaqueType(asset.assetType)) skipped.push({ id, reason: msg("skip.opaqueCutout") });
       else done.push({ id, result: (await cutoutAsset(project, asset, { tolerance: req.body.tolerance })).id });
     } else {
       const dither = req.body.dither === "ordered" ? "ordered" : "none";

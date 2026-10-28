@@ -1,4 +1,5 @@
 // Shared DOM / HTTP helpers for the front-end modules.
+import { getLang } from "./i18n.js";
 
 export const $ = (s) => document.querySelector(s);
 
@@ -9,7 +10,8 @@ export async function api(path, opts = {}) {
   const json = opts.body && !(opts.body instanceof FormData);
   const res = await fetch(path, {
     ...opts,
-    headers: json ? { "Content-Type": "application/json" } : undefined,
+    // Server-generated text (notes, drift reasons, errors) follows the interface language.
+    headers: { "Accept-Language": getLang(), ...(json ? { "Content-Type": "application/json" } : {}) },
     body: json ? JSON.stringify(opts.body) : opts.body,
   });
   const data = await res.json().catch(() => ({}));

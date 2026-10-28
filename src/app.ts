@@ -5,6 +5,7 @@ import { authGate } from "./auth.js";
 import { config } from "./config.js";
 import { apiRouter } from "./routes/index.js";
 import { securityHeaders } from "./security.js";
+import { langMiddleware } from "./i18n.js";
 
 const publicDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "public");
 
@@ -16,6 +17,7 @@ export function createApp() {
   if (process.env.TRUST_PROXY) app.set("trust proxy", /^\d+$/.test(process.env.TRUST_PROXY) ? Number(process.env.TRUST_PROXY) : process.env.TRUST_PROXY);
   app.use(securityHeaders);
   app.use(express.json({ limit: "1mb" }));
+  app.use(langMiddleware);
   // Liveness probe for Docker / load balancers; never behind auth.
   app.get("/healthz", (_req, res) => void res.json({ ok: true }));
   const token = config.accessToken;

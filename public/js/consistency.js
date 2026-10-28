@@ -2,7 +2,7 @@
 import { $, api, esc, toast } from "./lib.js";
 import { state, thumbUrl } from "./state.js";
 import { run } from "./run.js";
-import { t, typeLabel } from "./i18n.js";
+import { getLang, t, typeLabel } from "./i18n.js";
 
 /** At most this many assets per redraw run, as in the library's batch redraw. */
 const MAX_REDRAW = 10;
@@ -11,6 +11,13 @@ let report = null;
 
 /** Redraw feedback for a drifting asset: its reasons, then the nudge back to the style. */
 export const feedbackOf = (item) => t("drift.feedback", { reasons: item.reasons.join(t("drift.sep")) });
+
+/** CSV of the report in view: same tag scope, in the interface language. */
+function csvUrl() {
+  const q = new URLSearchParams({ lang: getLang() });
+  if ($("#consistencyTag").value) q.set("tag", $("#consistencyTag").value);
+  return `/api/projects/${state.project.id}/consistency.csv?${q}`;
+}
 
 function render() {
   const body = $("#consistencyBody");
@@ -33,7 +40,7 @@ function render() {
         </li>`;
       })
       .join("")}</ol>
-    <div class="export-go"><span class="muted" id="driftPicked"></span><span class="drift-actions"><a class="btn ghost" id="driftCsv" download href="/api/projects/${state.project.id}/consistency.csv${$("#consistencyTag").value ? `?tag=${encodeURIComponent($("#consistencyTag").value)}` : ""}">${t("drift.csv")}</a><button class="btn primary" id="driftRedraw">${t("drift.redraw")}</button></span></div>`;
+    <div class="export-go"><span class="muted" id="driftPicked"></span><span class="drift-actions"><a class="btn ghost" id="driftCsv" download href="${csvUrl()}">${t("drift.csv")}</a><button class="btn primary" id="driftRedraw">${t("drift.redraw")}</button></span></div>`;
   updatePicked();
 }
 

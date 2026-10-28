@@ -1,3 +1,5 @@
+import { msg } from "../i18n.js";
+
 /** One asset's measurements against the current style guide. */
 export interface ConsistencyInput {
   id: string;
@@ -38,11 +40,11 @@ export function rankDrift(items: ConsistencyInput[]): { medianCoverage: number; 
     const coverageGap = Math.max(0, medianCoverage - i.coverage);
     const deltaGap = Math.max(0, i.meanDeltaE - medianDeltaE);
     const scoreGap = i.score !== undefined ? Math.max(0, 7 - i.score) : 0;
-    if (coverageGap >= 0.1) reasons.push(`色板内像素 ${pct(i.coverage)}，低于项目中位数 ${pct(medianCoverage)}`);
-    if (deltaGap >= 5) reasons.push(`平均色差 ΔE ${i.meanDeltaE}，高于项目中位数 ${Math.round(medianDeltaE * 10) / 10}`);
-    if (scoreGap > 0) reasons.push(`Agent 一致性评分 ${i.score}/10`);
+    if (coverageGap >= 0.1) reasons.push(msg("drift.coverage", { coverage: pct(i.coverage), median: pct(medianCoverage) }));
+    if (deltaGap >= 5) reasons.push(msg("drift.deltaE", { de: i.meanDeltaE, median: Math.round(medianDeltaE * 10) / 10 }));
+    if (scoreGap > 0) reasons.push(msg("drift.score", { score: i.score! }));
     const top = i.offPalette[0];
-    if (reasons.length && top && top.share >= 0.05) reasons.push(`主要色板外颜色 ${top.hex}（${pct(top.share)}）`);
+    if (reasons.length && top && top.share >= 0.05) reasons.push(msg("drift.offPalette", { hex: top.hex, share: pct(top.share) }));
     const drift = Math.round((coverageGap * 100 + deltaGap + scoreGap * 5) * 10) / 10;
     return { id: i.id, drift, reasons };
   });

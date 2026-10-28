@@ -6,6 +6,7 @@ import { readZip } from "../export/unzip.js";
 import { projectDir, newId, readJson, writeAtomic } from "./fs.js";
 import { isProjectFile, loadProject } from "./projects.js";
 import type { Asset, Project, RefImage, TrashedAsset } from "./types.js";
+import { msg } from "../i18n.js";
 
 export const BACKUP_FORMAT = "game-asset-agent/project-backup";
 const DATA_FILES = ["conversation.json", "usage.json", "style-history.json"] as const;
@@ -46,7 +47,7 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
 
   const skipped: string[] = [];
   const hasFile = (rel: unknown): rel is string => typeof rel === "string" && isProjectFile(rel) && byName.has(rel);
-  const refs = (src.refs as RefImage[]).filter((r) => hasFile(r?.file) || (skipped.push(`参考图 ${r?.id ?? "?"}`), false));
+  const refs = (src.refs as RefImage[]).filter((r) => hasFile(r?.file) || (skipped.push(msg("backup.ref", { id: r?.id ?? "?" })), false));
   // Every path an asset carries must point into the backup; drop optional ones that don't.
   const cleanAsset = <T extends Asset>(a: T): T => {
     const c = { ...a };
@@ -59,13 +60,13 @@ export async function importBackup(zip: Buffer, opts: { maxBytes?: number } = {}
     return c;
   };
   const assets = (src.assets as Asset[])
-    .filter((a) => hasFile(a?.file) || (skipped.push(`素材 ${a?.name ?? a?.id ?? "?"}`), false))
+    .filter((a) => hasFile(a?.file) || (skipped.push(msg("backup.asset", { name: a?.name ?? a?.id ?? "?" })), false))
     .map(cleanAsset);
   const trash = (Array.isArray(src.trash) ? (src.trash as TrashedAsset[]) : [])
     .filter((a) => hasFile(a?.file) && typeof a.deletedAt === "string")
     .map(cleanAsset);
   const styleGuide = src.styleGuide ? (StyleGuideInput.safeParse(src.styleGuide).data ?? null) : null;
-  if (src.styleGuide && !styleGuide) skipped.push("风格指南（格式无效）");
+  if (src.styleGuide && !styleGuide) skipped.push(msg("backup.badStyle"));
 
   const project: Project = {
     id: newId("prj"),

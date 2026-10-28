@@ -8,6 +8,7 @@ import { generateAsset } from "./assets.js";
 import { BudgetExceededError } from "./budget.js";
 import { type Job, type RunOptions, emit, requestLabel } from "./events.js";
 import type { GenerateInput } from "./schemas.js";
+import { msg } from "../i18n.js";
 
 // Demo mode: a scripted run with no Claude call, for trying the UI without an API key.
 
@@ -127,7 +128,7 @@ export async function runDemo(job: Job, opts: RunOptions) {
         const a = p.assets.find((x) => x.id === asset.id)!;
         a.status = "approved";
         a.score = 7;
-        a.notes = "演示模式自动通过";
+        a.notes = msg("note.demoApproved");
         a.reviewer = "agent";
         Object.assign(asset, a);
       });

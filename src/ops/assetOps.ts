@@ -12,6 +12,7 @@ import { type AlignMode, type Jitter, alignFrames, detectFrameCount, joinFrames,
 import { analyzeSeams, makeSeamless, type SeamReport } from "../image/tiles.js";
 import { newId, projectDir, readProjectFile, updateProject, writeProjectFile } from "../store/index.js";
 import type { Asset, Project } from "../store/types.js";
+import { msg } from "../i18n.js";
 
 // Post-processing shared by the HTTP routes and the agent's tools.
 
@@ -144,7 +145,7 @@ export async function seamlessVersion(project: Project, asset: Asset, overlap: n
   const before = await seamsOf(project, asset);
   const png = await makeSeamless(await readProjectFile(project.id, asset.file), { overlap, pixel: isPixelArt(project.styleGuide) });
   const after = await analyzeSeams(png);
-  const created = await newVersion(project, asset, png, `由「${asset.name}」无缝化处理（边缘融合 ${Math.round(overlap * 100)}%）`, actor);
+  const created = await newVersion(project, asset, png, msg("note.seamless", { name: asset.name, overlap: Math.round(overlap * 100) }), actor);
   return { asset: created, before, after };
 }
 
@@ -155,7 +156,9 @@ export async function alignedVersion(project: Project, asset: Asset, mode: Align
   const aligned = await alignFrames(frames, mode);
   const after = await measureJitter(aligned, mode);
   const sheet = await joinFrames(aligned);
-  const notes = `由「${asset.name}」对齐帧（${mode === "bottom" ? "底边居中" : "中心"}）：水平抖动 ${before.horizontal}→${after.horizontal}px，${mode === "bottom" ? "底边" : "垂直"} ${before.vertical}→${after.vertical}px`;
+  const notes = msg(mode === "bottom" ? "note.alignBottom" : "note.alignCenter", {
+    name: asset.name, h0: before.horizontal, h1: after.horizontal, v0: before.vertical, v1: after.vertical,
+  });
   const created = await newVersion(project, asset, sheet, notes, actor, (a) => sliceAssetFrames(project.id, a, sheet, aligned.length, asset.fps ?? 8));
   return { asset: created, before, after };
 }
@@ -168,7 +171,7 @@ export async function paletteSnapVersion(project: Project, asset: Asset, dither:
   const png = await snapToPalette(src, hexes, { dither });
   const [before, after] = await Promise.all([analyzePalette(src, hexes), analyzePalette(png, hexes)]);
   const pct = (x: number) => `${Math.round(x * 100)}%`;
-  const notes = `由「${asset.name}」吸附到色板（${dither === "ordered" ? "有序抖动" : "不抖动"}）：色板内像素 ${pct(before.coverage)}→${pct(after.coverage)}`;
+  const notes = msg(dither === "ordered" ? "note.snapOrdered" : "note.snapNone", { name: asset.name, before: pct(before.coverage), after: pct(after.coverage) });
   const palette = { coverage: after.coverage, meanDeltaE: after.meanDeltaE, offPalette: after.offPalette };
   const created = await newVersion(project, asset, png, notes, actor, async (a) => ({
     palette,
@@ -197,7 +200,7 @@ export async function outlineVersion(project: Project, asset: Asset, opts: Outli
   if (await isOpaque(src)) return "素材没有透明背景，先去背景再描边";
   const color = (opts.color ?? darkestColor(project.styleGuide?.palette.map((p) => p.hex) ?? [])).toLowerCase();
   const png = await addOutline(src, { width: opts.width, color, square: isPixelArt(project.styleGuide) });
-  return newVersion(project, asset, png, `由「${asset.name}」加 ${opts.width}px 描边（${color}）`, actor, async (a) =>
+  return newVersion(project, asset, png, msg("note.outline", { name: asset.name, width: opts.width, color }), actor, async (a) =>
     asset.frames?.length ? sliceAssetFrames(project.id, a, png, asset.frames.length, asset.fps ?? 8) : {},
   );
 }
@@ -220,10 +223,10 @@ export async function recolorVariant(
   if (!swaps.every((s) => s && HEX.test(s.from) && HEX.test(s.to))) return "颜色需为 #rrggbb";
   const threshold = input.threshold === undefined ? 20 : Number(input.threshold);
   if (!Number.isFinite(threshold) || threshold < 5 || threshold > 60) return "容差需为 5-60";
-  const name = typeof input.name === "string" && input.name.trim() ? input.name.trim().slice(0, 80) : `${asset.name}（变体）`;
+  const name = typeof input.name === "string" && input.name.trim() ? input.name.trim().slice(0, 80) : msg("note.variantName", { name: asset.name });
   const clean = (swaps as ColorSwap[]).map((s) => ({ from: s.from.toLowerCase(), to: s.to.toLowerCase() }));
   const png = await recolor(await readProjectFile(project.id, asset.file), clean, threshold);
-  const notes = `由「${asset.name}」换色：${clean.map((s) => `${s.from}→${s.to}`).join("，")}`;
+  const notes = msg("note.recolor", { name: asset.name, swaps: clean.map((s) => `${s.from}→${s.to}`).join(msg("note.listSep")) });
   return newVersion(project, asset, png, notes, actor, async (a) => ({
     name,
     // A sibling, not a newer version: drop the parent link newVersion sets.

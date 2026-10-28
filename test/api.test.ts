@@ -699,6 +699,27 @@ describe("HTTP API (demo mode)", () => {
     assert.ok(rows[0].startsWith(`1,${json.items[0].id},`));
   });
 
+  it("writes server text in the request's language (Accept-Language or ?lang=)", async () => {
+    const csv = await (await fetch(`${base}/api/projects/${id}/consistency.csv?lang=en`)).text();
+    assert.ok(csv.startsWith("Rank,Asset id,Name,Type,Status"), csv.slice(0, 60));
+    const assets = (await json(`/api/projects/${id}`)).body.assets;
+    const sheet = assets.find((a: { assetType: string }) => a.assetType === "sprite_sheet");
+    const res = await fetch(`${base}/api/projects/${id}/assets/batch-process`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept-Language": "en-US,en;q=0.9" },
+      body: JSON.stringify({ op: "outline", ids: [sheet.id, "ast_missing"] }),
+    });
+    const body = (await res.json()) as { done: { result: string }[]; skipped: { reason: string }[]; project: { assets: { id: string; notes?: string }[] } };
+    assert.deepEqual(body.skipped.map((x) => x.reason), ["asset not found"]);
+    const made = body.project.assets.find((a) => a.id === body.done[0].result)!;
+    assert.match(made.notes ?? "", /^2px outline \(#[0-9a-f]{6}\) added to "/);
+    // Without a language, Chinese as before.
+    const zh = await json(`/api/projects/${id}/assets/batch-process`, { method: "POST", body: { op: "outline", ids: [made.id] } });
+    const zhMade = zh.body.project.assets.find((a: { id: string }) => a.id === zh.body.done[0].result);
+    assert.match(zhMade.notes, /^由「/);
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [made.id, zhMade.id] } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);
