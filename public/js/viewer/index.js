@@ -17,6 +17,7 @@ import * as actionSet from "./actionSet.js";
 import * as history from "./history.js";
 import * as promptSection from "./prompt.js";
 import { t, typeLabel } from "../i18n.js";
+import { bindZoom, setZoom, toggleGrid, zoomBy } from "./zoom.js";
 
 /** Rendered in this order below the review box; each may render nothing for a given asset. */
 const SECTIONS = [actionSet, sprite, tile, nineSlice, palette, sizes, cutout, outline, recolor, promptSection, history];
@@ -121,6 +122,10 @@ function bindShortcuts() {
       if (other) openViewer(other.id);
       else toast(t(key === "]" ? "viewer.newest" : "viewer.oldest"));
     }
+    else if (key === "+" || key === "=") zoomBy(1);
+    else if (key === "-") zoomBy(-1);
+    else if (key === "0") setZoom(0);
+    else if (key === "g") toggleGrid();
     else if (key === "a") setVerdict(state.viewing, "approved").catch((err) => toast(err.message));
     else if (key === "r") setVerdict(state.viewing, "rejected").catch((err) => toast(err.message));
     else return;
@@ -187,6 +192,7 @@ function bindCore(root) {
 }
 
 export function bindViewer() {
+  bindZoom();
   const root = $("#viewerMeta");
   /** What sections call after changing an asset: update the library and show the result. */
   const ctx = {

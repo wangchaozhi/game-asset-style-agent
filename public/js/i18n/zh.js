@@ -655,4 +655,14 @@ export default {
   // Batch: undo
   "batch.undo": "撤销",
   "batch.undone": "已撤销",
+
+  // Viewer: zoom
+  "zoom.bar": "缩放",
+  "zoom.fit": "适应",
+  "zoom.fitTitle": "适应窗口（0）",
+  "zoom.grid": "网格",
+  "zoom.gridTitle": "像素网格（G）",
+  "zoom.gridNeedsZoom": "像素网格：放大到 {n}× 及以上可见（G 自动放大）",
+  "keys.zoom": "放大 / 缩小 / 适应窗口",
+  "keys.grid": "像素网格",
 };

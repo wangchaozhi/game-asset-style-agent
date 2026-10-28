@@ -13,6 +13,7 @@ export function openCompare(beforeId, afterId, mode = "slider") {
   if (!before || !after) return;
   const pane = $("#viewerCompare");
   $("#viewerImgWrap").hidden = true;
+  $("#zoomBar").hidden = true;
   pane.hidden = false;
   pane.dataset.pair = `${beforeId}:${afterId}`;
   const label = (a, tag) => `<span class="cmp-label"><b>${tag}</b> ${esc(verdictText(a))}</span>`;
@@ -48,6 +49,7 @@ export function closeCompare() {
   pane.hidden = true;
   pane.innerHTML = "";
   $("#viewerImgWrap").hidden = false;
+  $("#zoomBar").hidden = false;
 }
 
 export function bindCompare() {

@@ -15,6 +15,7 @@ const { lineage, stepVersion } = await load("../public/js/viewer/history.js");
 const { state } = await load("../public/js/state.js");
 const { visibleAssets } = await load("../public/js/assets.js");
 const { snapshot } = await load("../public/js/batch.js");
+const { LEVELS, nextZoom } = await load("../public/js/viewer/zoom.js");
 const { DICT, LANGS, defaultLang, fill, getLang, t, typeLabel } = await load("../public/js/i18n.js");
 
 const DEFAULTS = { kind: "zip", scope: "approved", tag: "", names: "original", sizes: false, unity: false, godot: "assets", tile: "32", max: "256", size: "2048", cocos: false };
@@ -76,6 +77,18 @@ describe("front end: library filters", () => {
     assert.deepEqual(ids(), ["d"], "search covers notes");
     Object.assign(state, { query: "", colorFilter: { hex: "#ff0000", shares: new Map([["a", 0.2], ["c", 0.6]]) } });
     assert.deepEqual(ids(), ["c", "a"]);
+  });
+});
+
+describe("front end: viewer zoom", () => {
+  it("steps through the zoom levels and stops at either end", () => {
+    assert.equal(nextZoom(0, 1), 1);
+    assert.equal(nextZoom(4, 1), 8);
+    assert.equal(nextZoom(4, -1), 2);
+    assert.equal(nextZoom(1, -1), 0);
+    assert.equal(nextZoom(0, -1), 0);
+    assert.equal(nextZoom(LEVELS.at(-1), 1), LEVELS.at(-1));
+    assert.equal(nextZoom(3, 1), 1, "unknown levels restart from fit");
   });
 });
 

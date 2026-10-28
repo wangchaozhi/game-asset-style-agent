@@ -154,7 +154,16 @@
     <form method="dialog"><button class="close" aria-label="关闭" data-i18n-aria="dlg.close">×</button></form>
     <div class="viewer-body">
       <div class="viewer-left">
-        <div class="checker viewer-img" id="viewerImgWrap"><img id="viewerImg" alt="" /></div>
+        <div class="checker viewer-img" id="viewerImgWrap"><div class="zoom-stage"><img id="viewerImg" alt="" /><div class="pixel-grid" id="pixelGrid" hidden></div></div></div>
+        <div class="zoom-bar" id="zoomBar" role="toolbar" aria-label="缩放" data-i18n-aria="zoom.bar">
+          <button type="button" class="btn link" data-zoom="0" title="适应窗口（0）" data-i18n="zoom.fit" data-i18n-title="zoom.fitTitle">适应</button>
+          <button type="button" class="btn link" data-zoom="1">1×</button>
+          <button type="button" class="btn link" data-zoom="2">2×</button>
+          <button type="button" class="btn link" data-zoom="4">4×</button>
+          <button type="button" class="btn link" data-zoom="8">8×</button>
+          <button type="button" class="btn link" data-zoom="16">16×</button>
+          <button type="button" class="btn link" data-grid title="像素网格（G）" data-i18n="zoom.grid" data-i18n-title="zoom.gridTitle">网格</button>
+        </div>
         <div class="compare" id="viewerCompare" hidden></div>
       </div>
       <div class="viewer-meta" id="viewerMeta"></div>
@@ -254,6 +263,8 @@
           <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td data-i18n="keys.version">同一素材的上一个 / 下一个版本（含换色变体，按时间）</td></tr>
           <tr><td><kbd>A</kbd></td><td data-i18n="keys.approve">通过</td></tr>
           <tr><td><kbd>R</kbd></td><td data-i18n="keys.reject">驳回</td></tr>
+          <tr><td><kbd>+</kbd> <kbd>-</kbd> <kbd>0</kbd></td><td data-i18n="keys.zoom">放大 / 缩小 / 适应窗口</td></tr>
+          <tr><td><kbd>G</kbd></td><td data-i18n="keys.grid">像素网格</td></tr>
           <tr><td><kbd>Enter</kbd></td><td data-i18n="keys.customSize">在「自定义尺寸」框里下载该尺寸</td></tr>
           <tr><th colspan="2" scope="rowgroup" data-i18n="keys.scene">场景拼版</th></tr>
           <tr><td><kbd>←</kbd> <kbd>→</kbd> <kbd>↑</kbd> <kbd>↓</kbd></td><td><span data-i18n="keys.moveA">移动选中素材（按住</span> <kbd>Shift</kbd> <span data-i18n="keys.moveB">加大步长）</span></td></tr>

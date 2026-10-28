@@ -655,4 +655,14 @@ export default {
   // Batch: undo
   "batch.undo": "Undo",
   "batch.undone": "Undone",
+
+  // Viewer: zoom
+  "zoom.bar": "Zoom",
+  "zoom.fit": "Fit",
+  "zoom.fitTitle": "Fit to window (0)",
+  "zoom.grid": "Grid",
+  "zoom.gridTitle": "Pixel grid (G)",
+  "zoom.gridNeedsZoom": "Pixel grid: visible from {n}× (G zooms in for you)",
+  "keys.zoom": "Zoom in / out / fit to window",
+  "keys.grid": "Pixel grid",
 };
