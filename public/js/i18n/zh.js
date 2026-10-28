@@ -699,4 +699,12 @@ export default {
   "menu.pending": "设为待审核",
   "menu.rename": "改名…",
   "keys.cardMenu": "素材菜单（也可右键或长按）",
+
+  // Viewer: similar
+  "similar.title": "相似素材",
+  "similar.dupes": "{n} 个几乎一样（差异 ≤ 4），可能是重复",
+  "similar.alike": "构图相近，确认一下是否重复",
+  "similar.onlyVersions": "都是这个素材的版本或变体",
+  "similar.related": "同一素材的版本",
+  "similar.distance": "差异 {n}（0 = 完全一样）",
 };

@@ -699,4 +699,12 @@ export default {
   "menu.pending": "Mark as pending",
   "menu.rename": "Rename…",
   "keys.cardMenu": "Asset menu (or right-click / long-press)",
+
+  // Viewer: similar
+  "similar.title": "Similar assets",
+  "similar.dupes": "{n} {n|is|are} nearly identical (difference ≤ 4); possibly a duplicate",
+  "similar.alike": "Similar composition; check whether it is a duplicate",
+  "similar.onlyVersions": "All are versions or variants of this asset",
+  "similar.related": "a version of this asset",
+  "similar.distance": "difference {n} (0 = identical)",
 };

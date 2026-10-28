@@ -143,6 +143,11 @@ kbd { font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; padding: 1px 5p
 .action-set .sizes-head { flex-wrap: wrap; justify-content: flex-start; gap: 2px 8px; }
 .action-set .sizes-head b { white-space: nowrap; }
 .action-set .sizes-head .muted { font-size: 12px; }
+.similar-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.similar-item { position: relative; width: 56px; height: 56px; padding: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer; }
+.similar-item.related { border-style: dashed; }
+.similar-item img { width: 100%; height: 100%; object-fit: contain; display: block; pointer-events: none; }
+.similar-item span { position: absolute; right: 2px; bottom: 2px; padding: 0 4px; border-radius: 4px; background: var(--ink); color: var(--bg); font-size: 10px; line-height: 14px; pointer-events: none; }
 .version-log summary { cursor: pointer; }
 .version-log ol { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
 .version-log li { display: grid; grid-template-columns: 44px 1fr; gap: 8px; align-items: start; padding: 6px; border: 1px solid var(--line); border-radius: 8px; font-size: 12px; }

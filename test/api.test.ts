@@ -769,6 +769,25 @@ describe("HTTP API (demo mode)", () => {
     assert.equal((await bad([{ ...before[0], reviewer: "boss" }])).status, 400);
   });
 
+  it("finds near-duplicate assets and marks the asset's own versions as related", async () => {
+    const assets = (await json(`/api/projects/${id}`)).body.assets as { id: string; file: string; assetType: string; parentId?: string }[];
+    const orig = assets.find((a) => a.assetType === "item_icon")!;
+    const png = Buffer.from(await (await fetch(`${base}/api/projects/${id}/files/${orig.file}`)).arrayBuffer());
+    const fd = new FormData();
+    fd.append("assetType", "item_icon");
+    fd.append("images", new Blob([new Uint8Array(png)], { type: "image/png" }), "copy.png");
+    const copy = (await json(`/api/projects/${id}/assets/import`, { method: "POST", body: fd })).body.imported[0];
+    const outlined = (await json(`/api/projects/${id}/assets/${orig.id}/outline`, { method: "POST", body: { width: 1 } })).body.id;
+    const { items } = (await json(`/api/projects/${id}/assets/${orig.id}/similar`)).body as { items: { id: string; distance: number; related: boolean }[] };
+    const byId = Object.fromEntries(items.map((i) => [i.id, i]));
+    assert.deepEqual([byId[copy]?.distance, byId[copy]?.related], [0, false], JSON.stringify(items));
+    if (byId[outlined]) assert.equal(byId[outlined].related, true, "a new version of the same asset");
+    assert.ok(!items.some((i) => i.id === orig.id), "never itself");
+    assert.ok(items.every((i, k) => k === 0 || items[k - 1].distance <= i.distance), "closest first");
+    assert.equal((await json(`/api/projects/${id}/assets/ast_missing/similar`)).status, 404);
+    await json(`/api/projects/${id}/assets/batch`, { method: "POST", body: { action: "purge", ids: [copy, outlined] } });
+  });
+
   it("batch-updates, exports by id, and batch-deletes", async () => {
     const ids = (await json(`/api/projects/${id}`)).body.assets.map((a: { id: string }) => a.id);
     assert.ok(ids.length >= 3);

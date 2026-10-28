@@ -8,11 +8,19 @@ import { loadProject, readProjectFile } from "../store/index.js";
 import { detectNineSlice } from "../image/nineSlice.js";
 import { colorShare, dominantColors } from "../image/recolor.js";
 import { measureConsistency } from "../ops/consistency.js";
+import { similarAssets } from "../ops/similar.js";
 import { attachment, findAsset, pid } from "./util.js";
 import { assetTypeLabel, msg } from "../i18n.js";
 
 // Read-only checks and previews of assets: nothing here writes to the project.
 export const analysisRouter = Router();
+
+/** Assets that look nearly the same as this one (perceptual hash), closest first; its own versions are marked related. */
+analysisRouter.get("/api/projects/:id/assets/:assetId/similar", async (req, res) => {
+  const found = await findAsset(req, res);
+  if (!found) return;
+  res.json({ items: await similarAssets(found.project, found.asset) });
+});
 
 analysisRouter.get("/api/projects/:id/assets/:assetId/seams", async (req, res) => {
   const found = await findAsset(req, res);

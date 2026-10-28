@@ -16,11 +16,12 @@ import * as recolor from "./recolor.js";
 import * as actionSet from "./actionSet.js";
 import * as history from "./history.js";
 import * as promptSection from "./prompt.js";
+import * as similar from "./similar.js";
 import { t, typeLabel } from "../i18n.js";
 import { bindZoom, setZoom, toggleGrid, zoomBy } from "./zoom.js";
 
 /** Rendered in this order below the review box; each may render nothing for a given asset. */
-const SECTIONS = [actionSet, sprite, tile, nineSlice, palette, sizes, cutout, outline, recolor, promptSection, history];
+const SECTIONS = [actionSet, sprite, tile, nineSlice, palette, similar, sizes, cutout, outline, recolor, promptSection, history];
 
 function versionLinks(a) {
   const parent = a.parentId && state.project.assets.find((x) => x.id === a.parentId);

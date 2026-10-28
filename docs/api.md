@@ -227,6 +227,10 @@ curl -s -F assetType=item_icon -F images=@sword.png -F images=@shield.png "$BASE
 
 去除背景：`{ "tolerance": 28 }`（1-120）；`{ "restore": true }` 恢复原图。
 
+### `GET /api/projects/:id/assets/:assetId/similar`
+
+看起来几乎一样的素材（感知哈希 dHash，相差不超过 10 位），最接近的在前：`{ "items": [{ "id": "ast_…", "distance": 3, "related": false }] }`。`related` 表示它是同一素材的版本或换色变体（本来就该像）；精灵表按第一帧比较。最多 12 个。
+
 ### `GET /api/projects/:id/assets/:assetId/seams`
 
 瓦片接缝检测：`{ horizontalDiff, verticalDiff, baseline, horizontalOk, verticalOk, seamless, … }`。
